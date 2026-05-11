@@ -78,6 +78,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const year = 2026
+  const today = new Date().toISOString().split('T')[0]
 
   const moTrades = trades.filter(t => { const d = new Date(t.date); return d.getFullYear()===year && d.getMonth()===month })
   const ms = computeStats(moTrades)
