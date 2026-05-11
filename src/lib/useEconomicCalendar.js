@@ -1,40 +1,46 @@
 import { useState, useEffect } from 'react'
 
-const CACHE_KEY = 'tt26_econ_v3'
+const CACHE_KEY = 'tt26_econ_v5'
 const CACHE_TTL = 60 * 60 * 1000
 
-// Normalize any date format to YYYY-MM-DD
-function normalizeDate(dateStr) {
-  if (!dateStr) return ''
-  // Already YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-  // MM-DD-YYYY (Forex Factory format)
-  if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
-    const [m, d, y] = dateStr.split('-')
-    return `${y}-${m}-${d}`
-  }
-  // Try parsing as date
-  try {
-    const d = new Date(dateStr)
-    if (!isNaN(d)) {
-      return d.toISOString().split('T')[0]
-    }
-  } catch {}
-  return dateStr
+function normalizeDate(d) {
+  if (!d) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d
+  if (/^\d{2}-\d{2}-\d{4}$/.test(d)) { const [m,dy,y]=d.split('-'); return `${y}-${m}-${dy}` }
+  try { const dt=new Date(d); if(!isNaN(dt)) return dt.toISOString().split('T')[0] } catch {}
+  return d
+}
+
+// Convert FF time like "8:30am" to "08:30" or keep "All Day" / "Tentative"
+export function formatFFTime(t) {
+  if (!t || t.trim() === '') return 'All Day'
+  const lower = t.toLowerCase().trim()
+  if (lower === 'all day' || lower === 'tentative') return lower === 'tentative' ? 'Tentative' : 'All Day'
+  const m = lower.match(/(\d{1,2}):(\d{2})(am|pm)/)
+  if (!m) return t
+  let h = parseInt(m[1])
+  const min = m[2], ap = m[3]
+  if (ap === 'pm' && h !== 12) h += 12
+  if (ap === 'am' && h === 12) h = 0
+  return `${String(h).padStart(2,'0')}:${min}`
+}
+
+export function currencyFlag(c) {
+  return { USD:'🇺🇸', GBP:'🇬🇧', EUR:'🇪🇺' }[c] || '🌍'
 }
 
 export function useEconomicCalendar() {
-  const [events, setEvents]     = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState(null)
+  const [events,    setEvents]    = useState([])
+  const [loading,   setLoading]   = useState(true)
+  const [error,     setError]     = useState(null)
   const [fetchedAt, setFetchedAt] = useState(null)
 
   useEffect(() => {
     async function load() {
       try {
-        const cached = sessionStorage.getItem(CACHE_KEY)
-        if (cached) {
-          const p = JSON.parse(cached)
+        const c = sessionStorage.getItem(CACHE_KEY)
+        if (c) {
+          const p = JSON.parse(c)
           if (Date.now() - p.ts < CACHE_TTL) {
             setEvents(p.events); setFetchedAt(new Date(p.ts)); setLoading(false); return
           }
@@ -53,19 +59,20 @@ export function useEconomicCalendar() {
           if (!res.ok) continue
           const raw = await res.json()
           const items = Array.isArray(raw) ? raw : (raw.events || [])
-
           const TARGET = ['USD','GBP','EUR']
+
           const filtered = items
-            .filter(e => e.impact === 'High' && TARGET.includes(e.country))
+            .filter(e => (e.impact === 'High' || e.impact === 'Holiday' || (e.title || '').toLowerCase().includes('holiday')) && TARGET.includes(e.country))
             .map(e => ({
-              title:    e.title,
-              country:  e.country,
-              date:     normalizeDate(e.date), // always YYYY-MM-DD
-              time:     e.time,
-              impact:   e.impact,
-              forecast: e.forecast || null,
-              previous: e.previous || null,
-              actual:   e.actual   || null,
+              title:     e.title,
+              country:   e.country,
+              date:      normalizeDate(e.date),
+              time:      e.time || '',
+              impact:    e.impact,
+              forecast:  e.forecast || null,
+              previous:  e.previous || null,
+              actual:    e.actual   || null,
+              isHoliday: e.impact === 'Holiday' || (e.title || '').toLowerCase().includes('holiday'),
             }))
 
           setEvents(filtered)
@@ -76,34 +83,15 @@ export function useEconomicCalendar() {
         } catch { continue }
       }
 
-      setError('Could not load — check connection')
+      setError('Could not load calendar')
       setLoading(false)
     }
     load()
   }, [])
 
-  // dateStr is always YYYY-MM-DD here
   function eventsForDate(dateStr) {
     return events.filter(e => e.date === dateStr)
   }
 
   return { events, loading, error, fetchedAt, eventsForDate }
-}
-
-export function currencyFlag(c) {
-  return { USD:'🇺🇸', GBP:'🇬🇧', EUR:'🇪🇺' }[c] || '🌍'
-}
-
-export function formatFFTime(t) {
-  if (!t) return 'All Day'
-  if (t.toLowerCase().includes('tentative')) return 'Tentative'
-  try {
-    const m = t.match(/(\d+):(\d+)(am|pm)/i)
-    if (!m) return t
-    let h = parseInt(m[1])
-    const min = m[2], ap = m[3].toLowerCase()
-    if (ap === 'pm' && h !== 12) h += 12
-    if (ap === 'am' && h === 12) h = 0
-    return `${String(h).padStart(2,'0')}:${min}`
-  } catch { return t }
 }

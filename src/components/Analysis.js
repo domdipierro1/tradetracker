@@ -91,7 +91,7 @@ export default function Analysis({ trades, startingBalance }) {
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {i === 0 && <span title="Best combination" style={{ fontSize: '14px' }}>🏆</span>}
-                        <span style={{ fontWeight: '700', fontFamily: "'JetBrains Mono',monospace", fontSize: '12px', color: 'var(--text)' }}>{c.key}</span>
+                        <span style={{ fontWeight: '700', fontFamily: "'Geist Mono',monospace", fontSize: '12px', color: 'var(--text)' }}>{c.key}</span>
                       </div>
                     </td>
                     <td className="num">{c.n}</td>
@@ -134,7 +134,7 @@ export default function Analysis({ trades, startingBalance }) {
                 onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
                 onMouseLeave={e => e.currentTarget.style.transform = ''}>
                 <div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--muted)', marginBottom: '4px', letterSpacing: '.04em' }}>{h}</div>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '13px', fontWeight: '700', color: textColor }}>{hasData ? f1(pl) : '—'}</div>
+                <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: '13px', fontWeight: '700', color: textColor }}>{hasData ? f1(pl) : '—'}</div>
                 <div style={{ fontSize: '10px', color: 'var(--muted)', marginTop: '2px' }}>{ht.length} trades</div>
               </div>
             )

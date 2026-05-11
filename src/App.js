@@ -267,7 +267,7 @@ export default function App() {
         onSignOut={handleSignOut}
         onExport={handleExport} onImport={handleImport}
         darkMode={darkMode} onToggleDark={() => setDark(d => !d)}
-        accounts={accounts} activeAccountId={activeAccountId}
+        accounts={accounts} activeAccountId={activeAccountId} startingBalance={startingBalance}
         onSwitchAccount={handleSwitchAccount}
         onCreateAccount={handleCreateAccount}
         onEditAccount={handleEditAccount}

@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import { useEconomicCalendar, currencyFlag, formatFFTime } from '../lib/useEconomicCalendar'
 import { Chart } from 'chart.js/auto'
 import { computeStats, breakdownStats, f2, f1, fUSD, fR, fP, BAL } from '../lib/stats'
 
@@ -9,37 +8,7 @@ const CHART_COLORS = {
 }
 
 
-function NewsStrip() {
-  const { events, loading, eventsForDate } = useEconomicCalendar()
-  const today = new Date().toISOString().split('T')[0]
 
-  if (loading || events.length === 0) return null
-
-  return (
-    <div style={{ marginBottom: '20px', background: 'var(--red-bg)', border: '1px solid var(--red-dim)', borderRadius: 'var(--r)', overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
-      <div style={{ padding: '10px 16px', background: 'var(--surface)', borderBottom: '1px solid var(--red-dim)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '14px' }}>🔴</span>
-        <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--red)', letterSpacing: '.04em', textTransform: 'uppercase' }}>High Impact News This Week</span>
-        <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: '700', color: 'var(--muted)' }}>{events.length} events · USD GBP EUR</span>
-      </div>
-      <div style={{ padding: '10px 16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        {events.map((e, i) => {
-          const isToday = e.date === today
-          const colors = { USD: 'var(--blue)', GBP: 'var(--purple)', EUR: 'var(--green)' }
-          return (
-            <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '6px', background: isToday ? 'var(--amber-bg)' : 'var(--surface)', border: `1px solid ${isToday ? 'var(--amber-dim)' : 'var(--border)'}`, fontSize: '11px', fontWeight: '600' }}>
-              <span>{currencyFlag(e.country)}</span>
-              <span style={{ color: colors[e.country] || 'var(--muted)', fontWeight: '800' }}>{e.country}</span>
-              <span style={{ color: 'var(--text2)' }}>{e.title}</span>
-              <span style={{ color: 'var(--muted)', fontFamily: "'JetBrains Mono',monospace", fontSize: '10px' }}>{formatFFTime(e.time)}</span>
-              {isToday && <span style={{ padding: '1px 5px', borderRadius: '4px', background: 'var(--amber)', color: '#fff', fontSize: '9px', fontWeight: '800' }}>TODAY</span>}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
 
 function StatCard({ label, value, sub, icon, color, valClass }) {
   return (
@@ -107,7 +76,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         type: 'doughnut',
         data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 3, borderColor: 'var(--surface)', hoverOffset: 5 }] },
         options: { responsive: true, maintainAspectRatio: false, cutout: '70%',
-          plugins: { legend: { position: 'bottom', labels: { font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle', color: 'var(--text2)' } },
+          plugins: { legend: { position: 'bottom', labels: { font: { family: 'Geist', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle', color: 'var(--text2)' } },
             tooltip: { callbacks: { label: c => `${c.label}: ${c.raw} (${(c.raw / (c.dataset.data.reduce((a,b)=>a+b,0)||1) * 100).toFixed(1)}%)` } } } }
       })
       charts.push(ch)
@@ -119,7 +88,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         data: { labels, datasets: [{ data, backgroundColor: data.map(v => v >= 0 ? color + '30' : '#DC262630'), borderColor: data.map(v => v >= 0 ? color : '#DC2626'), borderWidth: 2, borderRadius: 5 }] },
         options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.raw >= 0 ? '+' : ''}${c.raw.toFixed(2)}%` } } },
-          scales: { x: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` } }, y: { grid: { display: false }, ticks: { font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' }, color: 'var(--text2)' } } } }
+          scales: { x: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'Geist Mono', size: 10 }, color: 'var(--muted)', callback: v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` } }, y: { grid: { display: false }, ticks: { font: { family: 'Geist', size: 11, weight: '600' }, color: 'var(--text2)' } } } }
       })
       charts.push(ch)
     }
@@ -148,7 +117,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         type: 'bar',
         data: { labels: Object.keys(rb), datasets: [{ data: Object.values(rb), backgroundColor: '#2563EB22', borderColor: '#2563EB', borderWidth: 2, borderRadius: 6 }] },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-          scales: { x: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono', size: 11 }, color: 'var(--text2)' } }, y: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', stepSize: 1 } } } }
+          scales: { x: { grid: { display: false }, ticks: { font: { family: 'Geist Mono', size: 11 }, color: 'var(--text2)' } }, y: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'Geist Mono', size: 10 }, color: 'var(--muted)', stepSize: 1 } } } }
       }))
     }
 
@@ -162,8 +131,8 @@ export default function Dashboard({ trades, startingBalance, currency }) {
             { data: Array(s.curve.length).fill(BAL), borderColor: 'var(--border2)', borderWidth: 1.5, borderDash: [5,5], pointRadius: 0, fill: false }
           ] },
         options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-          plugins: { legend: { display: false }, tooltip: { filter: i => i.datasetIndex === 0, callbacks: { label: c => `Equity: ${acctCurrSym}${Math.round(c.raw).toLocaleString('en-US')}` } } },
-          scales: { x: { display: false }, y: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => acctCurrSym+(v/1000).toFixed(0)+'k' } } } }
+          plugins: { legend: { display: false }, tooltip: { filter: i => i.datasetIndex === 0, callbacks: { label: c => `Equity: ${Math.round(c.raw).toLocaleString('en-US')}` } } },
+          scales: { x: { display: false }, y: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'Geist Mono', size: 10 }, color: 'var(--muted)', callback: v => (v/1000).toFixed(0)+'k' } } } }
       }))
     }
 
@@ -177,7 +146,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
             { data: Array(rolling.length).fill(50), borderColor: 'var(--border2)', borderWidth: 1.5, borderDash: [4,4], pointRadius: 0, fill: false }
           ] },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-          scales: { x: { display: false }, y: { min: 0, max: 100, grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => v + '%' } } } }
+          scales: { x: { display: false }, y: { min: 0, max: 100, grid: { color: 'var(--border)' }, ticks: { font: { family: 'Geist Mono', size: 10 }, color: 'var(--muted)', callback: v => v + '%' } } } }
       }))
     }
 
@@ -203,7 +172,6 @@ export default function Dashboard({ trades, startingBalance, currency }) {
 
   return (
     <div className="page active">
-      <NewsStrip />
       {/* Stat cards */}
       <div className="stat-grid">
         {statCards.map((c, i) => <StatCard key={i} {...c} />)}
@@ -241,9 +209,9 @@ export default function Dashboard({ trades, startingBalance, currency }) {
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '12px' }}>
           <div><div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Win Streak</div>
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '28px', fontWeight: '700', color: 'var(--green)' }}>{s.cw}</div></div>
+            <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: '28px', fontWeight: '700', color: 'var(--green)' }}>{s.cw}</div></div>
           <div><div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Loss Streak</div>
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '28px', fontWeight: '700', color: 'var(--red)' }}>{s.cl}</div></div>
+            <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: '28px', fontWeight: '700', color: 'var(--red)' }}>{s.cl}</div></div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '8px' }}>Last 30 Trades</div>
             <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
