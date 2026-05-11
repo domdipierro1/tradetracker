@@ -80,8 +80,9 @@ function useChart(id, config) {
   return ref
 }
 
-export default function Dashboard({ trades, startingBalance }) {
+export default function Dashboard({ trades, startingBalance, currency }) {
   const BAL = startingBalance || 100000
+  const currSym = currency === "GBP" ? "£" : currency === "EUR" ? "€" : "$"
   const s = computeStats(trades, BAL)
   const gradeSt = ['A+','A','B','C'].map(g => ({ grade: g, ...computeStats(trades.filter(t => t.grade === g), BAL) }))
   const mistakes = ['FOMO entry','Moved stop','Revenge trade','Overtraded','Wrong bias','Hesitated','Early exit','Late entry']
@@ -166,8 +167,8 @@ export default function Dashboard({ trades, startingBalance }) {
             { data: Array(s.curve.length).fill(BAL), borderColor: 'var(--border2)', borderWidth: 1.5, borderDash: [5,5], pointRadius: 0, fill: false }
           ] },
         options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-          plugins: { legend: { display: false }, tooltip: { filter: i => i.datasetIndex === 0, callbacks: { label: c => `Equity: ${fUSD(c.raw)}` } } },
-          scales: { x: { display: false }, y: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => '$'+(v/1000).toFixed(0)+'k' } } } }
+          plugins: { legend: { display: false }, tooltip: { filter: i => i.datasetIndex === 0, callbacks: { label: c => `Equity: ${currSym}${Math.round(c.raw).toLocaleString('en-US')}` } } },
+          scales: { x: { display: false }, y: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => currSym+(v/1000).toFixed(0)+'k' } } } }
       }))
     }
 
@@ -189,8 +190,8 @@ export default function Dashboard({ trades, startingBalance }) {
   }, [trades])
 
   const statCards = [
-    { label: 'Account Equity',  value: fUSD(s.equity),          sub: `${f2(s.totalPL)} all time`,           icon: '💰', color: 'blue',   valClass: 'blue'                         },
-    { label: 'Total Return',    value: f2(s.totalPL),            sub: `From ${fUSD(BAL)}`,                   icon: '📈', color: s.totalPL>=0?'green':'red', valClass: s.totalPL>=0?'up':'down' },
+    { label: 'Account Equity',  value: currSym + Math.round(s.equity).toLocaleString('en-US'),          sub: `${f2(s.totalPL)} all time`,           icon: '💰', color: 'blue',   valClass: 'blue'                         },
+    { label: 'Total Return',    value: f2(s.totalPL),            sub: `From ${currSym + Math.round(BAL).toLocaleString('en-US')}`,                   icon: '📈', color: s.totalPL>=0?'green':'red', valClass: s.totalPL>=0?'up':'down' },
     { label: 'Total Trades',    value: s.n,                      sub: `${s.wins}W · ${s.losses}L · ${s.bes}BE`, icon: '🔢', color: 'blue', valClass: 'blue' },
     { label: 'Win Rate',        value: fP(s.winRate),            sub: `${s.wins} of ${s.n} trades`,          icon: '🎯', color: s.winRate>=.5?'green':'red', valClass: s.winRate>=.5?'up':'down' },
     { label: 'Profit Factor',   value: s.pf ? s.pf.toFixed(2) : '—', sub: '>1.5 = strong edge',             icon: '⚖️', color: 'purple', valClass: '' },

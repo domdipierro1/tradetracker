@@ -1,4 +1,11 @@
 import { fUSD, f2, computeStats } from '../lib/stats'
+
+function currencySymbol(currency) {
+  const symbols = { USD: '$', GBP: '£', EUR: '€', AUD: 'A$', CAD: 'C$' }
+  return symbols[currency] || '$'
+}
+
+
 import AccountManager from './AccountManager'
 
 const NAV_ITEMS = [
@@ -23,7 +30,7 @@ export default function Layout({ page, onNav, trades, user, onSignOut, onExport,
           <img src="/favicon.svg" alt="logo" style={{ width: '28px', height: '28px', borderRadius: '7px' }} />
           <div>
             <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text)', letterSpacing: '-.02em', lineHeight: 1 }}>Trade<span style={{ color: 'var(--blue)' }}>Tracker</span></div>
-            <div style={{ fontSize: '9px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginTop: '2px' }}>ICT / SMC · '26</div>
+            
           </div>
         </div>
 
@@ -42,7 +49,7 @@ export default function Layout({ page, onNav, trades, user, onSignOut, onExport,
           <div style={{ height: '8px' }} />
           <div style={{ background: 'var(--surface2)', borderRadius: 'var(--r-sm)', padding: '12px 14px', marginBottom: '10px', border: '1px solid var(--border)' }}>
             <div style={{ fontSize: '9px', fontWeight: '800', color: 'var(--muted)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: '3px' }}>Account Equity</div>
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '16px', fontWeight: '700', color: 'var(--text)' }}>{fUSD(s.equity)}</div>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '16px', fontWeight: '700', color: 'var(--text)' }}>{currencySymbol(accounts?.find(a=>a.id===activeAccountId)?.currency)}{Math.round(s.equity).toLocaleString('en-US')}</div>
             <div style={{ fontSize: '11px', fontWeight: '700', color: retColor, marginTop: '2px' }}>{f2(s.totalPL)} all time</div>
           </div>
           <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>

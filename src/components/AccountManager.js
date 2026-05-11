@@ -121,7 +121,7 @@ export default function AccountManager({ accounts, activeAccountId, onSwitch, on
                       </span>
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: '600', marginTop: '2px' }}>
-                      {acc.currency} {parseFloat(acc.starting_balance).toLocaleString()} starting
+                      {acc.currency === 'GBP' ? '£' : acc.currency === 'EUR' ? '€' : '$'}{parseFloat(acc.starting_balance).toLocaleString()} starting
                       {acc.broker && ` · ${acc.broker}`}
                     </div>
                   </div>
