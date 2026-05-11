@@ -1,107 +1,114 @@
-// src/lib/useEconomicCalendar.js
-// Fetches red-folder events from our Vercel proxy
-// Caches in sessionStorage so we only fetch once per session
-
+// Fetches FF calendar directly in the browser
+// Uses a CORS proxy since FF blocks direct requests
 import { useState, useEffect } from 'react'
 
-const CACHE_KEY = 'tt26_econ_events'
-const CACHE_TTL = 60 * 60 * 1000 // 1 hour in ms
+const CACHE_KEY = 'tt26_econ_v2'
+const CACHE_TTL = 60 * 60 * 1000 // 1 hour
 
 export function useEconomicCalendar() {
-  const [events, setEvents]   = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState(null)
+  const [events, setEvents]     = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(null)
   const [fetchedAt, setFetchedAt] = useState(null)
 
   useEffect(() => {
     async function load() {
-      // Check cache first
+      // Check cache
       try {
         const cached = sessionStorage.getItem(CACHE_KEY)
         if (cached) {
-          const parsed = JSON.parse(cached)
-          if (Date.now() - parsed.ts < CACHE_TTL) {
-            setEvents(parsed.events)
-            setFetchedAt(new Date(parsed.ts))
-            setLoading(false)
-            return
+          const p = JSON.parse(cached)
+          if (Date.now() - p.ts < CACHE_TTL) {
+            setEvents(p.events); setFetchedAt(new Date(p.ts)); setLoading(false); return
           }
         }
       } catch {}
 
-      // Fetch from our serverless proxy
-      try {
-        const res = await fetch('/api/calendar')
-        const data = await res.json()
-        const evs = data.events || []
-        setEvents(evs)
-        setFetchedAt(new Date())
-        // Cache it
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ events: evs, ts: Date.now() }))
-      } catch (err) {
-        setError('Could not load economic calendar')
-        setEvents([])
-      } finally {
-        setLoading(false)
+      // Try our own API first, then fall back to direct CORS proxy
+      const sources = [
+        '/api/calendar',
+        'https://corsproxy.io/?url=https://nfs.faireconomy.media/ff_calendar_thisweek.json',
+        'https://api.allorigins.win/raw?url=https://nfs.faireconomy.media/ff_calendar_thisweek.json',
+      ]
+
+      for (const src of sources) {
+        try {
+          const res = await fetch(src, { signal: AbortSignal.timeout(8000) })
+          if (!res.ok) continue
+          const raw = await res.json()
+
+          // Handle both our API format {events:[]} and raw FF format [{...}]
+          const items = Array.isArray(raw) ? raw : (raw.events || [])
+
+          const TARGET = ['USD','GBP','EUR']
+          const filtered = items
+            .filter(e => e.impact === 'High' && TARGET.includes(e.country))
+            .map(e => ({
+              title:    e.title,
+              country:  e.country,
+              date:     e.date,
+              time:     e.time,
+              impact:   e.impact,
+              forecast: e.forecast || null,
+              previous: e.previous || null,
+              actual:   e.actual   || null,
+            }))
+
+          setEvents(filtered)
+          setFetchedAt(new Date())
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify({ events: filtered, ts: Date.now() }))
+          setLoading(false)
+          return
+        } catch (err) {
+          continue
+        }
       }
+
+      setError('Could not load — try refreshing')
+      setLoading(false)
     }
     load()
   }, [])
 
-  // Helper: get events for a specific date string "YYYY-MM-DD"
   function eventsForDate(dateStr) {
     return events.filter(e => {
       if (!e.date) return false
-      // FF format is "MM-DD-YYYY"
-      const parts = e.date.split('-')
-      if (parts.length !== 3) return false
-      const normalized = `${parts[2]}-${parts[0]}-${parts[1]}`
-      return normalized === dateStr
+      const p = e.date.split('-')
+      if (p.length !== 3) return false
+      return `${p[2]}-${p[0]}-${p[1]}` === dateStr
     })
   }
 
-  // Helper: events for a specific currency
-  function eventsForCurrency(currency) {
-    return events.filter(e => e.country === currency)
-  }
-
-  // Helper: events this week grouped by date
   function eventsByDate() {
     const map = {}
     events.forEach(e => {
       if (!e.date) return
-      const parts = e.date.split('-')
-      if (parts.length !== 3) return
-      const key = `${parts[2]}-${parts[0]}-${parts[1]}`
-      if (!map[key]) map[key] = []
-      map[key].push(e)
+      const p = e.date.split('-')
+      if (p.length !== 3) return
+      const k = `${p[2]}-${p[0]}-${p[1]}`
+      if (!map[k]) map[k] = []
+      map[k].push(e)
     })
     return map
   }
 
-  return { events, loading, error, fetchedAt, eventsForDate, eventsForCurrency, eventsByDate }
+  return { events, loading, error, fetchedAt, eventsForDate, eventsByDate }
 }
 
-// Currency flag emoji
-export function currencyFlag(currency) {
-  const flags = { USD: '🇺🇸', GBP: '🇬🇧', EUR: '🇪🇺' }
-  return flags[currency] || '🌍'
+export function currencyFlag(c) {
+  return { USD:'🇺🇸', GBP:'🇬🇧', EUR:'🇪🇺' }[c] || '🌍'
 }
 
-// Format FF time "8:30am" → "08:30"
-export function formatFFTime(timeStr) {
-  if (!timeStr) return 'All Day'
-  if (timeStr.toLowerCase().includes('tentative')) return 'Tentative'
+export function formatFFTime(t) {
+  if (!t) return 'All Day'
+  if (t.toLowerCase().includes('tentative')) return 'Tentative'
   try {
-    const match = timeStr.match(/(\d+):(\d+)(am|pm)/i)
-    if (!match) return timeStr
-    let h = parseInt(match[1])
-    const m = match[2]
-    const ampm = match[3].toLowerCase()
-    if (ampm === 'pm' && h !== 12) h += 12
-    if (ampm === 'am' && h === 12) h = 0
-    return `${String(h).padStart(2,'0')}:${m}`
-  } catch {
-    return timeStr
-  }
+    const m = t.match(/(\d+):(\d+)(am|pm)/i)
+    if (!m) return t
+    let h = parseInt(m[1])
+    const min = m[2], ap = m[3].toLowerCase()
+    if (ap === 'pm' && h !== 12) h += 12
+    if (ap === 'am' && h === 12) h = 0
+    return `${String(h).padStart(2,'0')}:${min}`
+  } catch { return t }
 }
