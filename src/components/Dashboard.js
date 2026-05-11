@@ -10,11 +10,8 @@ const CHART_COLORS = {
 
 
 function NewsStrip() {
-  const { events, loading, eventsByDate } = useEconomicCalendar()
+  const { events, loading, eventsForDate } = useEconomicCalendar()
   const today = new Date().toISOString().split('T')[0]
-  const grouped = eventsByDate()
-  const todayEvents = grouped[today] || []
-  const allDates = Object.keys(grouped).sort()
 
   if (loading || events.length === 0) return null
 
@@ -27,9 +24,7 @@ function NewsStrip() {
       </div>
       <div style={{ padding: '10px 16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         {events.map((e, i) => {
-          const parts = e.date ? e.date.split('-') : []
-          const ds = parts.length === 3 ? `${parts[2]}-${parts[0]}-${parts[1]}` : ''
-          const isToday = ds === today
+          const isToday = e.date === today
           const colors = { USD: 'var(--blue)', GBP: 'var(--purple)', EUR: 'var(--green)' }
           return (
             <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '6px', background: isToday ? 'var(--amber-bg)' : 'var(--surface)', border: `1px solid ${isToday ? 'var(--amber-dim)' : 'var(--border)'}`, fontSize: '11px', fontWeight: '600' }}>
