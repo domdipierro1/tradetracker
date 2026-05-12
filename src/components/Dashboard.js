@@ -97,8 +97,8 @@ export default function Dashboard({ trades, startingBalance, currency }) {
     donut(gradesRef.current,  ['A+','A','B','C'], ['A+','A','B','C'].map(g => trades.filter(t => t.grade === g).length), ['#2563EB','#059669','#D97706','#DC2626'])
     donut(dirRef.current, ['Long','Short'], [trades.filter(t=>t.direction==='Long').length, trades.filter(t=>t.direction==='Short').length], ['#059669','#DC2626'])
 
-    const syms = ['US100','US500','EUR/USD','GBP/USD','DAX']
-    const sess = ['London','AM','PM','Asia']
+    const syms = ['NQ','ES','YM','DAX','FTSE100','GC','SI','EUR/USD','GBP/USD']
+    const sess = ['London','New York','Overlap','Asia']
     hbar(symRef.current,  syms, syms.map(s2 => trades.filter(t=>t.symbol===s2).reduce((sum,t)=>sum+(t.pl||0),0)),  '#2563EB')
     hbar(sessRef.current, sess, sess.map(s2 => trades.filter(t=>t.session===s2).reduce((sum,t)=>sum+(t.pl||0),0)), '#7C3AED')
 
@@ -158,7 +158,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
     { label: 'Total Return',    value: f2(s.totalPL),            sub: `From ${acctCurrSym + Math.round(BAL).toLocaleString('en-US')}`,                   icon: '📈', color: s.totalPL>=0?'green':'red', valClass: s.totalPL>=0?'up':'down' },
     { label: 'Total Trades',    value: s.n,                      sub: `${s.wins}W · ${s.losses}L · ${s.bes}BE`, icon: '🔢', color: 'blue', valClass: 'blue' },
     { label: 'Win Rate',        value: fP(s.winRate),            sub: `${s.wins} of ${s.n} trades`,          icon: '🎯', color: s.winRate>=.5?'green':'red', valClass: s.winRate>=.5?'up':'down' },
-    { label: 'Profit Factor',   value: s.pf ? s.pf.toFixed(2) : '—', sub: '>1.5 = strong edge',             icon: '⚖️', color: 'purple', valClass: '' },
+    { label: 'Profit Factor',   value: s.pf ? s.pf.toFixed(2) : '—', sub: 'Target: 1.5R',             icon: '⚖️', color: 'purple', valClass: '' },
     { label: 'Expectancy',      value: s.exp ? f2(s.exp) : '—', sub: 'Per trade edge',                       icon: '🧮', color: s.exp>0?'green':'red', valClass: s.exp>0?'up':'down' },
     { label: 'Avg R-Multiple',  value: fR(s.avgR),               sub: 'Winning trades',                      icon: '🏆', color: 'amber', valClass: '' },
     { label: 'Avg Win',         value: s.avgWin ? f2(s.avgWin) : '—', sub: 'On winning trades',              icon: '✅', color: 'green', valClass: 'up' },

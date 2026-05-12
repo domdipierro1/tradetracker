@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { f2, fUSD, fR, equityCurveForTrades, BAL } from '../lib/stats'
 
 const TIMES = ['2:00','3:00','4:00','5:00','6:00','7:00','8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00']
-const EMPTY = { date: new Date().toISOString().split('T')[0], time: '', symbol: '', direction: '', setup: '', bias: '', smt: '', session: '', risk: '', outcome: '', grade: '', r_multiple: '', pl: '', mistake: '', screenshot: '', journal: '' }
+const EMPTY = { date: new Date().toISOString().split('T')[0], time: '', symbol: '', direction: '', setup: '', entry: '', bias: '', session: '', risk: '', outcome: '', grade: '', r_multiple: 1.5, pl: '', mistake: '', screenshot: '', journal: '' }
 
 function TradeForm({ initial, onSave, onCancel, title }) {
   const [form, setForm] = useState(initial || EMPTY)
@@ -36,18 +36,18 @@ function TradeForm({ initial, onSave, onCancel, title }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: '12px', marginBottom: '12px' }}>
         {inp('date', 'Date', 'date')}
         {sel('time', 'Time', TIMES)}
-        {sel('symbol', 'Symbol', ['US100','US500','EUR/USD','GBP/USD','DAX'])}
+        {sel('symbol', 'Symbol', ['NQ','ES','YM','DAX','FTSE100','GC','SI','EUR/USD','GBP/USD','AUD/USD','NZD/USD','USD/CHF','USD/CAD','USD/JPY','EUR/AUD','GBP/AUD','EUR/CAD','GBP/CAD','EUR/JPY','GBP/JPY','EUR/NZD','GBP/NZD','AUD/NZD','EUR/GBP'])}
         {sel('direction', 'Direction', ['Long','Short'])}
-        {sel('setup', 'Setup', ['1m','5m','15m'])}
-        {sel('bias', 'HTF Bias', ['Bullish','Bearish','Neutral'])}
-        {sel('smt', 'SMT', ['Yes','No'])}
-        {sel('session', 'Session', ['London','AM','PM','Asia'])}
+        {sel('setup', 'Setup', ['PDH B&R','PDL B&R'])}
+        {sel('bias', 'Bias', ['Bullish','Bearish'])}
+        {sel('entry', 'Entry Candle', ['30m Engulfing','1H Engulfing'])}
+        {sel('session', 'Session', ['London','New York','Overlap','Asia'])}
         {inp('risk', 'Risk %', 'number', '1.0')}
         {sel('outcome', 'Outcome', ['Win','Loss','Break Even'])}
         {sel('grade', 'Grade', ['A+','A','B','C'])}
         {inp('r_multiple', 'R-Multiple', 'number', '2.0')}
         {inp('pl', 'P/L % (type 2 for 2%)', 'number', '2.0')}
-        {sel('mistake', 'Mistake', ['FOMO entry','Moved stop','Revenge trade','Overtraded','Wrong bias','Hesitated','Early exit','Late entry','No mistake'])}
+        {sel('mistake', 'Mistake', ['Entered before retest','No clear break','No engulfing confirmation','Wick missed level','Wrong bias','Moved stop early','Took early profit','Revenge trade','Overtraded','Hesitated on valid setup','No mistake'])}
         {inp('screenshot', 'Screenshot URL', 'url', 'https://...')}
       </div>
       <div className="form-group" style={{ marginBottom: '14px' }}>
@@ -141,7 +141,7 @@ export default function TradeLog({ trades, onAdd, onEdit, onDelete, toast, start
       {/* Filters */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '12px' }}>
         <input className="form-input" placeholder="🔍 Search..." value={search} onChange={e => setSearch(e.target.value)} style={{ width: '160px', padding: '7px 11px', fontSize: '12px' }} />
-        {[['filterSym', ['US100','US500','EUR/USD','GBP/USD','DAX'], 'All Symbols', setFilterSym, filterSym],
+        {[['filterSym', ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CHF','USD/CAD','USD/JPY','YM1!','NQ1!','ES1!','GER30','UK100','GC1!','SI1!','EUR/AUD','EUR/CAD','EUR/JPY','EUR/NZD','EUR/GBP','GBP/AUD','GBP/CAD','GBP/JPY','GBP/NZD','AUD/NZD'], 'All Symbols', setFilterSym, filterSym],
           ['filterOut', ['Win','Loss','Break Even'], 'All Outcomes', setFilterOut, filterOut],
           ['filterGr',  ['A+','A','B','C'],          'All Grades',   setFilterGr,  filterGr]].map(([key, opts, placeholder, setter, val]) => (
           <select key={key} value={val} onChange={e => setter(e.target.value)}
