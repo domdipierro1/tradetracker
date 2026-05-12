@@ -51,7 +51,7 @@ function TradeCard({ t }) {
     <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '13px', marginBottom: '10px', background: 'var(--surface2)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '9px', flexWrap: 'wrap' }}>
         <span style={{ fontWeight: '800', fontSize: '14px' }}>{t.symbol || '—'}</span>
-        {t.time && <span style={{ fontSize: '11px', color: 'var(--muted)', fontFamily: "'Geist Mono',monospace" }}>@ {t.time}</span>}
+        {t.time && <span style={{ fontSize: '11px', color: 'var(--muted)', fontFamily: "'JetBrains Mono',monospace" }}>@ {t.time}</span>}
         {t.direction && <span className={`badge badge-${t.direction.toLowerCase()}`}>{t.direction}</span>}
         {t.outcome && <span className={`badge ${ob(t.outcome)}`}>{t.outcome}</span>}
         {t.grade && <span className={`badge ${gb(t.grade)}`}>{t.grade}</span>}
@@ -59,7 +59,7 @@ function TradeCard({ t }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: '6px', fontSize: '11px', marginBottom: (t.journal || (t.mistake && t.mistake !== 'No mistake')) ? '10px' : '0' }}>
         {[['Setup',t.setup],['Session',t.session],['Bias',t.bias],['R',t.r_multiple?`${t.r_multiple}R`:null],['Risk',t.risk?`${t.risk}%`:null]].filter(([,v])=>v).map(([l,v])=>(
-          <div key={l}><span style={{ color: 'var(--muted)', fontWeight: '700' }}>{l}: </span><span style={{ color: 'var(--text2)', fontFamily: "'Geist Mono',monospace", fontWeight: '600' }}>{v}</span></div>
+          <div key={l}><span style={{ color: 'var(--muted)', fontWeight: '700' }}>{l}: </span><span style={{ color: 'var(--text2)', fontFamily: "'JetBrains Mono',monospace", fontWeight: '600' }}>{v}</span></div>
         ))}
       </div>
       {t.mistake && t.mistake !== 'No mistake' && <div style={{ fontSize: '12px', color: 'var(--red)', fontWeight: '600', padding: '7px 10px', background: 'var(--red-bg)', borderRadius: 'var(--r-xs)', marginBottom: t.journal ? '10px' : '0', border: '1px solid var(--red-dim)' }}>⚠️ {t.mistake}</div>}
@@ -199,7 +199,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
         {kpis.map((k,i)=>(
           <div key={i} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-sm)', padding:'11px 13px', boxShadow:'var(--shadow)' }}>
             <div style={{ fontSize:'9px', fontWeight:'800', color:'var(--muted)', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'3px' }}>{k.l}</div>
-            <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:'17px', fontWeight:'700', color:k.c==='up'?'var(--green)':k.c==='down'?'var(--red)':k.c==='blue'?'var(--blue)':'var(--text)' }}>{k.v}</div>
+            <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'17px', fontWeight:'700', color:k.c==='up'?'var(--green)':k.c==='down'?'var(--red)':k.c==='blue'?'var(--blue)':'var(--text)' }}>{k.v}</div>
           </div>
         ))}
       </div>
@@ -245,7 +245,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                 <span style={{ fontSize:'10px', fontWeight:'700', color:'var(--purple)', opacity:.8, marginTop:'auto' }}>Review</span>
               )}
               {hasTrades && <>
-                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:'14px', fontWeight:'700', lineHeight:'1.2', color:isSun?'var(--purple)':plCol[cls], marginTop:'auto' }}>{f1(pl)}</span>
+                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', lineHeight:'1.2', color:isSun?'var(--purple)':plCol[cls], marginTop:'auto' }}>{f1(pl)}</span>
                 <span style={{ fontSize:'10px', fontWeight:'600', color:isSun?'var(--purple)':numCol[cls], opacity:.8 }}>{cnt} trade{cnt>1?'s':''}</span>
                 <span style={{ display:'inline-flex', alignItems:'center', padding:'2px 5px', borderRadius:'4px', fontSize:'9px', fontWeight:'800', letterSpacing:'.04em', background:cls==='win'?'var(--green-dim)':cls==='loss'?'var(--red-dim)':'var(--amber-dim)', color:cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--amber)' }}>
                   {pl>0?'WIN':pl<0?'LOSS':'BE'}
@@ -288,7 +288,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
             {/* Day P/L summary */}
             {modal.type==='day' && dayMap[modal.day]?.trades.length>0 && (
               <div style={{ marginBottom:'16px', display:'flex', gap:'16px', alignItems:'center', padding:'12px 16px', background:dayMap[modal.day].pl>=0?'var(--green-bg)':'var(--red-bg)', borderRadius:'var(--r-sm)', border:`1px solid ${dayMap[modal.day].pl>=0?'var(--green-dim)':'var(--red-dim)'}` }}>
-                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:'22px', fontWeight:'700', color:dayMap[modal.day].pl>=0?'var(--green)':'var(--red)' }}>{f2(dayMap[modal.day].pl)}</div>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'22px', fontWeight:'700', color:dayMap[modal.day].pl>=0?'var(--green)':'var(--red)' }}>{f2(dayMap[modal.day].pl)}</div>
                 <div style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>total day P/L · {dayMap[modal.day].trades.length} trade{dayMap[modal.day].trades.length>1?'s':''}</div>
               </div>
             )}
@@ -302,7 +302,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                   {[['Trades',ws.n,'var(--blue)'],['Wins',ws.wins,'var(--green)'],['Losses',ws.losses,'var(--red)'],['Win Rate',fP(ws.winRate),ws.winRate>=.5?'var(--green)':'var(--red)'],['P/L',f2(ws.totalPL),ws.totalPL>=0?'var(--green)':'var(--red)']].map(([l,v,c])=>(
                     <div key={l} style={{ background:'var(--surface2)', borderRadius:'var(--r-xs)', padding:'8px 10px', border:'1px solid var(--border)' }}>
                       <div style={{ fontSize:'9px', fontWeight:'800', color:'var(--muted)', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'2px' }}>{l}</div>
-                      <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:'15px', fontWeight:'700', color:c }}>{v}</div>
+                      <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'15px', fontWeight:'700', color:c }}>{v}</div>
                     </div>
                   ))}
                 </div>

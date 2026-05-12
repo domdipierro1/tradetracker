@@ -126,7 +126,7 @@ export default function EconomicCalendar() {
                         </div>
 
                         {/* Time */}
-                        <div style={{ padding:'8px 10px', fontFamily:"'Geist Mono',monospace", fontSize:'11px', fontWeight:'600', color:isHoliday?'var(--muted2)':'var(--muted)' }}>
+                        <div style={{ padding:'8px 10px', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color:isHoliday?'var(--muted2)':'var(--muted)' }}>
                           {isHoliday ? 'All Day' : time}
                         </div>
 
@@ -152,18 +152,18 @@ export default function EconomicCalendar() {
 
                         {/* Actual */}
                         <div style={{ padding:'8px 10px', textAlign:'center' }}>
-                          {hasActual ? <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', fontWeight:'700', color:'var(--green)' }}>{e.actual}</span>
+                          {hasActual ? <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color:'var(--green)' }}>{e.actual}</span>
                             : <span style={{ color:'var(--muted2)', fontSize:'12px' }}>—</span>}
                         </div>
 
                         {/* Forecast */}
                         <div style={{ padding:'8px 10px', textAlign:'center' }}>
-                          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'var(--text2)' }}>{e.forecast||'—'}</span>
+                          <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--text2)' }}>{e.forecast||'—'}</span>
                         </div>
 
                         {/* Previous */}
                         <div style={{ padding:'8px 10px', textAlign:'center' }}>
-                          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:'12px', color:'var(--muted)' }}>{e.previous||'—'}</span>
+                          <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--muted)' }}>{e.previous||'—'}</span>
                         </div>
                       </div>
                     )

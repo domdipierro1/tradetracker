@@ -53,15 +53,15 @@ export default function NewsFeed() {
             </div>
             <div style={{ display:'flex', gap:'14px' }}>
               <div style={{ textAlign:'center' }}>
-                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:'16px', fontWeight:'700', color:'var(--green)' }}>{Math.round(bull/total*100)}%</div>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'16px', fontWeight:'700', color:'var(--green)' }}>{Math.round(bull/total*100)}%</div>
                 <div style={{ fontSize:'9px', fontWeight:'700', color:'var(--muted)', textTransform:'uppercase' }}>Bullish</div>
               </div>
               <div style={{ textAlign:'center' }}>
-                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:'16px', fontWeight:'700', color:'var(--red)' }}>{Math.round(bear/total*100)}%</div>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'16px', fontWeight:'700', color:'var(--red)' }}>{Math.round(bear/total*100)}%</div>
                 <div style={{ fontSize:'9px', fontWeight:'700', color:'var(--muted)', textTransform:'uppercase' }}>Bearish</div>
               </div>
               <div style={{ textAlign:'center' }}>
-                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:'16px', fontWeight:'700', color:'var(--text)' }}>{articles.length}</div>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'16px', fontWeight:'700', color:'var(--text)' }}>{articles.length}</div>
                 <div style={{ fontSize:'9px', fontWeight:'700', color:'var(--muted)', textTransform:'uppercase' }}>Stories</div>
               </div>
             </div>

@@ -76,7 +76,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         type: 'doughnut',
         data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 3, borderColor: 'var(--surface)', hoverOffset: 5 }] },
         options: { responsive: true, maintainAspectRatio: false, cutout: '70%',
-          plugins: { legend: { position: 'bottom', labels: { font: { family: 'Geist', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle', color: 'var(--text2)' } },
+          plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle', color: 'var(--text2)' } },
             tooltip: { callbacks: { label: c => `${c.label}: ${c.raw} (${(c.raw / (c.dataset.data.reduce((a,b)=>a+b,0)||1) * 100).toFixed(1)}%)` } } } }
       })
       charts.push(ch)
@@ -88,7 +88,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         data: { labels, datasets: [{ data, backgroundColor: data.map(v => v >= 0 ? color + '30' : '#DC262630'), borderColor: data.map(v => v >= 0 ? color : '#DC2626'), borderWidth: 2, borderRadius: 5 }] },
         options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.raw >= 0 ? '+' : ''}${c.raw.toFixed(2)}%` } } },
-          scales: { x: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'Geist Mono', size: 10 }, color: 'var(--muted)', callback: v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` } }, y: { grid: { display: false }, ticks: { font: { family: 'Geist', size: 11, weight: '600' }, color: 'var(--text2)' } } } }
+          scales: { x: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` } }, y: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11, weight: '600' }, color: 'var(--text2)' } } } }
       })
       charts.push(ch)
     }
@@ -117,7 +117,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         type: 'bar',
         data: { labels: Object.keys(rb), datasets: [{ data: Object.values(rb), backgroundColor: '#2563EB22', borderColor: '#2563EB', borderWidth: 2, borderRadius: 6 }] },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-          scales: { x: { grid: { display: false }, ticks: { font: { family: 'Geist Mono', size: 11 }, color: 'var(--text2)' } }, y: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'Geist Mono', size: 10 }, color: 'var(--muted)', stepSize: 1 } } } }
+          scales: { x: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono', size: 11 }, color: 'var(--text2)' } }, y: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', stepSize: 1 } } } }
       }))
     }
 
@@ -132,7 +132,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
           ] },
         options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
           plugins: { legend: { display: false }, tooltip: { filter: i => i.datasetIndex === 0, callbacks: { label: c => `Equity: ${Math.round(c.raw).toLocaleString('en-US')}` } } },
-          scales: { x: { display: false }, y: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'Geist Mono', size: 10 }, color: 'var(--muted)', callback: v => (v/1000).toFixed(0)+'k' } } } }
+          scales: { x: { display: false }, y: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => (v/1000).toFixed(0)+'k' } } } }
       }))
     }
 
@@ -146,7 +146,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
             { data: Array(rolling.length).fill(50), borderColor: 'var(--border2)', borderWidth: 1.5, borderDash: [4,4], pointRadius: 0, fill: false }
           ] },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-          scales: { x: { display: false }, y: { min: 0, max: 100, grid: { color: 'var(--border)' }, ticks: { font: { family: 'Geist Mono', size: 10 }, color: 'var(--muted)', callback: v => v + '%' } } } }
+          scales: { x: { display: false }, y: { min: 0, max: 100, grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => v + '%' } } } }
       }))
     }
 
@@ -209,9 +209,9 @@ export default function Dashboard({ trades, startingBalance, currency }) {
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '12px' }}>
           <div><div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Win Streak</div>
-            <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: '28px', fontWeight: '700', color: 'var(--green)' }}>{s.cw}</div></div>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '28px', fontWeight: '700', color: 'var(--green)' }}>{s.cw}</div></div>
           <div><div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Loss Streak</div>
-            <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: '28px', fontWeight: '700', color: 'var(--red)' }}>{s.cl}</div></div>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '28px', fontWeight: '700', color: 'var(--red)' }}>{s.cl}</div></div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '8px' }}>Last 30 Trades</div>
             <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
