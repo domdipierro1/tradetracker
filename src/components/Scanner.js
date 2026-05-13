@@ -56,25 +56,7 @@ function fmtChg(chg, pct) {
   return `${sign}${pct.toFixed(2)}%`
 }
 
-async function fetchQuote(yf) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yf}?interval=1d&range=5d`
-  const proxy = `https://corsproxy.io/?url=${encodeURIComponent(url)}`
-  const res = await fetch(proxy, { signal: AbortSignal.timeout(9000) })
-  if (!res.ok) throw new Error('HTTP ' + res.status)
-  const json = await res.json()
-  const result = json?.chart?.result?.[0]
-  if (!result) throw new Error('No data')
-  const quotes = result.indicators?.quote?.[0]
-  const highs  = quotes?.high  || []
-  const lows   = quotes?.low   || []
-  const meta   = result.meta
-  const price  = meta?.regularMarketPrice || meta?.previousClose
-  const prev   = meta?.previousClose
-  const n = highs.length
-  const pdh = n >= 2 ? highs[n - 2] : null
-  const pdl = n >= 2 ? lows[n - 2]  : null
-  return { price, prev, pdh, pdl }
-}
+// No client-side fetch needed - data comes from /api/scanner serverless function
 
 const STATUS_CONFIG = {
   'retest-pdh': { label: '👀 PDH Retest',  bg: 'var(--amber-bg)',  border: 'var(--amber-dim)',  text: 'var(--amber)',  priority: 1 },
@@ -102,16 +84,14 @@ export default function Scanner() {
   const loadAll = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const results = await Promise.allSettled(
-        INSTRUMENTS.map(inst => fetchQuote(inst.yf).then(d => ({ ...inst, ...d, ok: true })))
-      )
-      const rows = results.map((r, i) =>
-        r.status === 'fulfilled' ? r.value : { ...INSTRUMENTS[i], price: null, prev: null, pdh: null, pdl: null, ok: false }
-      )
-      setData(rows)
+      const res = await fetch('/api/scanner', { signal: AbortSignal.timeout(20000) })
+      if (!res.ok) throw new Error('API error ' + res.status)
+      const json = await res.json()
+      if (!json.ok && !json.data?.length) throw new Error(json.error || 'No data returned')
+      setData(json.data || [])
       setLastUpdate(new Date())
     } catch (e) {
-      setError('Failed to load data. Check your connection.')
+      setError('Could not load prices: ' + e.message + '. Try refreshing.')
     } finally {
       setLoading(false)
     }
