@@ -5,6 +5,7 @@ const NAV = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'log',       label: 'Trade Log'  },
   { id: 'calendar',  label: 'Calendar'   },
+  { id: 'scanner',   label: 'Scanner'    },
   { id: 'news',      label: 'News'       },
   { id: 'analysis',  label: 'Analysis'   },
   { id: 'playbook',  label: 'Playbook'   },
@@ -82,7 +83,7 @@ export default function Layout({ page, onNav, trades, user, onSignOut, onExport,
 
       {/* BOTTOM NAV */}
       <nav className="bot-nav" style={{ display:'none', position:'fixed', bottom:0, left:0, right:0, height:'var(--bot-h)', background:'var(--surface)', borderTop:'1px solid var(--border)', zIndex:100, paddingBottom:'env(safe-area-inset-bottom)' }}>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', height:'100%' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', height:'100%' }}>
           {NAV.map(item => {
             const active = page === item.id
             return (

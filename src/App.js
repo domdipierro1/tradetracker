@@ -11,6 +11,7 @@ import Dashboard from './components/Dashboard'
 import TradeLog from './components/TradeLog'
 import Calendar from './components/Calendar'
 import NewsTab from './components/NewsTab'
+import Scanner from './components/Scanner'
 import Analysis from './components/Analysis'
 import Playbook from './components/Playbook'
 
@@ -276,6 +277,7 @@ export default function App() {
         {page === 'dashboard' && <Dashboard {...pageProps} />}
         {page === 'log'       && <TradeLog  {...pageProps} onAdd={handleAdd} onEdit={handleEdit} onDelete={handleDelete} />}
         {page === 'calendar'  && <Calendar  trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} toast={showToast} />}
+        {page === 'scanner'   && <Scanner />}
         {page === 'news'      && <NewsTab />}
         {page === 'analysis'  && <Analysis  {...pageProps} />}
         {page === 'playbook'  && <Playbook />}
