@@ -46,6 +46,7 @@ function TradeForm({ initial, onSave, onCancel, title }) {
     e.preventDefault()
     if (!form.date || !form.outcome || form.pl === '') { setErr('Date, outcome and P/L % are required.'); return }
     clearDraft()
+    try { sessionStorage.setItem('tt26_form_open','false') } catch {}
     onSave({ ...form, pl: parseFloat(form.pl), risk: form.risk ? parseFloat(form.risk) : null, r_multiple: form.r_multiple ? parseFloat(form.r_multiple) : null })
   }
 
@@ -115,7 +116,9 @@ function TradeForm({ initial, onSave, onCancel, title }) {
 }
 
 export default function TradeLog({ trades, onAdd, onEdit, onDelete, toast, startingBalance }) {
-  const [showForm, setShowForm] = useState(false)
+  const [showForm, setShowForm] = useState(() => {
+    try { return sessionStorage.getItem('tt26_form_open') === 'true' } catch { return false }
+  })
   const [editTrade, setEditTrade] = useState(null)
   const [filterSym, setFilterSym] = useState('')
   const [filterOut, setFilterOut] = useState('')
@@ -163,7 +166,7 @@ export default function TradeLog({ trades, onAdd, onEdit, onDelete, toast, start
     <div className="page active">
       {/* Add form toggle */}
       {!showForm && !editTrade && (
-        <button className="btn btn-blue" onClick={() => setShowForm(true)} style={{ marginBottom: '16px', fontSize: '13px', padding: '10px 18px' }}>
+        <button className="btn btn-blue" onClick={() => setShowForm(true); try { sessionStorage.setItem('tt26_form_open','true') } catch {}} style={{ marginBottom: '16px', fontSize: '13px', padding: '10px 18px' }}>
           + Log New Trade
         </button>
       )}
@@ -173,7 +176,7 @@ export default function TradeLog({ trades, onAdd, onEdit, onDelete, toast, start
           <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text2)', letterSpacing: '.04em', textTransform: 'uppercase', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ width: '3px', height: '14px', borderRadius: '2px', background: 'var(--blue)', display: 'inline-block' }} />Log New Trade
           </div>
-          <TradeForm title="Add Trade" onSave={async t => { await onAdd(t); setShowForm(false); toast('Trade added ✓') }} onCancel={() => setShowForm(false)} />
+          <TradeForm title="Add Trade" onSave={async t => { await onAdd(t); setShowForm(false); try { sessionStorage.setItem('tt26_form_open','false') } catch {}; toast('Trade added ✓') }} onCancel={() => setShowForm(false); try { sessionStorage.setItem('tt26_form_open','false') } catch {}} />
         </div>
       )}
 

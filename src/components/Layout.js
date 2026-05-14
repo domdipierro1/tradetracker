@@ -3,7 +3,7 @@ import AccountManager from './AccountManager'
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard' },
-  { id: 'log',       label: 'Trade Log'  },
+  { id: 'journal',   label: 'Journal'    },
   { id: 'calendar',  label: 'Calendar'   },
   { id: 'news',      label: 'News'       },
   { id: 'analysis',  label: 'Analysis'   },
