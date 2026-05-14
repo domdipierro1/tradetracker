@@ -273,6 +273,14 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
 
   function markDirty() { setNoteDirty(true) }
 
+  useEffect(() => {
+    if (!noteDirty || !selectedDate) return
+    const timer = setTimeout(() => {
+      saveNote()
+    }, 1200)
+    return () => clearTimeout(timer)
+  }, [noteDirty, journalText, selectedDate])
+
   async function saveNote() {
     setSaving(true)
     try {
@@ -364,7 +372,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)', marginBottom:'14px' }}>
         <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', background:'var(--blue-bg)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--blue)' }}>📋 Day Plan</span>
-          {noteDirty && <span style={{ fontSize:'10px', color:'var(--muted)', fontStyle:'italic' }}>Unsaved changes</span>}
+          {noteDirty && <span style={{ fontSize:'10px', color:'var(--muted)', fontStyle:'italic' }}>Autosaving...</span>}
         </div>
         <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:'14px' }}>
 

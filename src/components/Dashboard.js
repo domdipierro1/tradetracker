@@ -23,7 +23,7 @@ function StatCard({ label, value, sub, icon, color, valClass }) {
 
 function ChartCard({ title, accentColor = 'var(--blue)', children }) {
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', boxShadow: 'var(--shadow)' }}>
+    <div style={{ background: 'linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,250,255,.82))', backdropFilter:'blur(18px)', border: '1px solid rgba(255,255,255,.7)', borderRadius: '20px', padding: '18px', boxShadow: '0 12px 40px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.95)' }}>
       <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
         <span style={{ width: '3px', height: '11px', borderRadius: '2px', background: accentColor, display: 'inline-block' }} />
         {title}
@@ -74,8 +74,8 @@ export default function Dashboard({ trades, startingBalance, currency }) {
       if (!el) return
       const ch = new Chart(el.getContext('2d'), {
         type: 'doughnut',
-        data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 3, borderColor: 'var(--surface)', hoverOffset: 5 }] },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '70%',
+        data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, hoverOffset: 10 }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '78%',
           plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle', color: 'var(--text2)' } },
             tooltip: { callbacks: { label: c => `${c.label}: ${c.raw} (${(c.raw / (c.dataset.data.reduce((a,b)=>a+b,0)||1) * 100).toFixed(1)}%)` } } } }
       })
