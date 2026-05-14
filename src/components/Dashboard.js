@@ -154,8 +154,8 @@ export default function Dashboard({ trades, startingBalance, currency }) {
   }, [trades])
 
   const statCards = [
-    { label: 'Account Equity',  value: acctCurrSym + Math.round((BAL * (1 + s.totalR/100))).toLocaleString('en-US'),          sub: `${f2(s.totalPL)} all time`,           icon: '💰', color: 'blue',   valClass: 'blue'                         },
-    { label: 'Total Return',    value: f2(s.totalPL),            sub: 'Cumulative R multiple',                   icon: '📈', color: s.totalPL>=0?'green':'red', valClass: s.totalPL>=0?'up':'down' },
+    { label: 'Best Day R',      value: fR(s.bestTrade),          sub: 'Best single trade',                    icon: '🏆', color: 'green', valClass: 'up'                            },
+    { label: 'Total R',    value: f2(s.totalPL),            sub: 'Cumulative R multiple',                   icon: '📈', color: s.totalPL>=0?'green':'red', valClass: s.totalPL>=0?'up':'down' },
     { label: 'Total Trades',    value: s.n,                      sub: `${s.wins}W · ${s.losses}L · ${s.bes}BE`, icon: '🔢', color: 'blue', valClass: 'blue' },
     { label: 'Win Rate',        value: fP(s.winRate),            sub: `${s.wins} of ${s.n} trades`,          icon: '🎯', color: s.winRate>=.5?'green':'red', valClass: s.winRate>=.5?'up':'down' },
     { label: 'Profit Factor',   value: s.pf ? s.pf.toFixed(2) : '—', sub: 'Target: 1.5R',             icon: '⚖️', color: 'purple', valClass: '' },
