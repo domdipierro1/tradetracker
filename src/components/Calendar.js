@@ -151,7 +151,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                   <span style={{ fontSize:'11px', fontWeight:'600', color:numCol[cls] }}>{day}</span>
                   {isToday && <div style={{ fontSize:'8px', fontWeight:'700', color:'var(--blue)', letterSpacing:'.04em' }}>TODAY</div>}
                 </div>
-                {hasNote && <div style={{ width:'30px', height:'30px', borderRadius:'10px', background:'linear-gradient(145deg, rgba(255,255,255,.95), rgba(232,236,255,.75))', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 6px 18px rgba(124,58,237,.18), inset 0 1px 1px rgba(255,255,255,.9)', border:'1px solid rgba(255,255,255,.8)' }}><span style={{ fontSize:'16px', filter:'drop-shadow(0 2px 3px rgba(124,58,237,.25))' }}>✦</span></div>}
+                {hasNote && <span style={{ fontSize:'9px' }}>📝</span>}
               </div>
 
               {cnt > 0 && <>
