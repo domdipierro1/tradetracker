@@ -50,7 +50,7 @@ export default function EconomicCalendar() {
             </div>
           ))}
           {fetchedAt && <span style={{ fontSize:'10px', color:'var(--muted2)' }}>Updated {fetchedAt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>}
-          <button className="btn btn-outline btn-sm" onClick={()=>{ sessionStorage.removeItem('tt26_econ_v10'); window.location.reload() }}>↻</button>
+          <button className="btn btn-outline btn-sm" onClick={()=>{ sessionStorage.removeItem('tt26_econ_v11'); window.location.reload() }}>↻</button>
         </div>
       </div>
 
@@ -69,7 +69,7 @@ export default function EconomicCalendar() {
 
       {!loading && error && (
         <div style={{ padding:'12px 14px', background:'var(--red-bg)', border:'1px solid var(--red-dim)', borderRadius:'var(--r)', color:'var(--red)', fontSize:'13px', fontWeight:'600' }}>
-          ⚠️ {error} — <button onClick={()=>{ sessionStorage.removeItem('tt26_econ_v10'); window.location.reload() }} style={{ color:'var(--blue)', background:'none', border:'none', cursor:'pointer', fontWeight:'700', fontFamily:'inherit', fontSize:'13px' }}>Retry</button>
+          ⚠️ {error} — <button onClick={()=>{ sessionStorage.removeItem('tt26_econ_v11'); window.location.reload() }} style={{ color:'var(--blue)', background:'none', border:'none', cursor:'pointer', fontWeight:'700', fontFamily:'inherit', fontSize:'13px' }}>Retry</button>
         </div>
       )}
 
@@ -77,7 +77,7 @@ export default function EconomicCalendar() {
         <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
           {/* Column headers */}
           <div style={{ display:'grid', gridTemplateColumns:'100px 75px 75px 28px 1fr 85px 85px 85px', background:'var(--surface2)', borderBottom:'2px solid var(--border2)' }}>
-            {['Date','Time','Currency','','Event','Actual','Forecast','Previous'].map((h,i)=>(
+            {['Date','Time (EST)','Currency','','Event','Actual','Forecast','Previous'].map((h,i)=>(
               <div key={i} style={{ padding:'8px 10px', fontSize:'10px', fontWeight:'800', color:'var(--muted)', letterSpacing:'.07em', textTransform:'uppercase', textAlign:i>=5?'center':'left' }}>{h}</div>
             ))}
           </div>

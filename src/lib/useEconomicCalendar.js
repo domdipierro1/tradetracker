@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const CACHE_KEY = 'tt26_econ_v10'
+const CACHE_KEY = 'tt26_econ_v11'
 const CACHE_TTL = 60 * 60 * 1000
 
 function normalizeDate(d) {

@@ -1,11 +1,10 @@
-// api/calendar.js — Fetches FF calendar, parses datetime correctly
+// api/calendar.js — Fetches FF calendar with correct EST times
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=1200')
 
   const TARGET = ['USD', 'GBP', 'EUR']
 
-  // Try both FF CDN URLs
   const URLS = [
     'https://cdn-nfs.faireconomy.media/ff_calendar_thisweek.json',
     'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
@@ -26,46 +25,59 @@ export default async function handler(req, res) {
       const data = await response.json()
       if (!Array.isArray(data) || data.length === 0) continue
 
-      // Log first event to debug
-      console.log('FF first event:', JSON.stringify(data[0]))
+      // Log first event for debugging
+      console.log('FF sample:', JSON.stringify(data[0]))
 
       const events = data
         .filter(e => TARGET.includes(e.country) && (e.impact === 'High' || e.impact === 'Holiday'))
         .map(e => {
-          // FF date field can be:
-          // 1. ISO datetime: "2026-05-14T08:30:00-0400" (contains time!)
-          // 2. Date only: "2026-05-14"
-          // 3. Old format: "05-14-2026"
-          let date = ''
-          let time = e.time || ''
-
           const rawDate = e.date || ''
+          const rawTime = e.time || ''
+          const isHoliday = e.impact === 'Holiday' || (e.title || '').toLowerCase().includes('holiday')
+
+          let date = ''
+          let time = isHoliday ? 'All Day' : ''
 
           if (rawDate.includes('T')) {
-            // ISO datetime — extract date and time from it
-            const dt = new Date(rawDate)
-            if (!isNaN(dt)) {
-              // Date in YYYY-MM-DD
-              date = dt.toISOString().split('T')[0]
-              // Time as HH:MM in local NY time (UTC-4 or UTC-5)
-              // The datetime already includes timezone offset so just format it
-              const localH = String(dt.getHours()).padStart(2, '0')
-              const localM = String(dt.getMinutes()).padStart(2, '0')
-              // If no separate time field, derive from datetime
-              if (!time) {
-                time = `${localH}:${localM}`
+            // ISO datetime like "2026-05-14T08:30:00-0400"
+            // Parse it and convert to EST (UTC-5) or EDT (UTC-4)
+            // Easiest: use Intl to format in America/New_York timezone
+            try {
+              const dt = new Date(rawDate)
+              if (!isNaN(dt)) {
+                // Get date in NY timezone
+                const nyDateStr = dt.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+                date = nyDateStr // already YYYY-MM-DD from en-CA locale
+
+                if (!isHoliday) {
+                  // Get time in NY timezone
+                  const nyTimeStr = dt.toLocaleTimeString('en-GB', {
+                    timeZone: 'America/New_York',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                  })
+                  time = nyTimeStr // e.g. "08:30"
+                }
               }
+            } catch (err) {
+              // Fallback: just split on T
+              date = rawDate.split('T')[0]
+              time = rawTime
             }
           } else if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
             date = rawDate
+            time = isHoliday ? 'All Day' : rawTime
           } else if (/^\d{2}-\d{2}-\d{4}$/.test(rawDate)) {
             const [m, d, y] = rawDate.split('-')
             date = `${y}-${m}-${d}`
+            time = isHoliday ? 'All Day' : rawTime
           } else {
             date = rawDate
+            time = isHoliday ? 'All Day' : rawTime
           }
 
-          // Convert 12h time to 24h if needed (e.g. "8:30am" -> "08:30")
+          // Convert 12h time string to 24h if still needed
           if (time && /\d(am|pm)/i.test(time)) {
             const m = time.match(/(\d{1,2}):(\d{2})(am|pm)/i)
             if (m) {
@@ -76,9 +88,6 @@ export default async function handler(req, res) {
               time = `${String(h).padStart(2,'0')}:${min}`
             }
           }
-
-          const isHoliday = e.impact === 'Holiday' || (e.title || '').toLowerCase().includes('holiday')
-          if (isHoliday) time = 'All Day'
 
           return {
             title:     e.title    || '',
@@ -93,7 +102,13 @@ export default async function handler(req, res) {
           }
         })
 
-      return res.status(200).json({ ok: true, events, source: url, fetched_at: new Date().toISOString() })
+      return res.status(200).json({
+        ok: true,
+        events,
+        source: url,
+        fetched_at: new Date().toISOString(),
+        server_tz: Intl.DateTimeFormat().resolvedOptions().timeZone
+      })
     } catch (err) {
       console.error(`${url} failed:`, err.message)
       continue
