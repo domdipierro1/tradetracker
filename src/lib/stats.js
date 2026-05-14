@@ -50,13 +50,21 @@ export function computeStats(trades, startingBalance) {
     }
   })
 
+  // Build R curve for equity chart
+  let runR = 0
+  const curve = [0, ...trades.map(t => {
+    runR += (t.pl || t.r_multiple || 0)
+    return parseFloat(runR.toFixed(2))
+  })]
+
   return {
     n, wins: wins.length, losses: losses.length, bes: bes.length,
-    totalR, totalPL: totalR, // keep totalPL alias for compatibility
+    totalR, totalPL: totalR,
     winRate, avgWin, avgLoss, bestTrade, worstTrade,
     wlRatio, expectancy, profitFactor, maxDD,
     maxWinStreak, maxLossStreak,
-    equity: totalR, // equity in R terms
+    equity: totalR,
+    curve, // R curve array for equity chart
   }
 }
 

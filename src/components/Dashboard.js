@@ -128,7 +128,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         data: { labels: s.curve.map((_,i) => i === 0 ? 'Start' : `#${i}`),
           datasets: [
             { data: s.curve, borderColor: '#2563EB', borderWidth: 2.5, fill: true, backgroundColor: 'rgba(37,99,235,.07)', pointRadius: 0, pointHoverRadius: 5, tension: .35 },
-            { data: Array(s.curve.length).fill(BAL), borderColor: 'var(--border2)', borderWidth: 1.5, borderDash: [5,5], pointRadius: 0, fill: false }
+            { data: Array(s.curve.length).fill(0), borderColor: 'var(--border2)', borderWidth: 1.5, borderDash: [5,5], pointRadius: 0, fill: false }
           ] },
         options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
           plugins: { legend: { display: false }, tooltip: { filter: i => i.datasetIndex === 0, callbacks: { label: c => `${c.raw >= 0 ? '+' : ''}${c.raw.toFixed(2)}R` } } },
