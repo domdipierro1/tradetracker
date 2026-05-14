@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { f2, fUSD, fR, equityCurveForTrades, BAL } from '../lib/stats'
 
 const TIMES = ['02:00','02:30','03:00','03:30','04:00','04:30','05:00','05:30','06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00']
-const EMPTY = { date: new Date().toISOString().split('T')[0], time: '', symbol: '', direction: '', bias: '', session: '', level: '', pd_array: '', entry_tf: '', r_multiple: '2', risk: '1', outcome: '', pl: '', mistake: '', screenshot: '', journal: '' }
+const EMPTY = { date: new Date().toISOString().split('T')[0], time: '', symbol: '', direction: '', bias: '', session: '', level: '', pd_array: '', entry_tf: '', r_multiple: '2', risk: '1', outcome: '', pl: '', mistake: '', screenshot: '', screenshot2: '', journal: '' }
 
 function TradeForm({ initial, onSave, onCancel, title }) {
   const [form, setForm] = useState(initial || EMPTY)
@@ -58,7 +58,14 @@ function TradeForm({ initial, onSave, onCancel, title }) {
         {inp('pl', 'P/L % (+ or -)', 'number', '2')}
         {sel('outcome', 'Outcome', ['Win','Loss','Break Even'])}
         {sel('mistake', 'Mistake', ['Wrong bias','Level not aligned with bias','Entered outside killzone','No breaker block formed','Entered before breaker closed','Premature entry — no confirmation','Moved stop too early','Took partial too early','Revenge trade','Overtraded','No mistake'])}
-        {inp('screenshot', 'Screenshot URL', 'url', 'https://...')}
+        <div className="form-group">
+          <label className="form-label">HTF Chart (Context)</label>
+          <input className="form-input" type="url" value={form.screenshot} onChange={set('screenshot')} placeholder="Paste TradingView snapshot URL..." />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Entry Chart</label>
+          <input className="form-input" type="url" value={form.screenshot2 || ''} onChange={set('screenshot2')} placeholder="Paste TradingView snapshot URL..." />
+        </div>
       </div>
       <div className="form-group" style={{ marginBottom: '14px' }}>
         <label className="form-label">Journal Note</label>

@@ -90,3 +90,6 @@ create policy "Users can view own notes"   on public.daily_notes for select usin
 create policy "Users can insert own notes" on public.daily_notes for insert with check (auth.uid()=user_id);
 create policy "Users can update own notes" on public.daily_notes for update using (auth.uid()=user_id);
 create policy "Users can delete own notes" on public.daily_notes for delete using (auth.uid()=user_id);
+
+-- Add screenshot2 column if not exists
+ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS screenshot2 text;

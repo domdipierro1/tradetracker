@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { computeStats, f2, f1, fP } from '../lib/stats'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -45,26 +45,104 @@ function FieldInput({ field, value, onChange, readOnly }) {
 }
 
 function TradeCard({ t }) {
+  const [imgError1, setImgError1] = React.useState(false)
+  const [imgError2, setImgError2] = React.useState(false)
   const ob = o => o === 'Win' ? 'badge-win' : o === 'Loss' ? 'badge-loss' : 'badge-be'
-  const gb = g => g === 'A+' ? 'badge-aplus' : g === 'A' ? 'badge-a' : g === 'B' ? 'badge-b' : 'badge-c'
+  const plUp = (t.pl||0) >= 0
+
   return (
-    <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '13px', marginBottom: '10px', background: 'var(--surface2)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '9px', flexWrap: 'wrap' }}>
-        <span style={{ fontWeight: '800', fontSize: '14px' }}>{t.symbol || '—'}</span>
-        {t.time && <span style={{ fontSize: '11px', color: 'var(--muted)', fontFamily: "'JetBrains Mono',monospace" }}>@ {t.time}</span>}
+    <div style={{ border: `1px solid ${plUp ? 'var(--green-dim)' : 'var(--red-dim)'}`, borderRadius: 'var(--r)', marginBottom: '14px', background: 'var(--surface)', overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
+      
+      {/* Trade header */}
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', background: plUp ? 'var(--green-bg)' : 'var(--red-bg)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text)' }}>{t.symbol || '—'}</span>
+        {t.time && <span style={{ fontSize: '11px', color: 'var(--muted)', fontFamily: "'JetBrains Mono',monospace" }}>{t.time} NY</span>}
         {t.direction && <span className={`badge badge-${t.direction.toLowerCase()}`}>{t.direction}</span>}
         {t.outcome && <span className={`badge ${ob(t.outcome)}`}>{t.outcome}</span>}
-        {t.grade && <span className={`badge ${gb(t.grade)}`}>{t.grade}</span>}
-        <span className={(t.pl||0) >= 0 ? 'num-up' : 'num-dn'} style={{ marginLeft: 'auto', fontSize: '14px', fontWeight: '700' }}>{f2(t.pl||0)}</span>
+        {t.smt && <span style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '10px', fontWeight: '600', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}>{t.smt}</span>}
+        <span style={{ marginLeft: 'auto', fontFamily: "'JetBrains Mono',monospace", fontSize: '16px', fontWeight: '700', color: plUp ? 'var(--green)' : 'var(--red)' }}>
+          {plUp ? '+' : ''}{f2(t.pl||0)}%
+        </span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: '6px', fontSize: '11px', marginBottom: (t.journal || (t.mistake && t.mistake !== 'No mistake')) ? '10px' : '0' }}>
-        {[['Setup',t.setup],['Session',t.session],['Bias',t.bias],['R',t.r_multiple?`${t.r_multiple}R`:null],['Risk',t.risk?`${t.risk}%`:null]].filter(([,v])=>v).map(([l,v])=>(
-          <div key={l}><span style={{ color: 'var(--muted)', fontWeight: '700' }}>{l}: </span><span style={{ color: 'var(--text2)', fontFamily: "'JetBrains Mono',monospace", fontWeight: '600' }}>{v}</span></div>
+
+      {/* Trade details grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: '0', borderBottom: '1px solid var(--border)' }}>
+        {[
+          ['Bias',      t.bias],
+          ['Session',   t.session],
+          ['Key Level', t.level || t.setup],
+          ['P/D',       t.pd_array],
+          ['Entry TF',  t.entry_tf],
+          ['Risk',      t.risk ? `${t.risk}%` : null],
+          ['R-Multiple',t.r_multiple ? `${t.r_multiple}R` : null],
+        ].filter(([,v]) => v).map(([label, val], i) => (
+          <div key={i} style={{ padding: '10px 14px', borderRight: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '9px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '3px' }}>{label}</div>
+            <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text2)', fontFamily: ['Risk','R-Multiple'].includes(label) ? "'JetBrains Mono',monospace" : 'inherit' }}>{val}</div>
+          </div>
         ))}
       </div>
-      {t.mistake && t.mistake !== 'No mistake' && <div style={{ fontSize: '12px', color: 'var(--red)', fontWeight: '600', padding: '7px 10px', background: 'var(--red-bg)', borderRadius: 'var(--r-xs)', marginBottom: t.journal ? '10px' : '0', border: '1px solid var(--red-dim)' }}>⚠️ {t.mistake}</div>}
-      {t.journal && <div style={{ fontSize: '13px', color: 'var(--text)', lineHeight: '1.65', whiteSpace: 'pre-wrap', padding: '10px 12px', background: 'var(--surface)', borderRadius: 'var(--r-xs)', border: '1px solid var(--border)' }}>{t.journal}</div>}
-      {t.screenshot && <a href={t.screenshot} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '8px', fontSize: '11px', color: 'var(--blue)', fontWeight: '600', textDecoration: 'none' }}>📸 Screenshot →</a>}
+
+      {/* Mistake */}
+      {t.mistake && t.mistake !== 'No mistake' && (
+        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'var(--red-bg)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '12px' }}>⚠️</span>
+          <span style={{ fontSize: '12px', color: 'var(--red)', fontWeight: '500' }}>{t.mistake}</span>
+        </div>
+      )}
+
+      {/* Journal */}
+      {t.journal && (
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ fontSize: '9px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '6px' }}>Journal Note</div>
+          <div style={{ fontSize: '13px', color: 'var(--text)', lineHeight: '1.7', whiteSpace: 'pre-wrap' }}>{t.journal}</div>
+        </div>
+      )}
+
+      {/* Chart images */}
+      {(t.screenshot || t.screenshot2) && (
+        <div style={{ padding: '12px 16px' }}>
+          <div style={{ fontSize: '9px', fontWeight: '600', color: 'var(--muted)', letterSpacing: '.07em', textTransform: 'uppercase', marginBottom: '10px' }}>Charts</div>
+          <div style={{ display: 'grid', gridTemplateColumns: t.screenshot && t.screenshot2 ? '1fr 1fr' : '1fr', gap: '10px' }}>
+            {t.screenshot && !imgError1 && (
+              <div>
+                <div style={{ fontSize: '10px', color: 'var(--muted)', marginBottom: '5px', fontWeight: '500' }}>HTF Context</div>
+                <a href={t.screenshot} target="_blank" rel="noopener noreferrer">
+                  <img src={t.screenshot} alt="HTF chart"
+                    onError={() => setImgError1(true)}
+                    style={{ width: '100%', borderRadius: 'var(--r-xs)', border: '1px solid var(--border)', display: 'block', cursor: 'pointer' }} />
+                </a>
+              </div>
+            )}
+            {t.screenshot && imgError1 && (
+              <div>
+                <div style={{ fontSize: '10px', color: 'var(--muted)', marginBottom: '5px', fontWeight: '500' }}>HTF Context</div>
+                <a href={t.screenshot} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r-xs)', fontSize: '12px', color: 'var(--blue)', fontWeight: '500', textDecoration: 'none', gap: '6px' }}>
+                  📸 View HTF Chart →
+                </a>
+              </div>
+            )}
+            {t.screenshot2 && !imgError2 && (
+              <div>
+                <div style={{ fontSize: '10px', color: 'var(--muted)', marginBottom: '5px', fontWeight: '500' }}>Entry Chart</div>
+                <a href={t.screenshot2} target="_blank" rel="noopener noreferrer">
+                  <img src={t.screenshot2} alt="Entry chart"
+                    onError={() => setImgError2(true)}
+                    style={{ width: '100%', borderRadius: 'var(--r-xs)', border: '1px solid var(--border)', display: 'block', cursor: 'pointer' }} />
+                </a>
+              </div>
+            )}
+            {t.screenshot2 && imgError2 && (
+              <div>
+                <div style={{ fontSize: '10px', color: 'var(--muted)', marginBottom: '5px', fontWeight: '500' }}>Entry Chart</div>
+                <a href={t.screenshot2} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r-xs)', fontSize: '12px', color: 'var(--blue)', fontWeight: '500', textDecoration: 'none', gap: '6px' }}>
+                  📸 View Entry Chart →
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
