@@ -33,9 +33,11 @@ export async function fetchTrades(userId) {
 }
 
 export async function insertTrade(trade) {
+  // Only pass known DB columns - strip any extra fields from form
+  const { r, ...rest } = trade  // remove raw 'r' field (already mapped to r_multiple and pl)
   const { data, error } = await supabase
     .from('trades')
-    .insert([trade])
+    .insert([rest])
     .select()
     .single()
   if (error) throw error

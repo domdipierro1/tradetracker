@@ -81,7 +81,7 @@ function DayNews({ dateStr }) {
 // ── TRADE FORM ───────────────────────────────────────────────────
 function TradeForm({ onSave, onCancel }) {
   const [form, setForm] = useState(() => {
-    try { const s = localStorage.getItem(TRADE_DRAFT); return s ? { ...EMPTY_TRADE, ...JSON.parse(s) } : EMPTY_TRADE } catch { return EMPTY_TRADE }
+    try { const s = localStorage.getItem(TRADE_DRAFT); return s ? { ...EMPTY_TRADE, ...JSON.parse(s) } : EMPTY_TRADE } catch(e) { return EMPTY_TRADE }
   })
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
@@ -93,14 +93,14 @@ function TradeForm({ onSave, onCancel }) {
 
   async function submit(e) {
     e.preventDefault()
-    if (!form.outcome) { setErr('Outcome is required'); return }
-    if (form.r === '' || form.r === null || form.r === undefined) { setErr('R multiple is required'); return }
+    if (!form.outcome) { setErr('Please select an outcome (Win/Loss/Break Even)'); return }
+    if (form.r === '' || form.r === null || form.r === undefined || isNaN(parseFloat(form.r))) { setErr('R multiple is required (e.g. 2, -1, 1.5)'); return }
     setSaving(true)
     try {
       const rVal = parseFloat(form.r) || 0
       await onSave({ ...form, r_multiple: rVal, pl: rVal, risk: 1 })
       clear(); setForm(EMPTY_TRADE)
-    } catch(ex) { setErr('Error saving: ' + ex.message) }
+    } catch(ex) { console.error('Trade save error:', ex); setErr('Error saving: ' + (ex.message || 'Unknown error')) }
     setSaving(false)
   }
 
