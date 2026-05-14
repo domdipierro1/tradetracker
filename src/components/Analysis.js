@@ -112,7 +112,7 @@ export default function Analysis({ trades, startingBalance }) {
       <div className="sh"><h2>Breakdown by Category</h2></div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(360px,1fr))', gap: '14px', marginBottom: '24px' }} className="breakdown-grid">
         <BreakdownTable title="By Symbol"    k="symbol"    items={['NQ','ES','YM','DAX','FTSE100','GC','SI','EUR/USD','GBP/USD','AUD/USD','USD/JPY','GBP/JPY','EUR/JPY']} trades={trades} accent="var(--blue)"   />
-        <BreakdownTable title="By Setup"     k="setup"     items={['PDH B&R','PDL B&R']}                           trades={trades} accent="var(--purple)" />
+        <BreakdownTable title="By Setup"     k="setup"     items={['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']}                           trades={trades} accent="var(--purple)" />
         <BreakdownTable title="By Direction" k="direction" items={['Long','Short']}                            trades={trades} accent="var(--green)"  />
         <BreakdownTable title="By Session"   k="session"   items={['London','New York','Overlap','Asia']}                 trades={trades} accent="var(--blue)"   />
         <BreakdownTable title="By Day"       k="dow"       items={DOW}                                         trades={withDow} accent="var(--purple)"/>

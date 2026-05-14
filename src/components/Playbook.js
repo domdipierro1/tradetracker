@@ -1,118 +1,86 @@
 import { useState } from 'react'
 
-const PLAN = {
-  philosophy: 'Mark out the Previous Day High and Low. On the 30m chart, wait for a clean break and retest of the daily level. Price must clearly close beyond the level, retrace to it, and confirm with a 30m or 1H engulfing candle. Target is 1.5R. If there is no clean engulfing on the retest — do not enter.',
-  levels: [
-    { name: 'PDH', full: 'Previous Day High', note: 'Mark before session open. Key resistance/breakout level.' },
-    { name: 'PDL', full: 'Previous Day Low',  note: 'Mark before session open. Key support/breakdown level.' },
-  ],
-  setups: [
-    {
-      type: 'PDH Break & Retest',
-      direction: 'Long',
-      color: 'var(--green)',
-      bg: 'var(--green-bg)',
-      steps: [
-        'Price clearly closes above PDH on 30m chart',
-        'Price retests PDH from above (acts as support)',
-        '30m or 1H bullish engulfing candle confirms on retest',
-        'Enter on close of engulfing candle',
-        'Stop below the low of the engulfing candle',
-        'Target 1.5R',
-      ]
-    },
-    {
-      type: 'PDL Break & Retest',
-      direction: 'Short',
-      color: 'var(--red)',
-      bg: 'var(--red-bg)',
-      steps: [
-        'Price clearly closes below PDL on 30m chart',
-        'Price retests PDL from below (acts as resistance)',
-        '30m or 1H bearish engulfing candle confirms on retest',
-        'Enter on close of engulfing candle',
-        'Stop above the high of the engulfing candle',
-        'Target 1.5R',
-      ]
-    },
-  ],
-  invalidation: 'If price fails to produce a clear engulfing candle on the retest — stand aside. If price wicks through the level but closes back through it — the break is invalid. No engulfing = no trade.',
-  risk: [
-    { label: 'Standard',   value: '1.0%',  note: 'Default every trade',   col: 'var(--text)'  },
-    { label: 'A+ Setup',   value: '1.5%',  note: 'High conviction only',  col: 'var(--amber)' },
-    { label: 'Maximum',    value: '2.5%',  note: 'Never exceed this',     col: 'var(--red)'   },
-    { label: 'Target',     value: '1.5R',  note: 'Default take profit',   col: 'var(--green)' },
-  ],
-  sessions: [
-    { name: 'London Open',  time: '07:00 – 10:00 GMT', note: 'Best for GBP/EUR pairs and indices',  color: 'var(--blue)'   },
-    { name: 'AM Session',   time: '13:00 – 17:00 GMT', note: 'Best for US indices and USD pairs',   color: 'var(--green)'  },
-    { name: 'PM Session',   time: '17:00 – 20:00 GMT', note: 'Continuation moves, lower priority', color: 'var(--amber)'  },
-    { name: 'Asia',         time: '23:00 – 07:00 GMT', note: 'Range setting, avoid trading',        color: 'var(--purple)' },
-  ],
-  mistakes: [
-    'Entering without a clear engulfing candle',
-    'Trading a wick break — requires a close beyond PDH/PDL',
-    'FOMO entry after missing the retest',
-    'Wrong bias — ensure break direction matches higher timeframe',
-    'Moving stop to break-even too early',
-    'Not waiting for candle close before entering',
-  ],
-  review: [
-    'Did price clearly close beyond the PDH/PDL?',
-    'Was the retest clean — price touching the level, not spiking through?',
-    'Was the engulfing candle clear and decisive?',
-    'Did I enter on the close or did I anticipate?',
-    'Was my stop correctly placed below/above the engulfing candle?',
-  ],
-}
-
 const CHECKLIST = [
   {
-    phase: 'Pre-Session Prep',
+    phase: '1. Bias',
     color: 'var(--blue)',
     bg:    'var(--blue-bg)',
     items: [
-      'Mark PDH and PDL on the chart before session open',
-      'Note which direction the higher timeframe favours',
-      'Identify any confluence at PDH/PDL (e.g. weekly level, round number)',
-      'Set alerts at PDH and PDL levels',
+      'Weekly chart reviewed — direction of current weekly candle determined',
+      'Daily chart reviewed — next daily candle direction determined using previous candles',
+      'Bias is clearly Bullish or Bearish — not uncertain',
     ],
   },
   {
-    phase: 'The Break',
+    phase: '2. Key Level',
     color: 'var(--purple)',
     bg:    'var(--purple-bg)',
     items: [
-      '30m candle has CLOSED clearly above PDH (not just wicked)',
-      '30m candle has CLOSED clearly below PDL (not just wicked)',
-      'Break candle is decisive — not a small bodied doji',
+      'Key level identified on the chart (Monthly/Weekly/Daily H&L or 4H PD array)',
+      'Key level is aligned with the directional bias',
+      'Price has not yet reached the level — still approaching',
     ],
   },
   {
-    phase: 'The Retest',
+    phase: '3. Killzone',
     color: 'var(--amber)',
     bg:    'var(--amber-bg)',
     items: [
-      'Price has pulled back to the PDH/PDL level',
-      'Level is holding — price is not slicing straight through',
-      '30m or 1H engulfing candle has printed at the level',
-      'Engulfing candle has closed — not entered early on anticipation',
+      'Current time is within 02:00–10:00 NY (London or New York AM)',
+      'Price action is trading into the key level during the killzone',
     ],
   },
   {
-    phase: 'Entry & Management',
+    phase: '4. Reversal Signature',
+    color: 'var(--red)',
+    bg:    'var(--red-bg)',
+    items: [
+      '30m or 15m breaker block has formed at the key level',
+      'Price has closed below the breaker (Short) or above the breaker (Long)',
+      'The breaker is clear and decisive — not ambiguous',
+    ],
+  },
+  {
+    phase: '5. Entry',
     color: 'var(--green)',
     bg:    'var(--green-bg)',
     items: [
-      'Stop placed below the low of the engulfing (Long) or above the high (Short)',
-      'Target set at 1.5R',
-      'Risk % calculated and position sized correctly',
-      'No news events within 15 minutes of entry',
+      'Entry timeframe selected — 15m preferred, 30m or 5m if clearer',
+      'Entry candle is clear — not entering mid-candle',
+      'Stop placed correctly — above/below the breaker block',
+      'Target at 2R calculated before entry',
+      'Risk confirmed at 1%',
     ],
   },
 ]
 
 const ALL = CHECKLIST.flatMap((s, si) => s.items.map((item, ii) => ({ text: item, si, ii, color: s.color })))
+
+const LEVELS = [
+  { name: 'Monthly',  items: ['Prev Month High', 'Prev Month Low'] },
+  { name: 'Weekly',   items: ['Prev Week High', 'Prev Week Low'] },
+  { name: 'Daily',    items: ['Prev Day High', 'Prev Day Low'] },
+  { name: '4H PD Arrays', items: ['4H Fair Value Gap', '4H Order Block', '4H Breaker Block', '4H Mitigation Block'] },
+  { name: 'Daily PD Arrays', items: ['Daily Fair Value Gap', 'Daily Order Block', 'Daily Breaker Block', 'Daily Mitigation Block'] },
+]
+
+const SESSIONS = [
+  { name: 'London',       time: '02:00 – 05:00 NY',  note: 'GBP, EUR pairs. European open volatility.',  color: 'var(--blue)'   },
+  { name: 'New York AM',  time: '06:00 – 10:00 NY',  note: 'USD pairs, indices, Gold. Highest volume.',  color: 'var(--green)'  },
+]
+
+const MISTAKES = [
+  'Wrong bias — weekly/daily read was incorrect',
+  'Level not aligned with bias',
+  'Entered outside killzone (before 02:00 or after 10:00 NY)',
+  'No breaker block formed — anticipated rather than waited',
+  'Entered before breaker closed',
+  'Breaker was unclear or too small to be valid',
+  'Moved stop to break-even too early',
+  'Took profit too early before 2R',
+  'Revenge trade after a loss',
+  'Overtraded — multiple setups same session',
+]
 
 export default function Playbook() {
   const [tab, setTab]       = useState('checklist')
@@ -138,14 +106,14 @@ export default function Playbook() {
     <div className="page active">
       <div style={{ marginBottom:'24px' }}>
         <h1 style={{ fontSize:'18px', fontWeight:'600', color:'var(--text)', letterSpacing:'-.02em', marginBottom:'4px' }}>
-          PDH / PDL Break & Retest
+          Market, Maker & Models
         </h1>
-        <p style={{ fontSize:'12px', color:'var(--muted)', lineHeight:'1.6', maxWidth:'480px' }}>
-          Mark the Previous Day High and Low. Wait for a clean break and retest confirmed by a 30m or 1H engulfing candle. Target 1.5R.
+        <p style={{ fontSize:'12px', color:'var(--muted)', lineHeight:'1.6', maxWidth:'520px' }}>
+          Bias from weekly and daily. Key level aligned with bias. Killzone entry. Breaker block reversal signature. 1% risk to 2R target.
         </p>
       </div>
 
-      {/* Tab selector */}
+      {/* Tabs */}
       <div style={{ display:'flex', gap:'0', marginBottom:'24px', background:'var(--surface2)', padding:'2px', borderRadius:'var(--r-xs)', border:'1px solid var(--border)', width:'fit-content' }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
@@ -157,7 +125,7 @@ export default function Playbook() {
 
       {/* CHECKLIST */}
       {tab === 'checklist' && (
-        <div style={{ maxWidth:'580px' }}>
+        <div style={{ maxWidth:'600px' }}>
           <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', padding:'16px 18px', marginBottom:'16px', boxShadow:'var(--shadow)' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' }}>
               <div>
@@ -165,13 +133,13 @@ export default function Playbook() {
                   {done}<span style={{ color:'var(--muted)', fontSize:'14px', fontWeight:'400' }}> / {total}</span>
                 </div>
                 <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'2px' }}>
-                  {ready ? '✓ All checks complete — ready to enter' : `${total - done} checks remaining`}
+                  {ready ? '✓ All checks complete — ready to enter' : `${total - done} remaining`}
                 </div>
               </div>
               <button className="btn btn-outline btn-sm" onClick={reset}>Reset</button>
             </div>
             <div style={{ height:'3px', background:'var(--surface3)', borderRadius:'2px', overflow:'hidden' }}>
-              <div style={{ width: pct+'%', height:'100%', background: ready ? 'var(--green)' : 'var(--blue)', transition:'width .25s var(--ease)', borderRadius:'2px' }} />
+              <div style={{ width: pct+'%', height:'100%', background: ready ? 'var(--green)' : 'var(--blue)', transition:'width .25s', borderRadius:'2px' }} />
             </div>
           </div>
 
@@ -210,84 +178,115 @@ export default function Playbook() {
 
       {/* TRADE PLAN */}
       {tab === 'plan' && (
-        <div style={{ maxWidth:'680px', display:'flex', flexDirection:'column', gap:'12px' }}>
+        <div style={{ maxWidth:'700px', display:'flex', flexDirection:'column', gap:'12px' }}>
 
-          {/* Philosophy */}
+          {/* Framework */}
           <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
             <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', background:'var(--blue-bg)' }}>
-              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--blue)' }}>Core Philosophy</span>
+              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--blue)' }}>Framework</span>
             </div>
-            <div style={{ padding:'16px 18px' }}>
-              <p style={{ fontSize:'13px', color:'var(--text2)', lineHeight:'1.8', fontStyle:'italic' }}>"{PLAN.philosophy}"</p>
+            <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:'12px' }}>
+              {[
+                { label:'Methodology',  value:'Market, Maker & Models' },
+                { label:'Bias TF',      value:'Weekly & Daily (discretionary)' },
+                { label:'Context TF',   value:'Daily & 4H' },
+                { label:'Entry TF',     value:'30m / 15m / 5m' },
+                { label:'Sessions',     value:'02:00 – 10:00 NY (London + New York AM)' },
+                { label:'Risk',         value:'1% per trade' },
+                { label:'Target',       value:'2R (2%)' },
+              ].map((r, i) => (
+                <div key={i} style={{ display:'flex', gap:'16px', alignItems:'baseline', borderBottom: i < 6 ? '1px solid var(--border)' : 'none', paddingBottom: i < 6 ? '10px' : '0' }}>
+                  <div style={{ fontSize:'10px', fontWeight:'600', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', minWidth:'90px', flexShrink:0 }}>{r.label}</div>
+                  <div style={{ fontSize:'13px', color:'var(--text2)' }}>{r.value}</div>
+                </div>
+              ))}
             </div>
           </div>
 
           {/* Key levels */}
           <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
             <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)' }}>
-              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--text)' }}>Key Levels to Mark</span>
+              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--text)' }}>Key Levels</span>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr' }}>
-              {PLAN.levels.map((l, i) => (
-                <div key={i} style={{ padding:'16px 18px', borderRight: i===0 ? '1px solid var(--border)' : 'none' }}>
-                  <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'18px', fontWeight:'700', color: i===0 ? 'var(--green)' : 'var(--red)', marginBottom:'4px' }}>{l.name}</div>
-                  <div style={{ fontSize:'11px', fontWeight:'600', color:'var(--text)', marginBottom:'3px' }}>{l.full}</div>
-                  <div style={{ fontSize:'11px', color:'var(--muted)', lineHeight:'1.5' }}>{l.note}</div>
+            <div style={{ padding:'16px 18px', display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:'16px' }}>
+              {LEVELS.map((group, i) => (
+                <div key={i}>
+                  <div style={{ fontSize:'10px', fontWeight:'600', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:'8px' }}>{group.name}</div>
+                  {group.items.map((item, j) => (
+                    <div key={j} style={{ display:'flex', alignItems:'center', gap:'7px', marginBottom:'5px' }}>
+                      <div style={{ width:'4px', height:'4px', borderRadius:'50%', background:'var(--border2)', flexShrink:0 }} />
+                      <span style={{ fontSize:'12px', color:'var(--text2)' }}>{item}</span>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Two setups side by side */}
-          {PLAN.setups.map((setup, si) => (
-            <div key={si} style={{ background:'var(--surface)', border:`1px solid var(--border)`, borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
-              <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', background: setup.bg, display:'flex', alignItems:'center', gap:'10px' }}>
-                <span style={{ fontSize:'11px', fontWeight:'700', color: setup.color }}>{setup.type}</span>
-                <span style={{ padding:'2px 8px', borderRadius:'4px', fontSize:'10px', fontWeight:'600', background: setup.color, color:'#fff' }}>{setup.direction}</span>
-              </div>
-              {setup.steps.map((step, i) => (
-                <div key={i} style={{ display:'flex', gap:'14px', padding:'11px 18px', alignItems:'flex-start', borderBottom: i < setup.steps.length-1 ? '1px solid var(--border)' : 'none' }}>
-                  <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'10px', fontWeight:'600', color:'var(--muted)', minWidth:'18px', marginTop:'1px' }}>{String(i+1).padStart(2,'0')}</div>
-                  <div style={{ fontSize:'12px', color:'var(--text2)', lineHeight:'1.6' }}>{step}</div>
-                </div>
-              ))}
+          {/* The model step by step */}
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
+            <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', background:'var(--purple-bg)' }}>
+              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--purple)' }}>The Model — Step by Step</span>
             </div>
-          ))}
-
-          {/* Invalidation */}
-          <div style={{ padding:'14px 18px', background:'var(--red-bg)', border:'1px solid var(--red-dim)', borderRadius:'var(--r)' }}>
-            <div style={{ fontSize:'10px', fontWeight:'700', color:'var(--red)', marginBottom:'5px', letterSpacing:'.06em', textTransform:'uppercase' }}>Invalidation Rules</div>
-            <p style={{ fontSize:'12px', color:'var(--text2)', lineHeight:'1.7' }}>{PLAN.invalidation}</p>
+            {[
+              { n:'01', title:'Establish Bias',           desc:'Review the weekly chart to determine the direction of the current weekly candle. Then use the daily chart to determine the next daily candle direction using previous candles. Bias must be clearly Bullish or Bearish.' },
+              { n:'02', title:'Identify Key Level',        desc:'Mark Monthly, Weekly, Daily highs/lows or 4H PD arrays (FVG, OB, Breaker, Mitigation Block) that align with your bias. Price should still be approaching the level.' },
+              { n:'03', title:'Wait for Killzone',         desc:'Do not look for entries outside 02:00–10:00 NY time. Price must trade into your key level during London or New York AM session.' },
+              { n:'04', title:'Reversal Signature',        desc:'On the 30m or 15m, wait for a breaker block to form at the key level. This is the confirmation that the level is being respected. Wait for price to close beyond the breaker — do not anticipate.' },
+              { n:'05', title:'Entry',                     desc:'Enter on the 15m preferably. Use 30m or 5m only if the candle structure is clearer. Stop goes above/below the breaker block. Target 2R before entering.' },
+            ].map((step, i, arr) => (
+              <div key={i} style={{ display:'flex', gap:'14px', padding:'14px 18px', alignItems:'flex-start', borderBottom: i < arr.length-1 ? '1px solid var(--border)' : 'none' }}>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'10px', fontWeight:'600', color:'var(--muted)', minWidth:'22px', marginTop:'1px' }}>{step.n}</div>
+                <div>
+                  <div style={{ fontSize:'12px', fontWeight:'600', color:'var(--text)', marginBottom:'3px' }}>{step.title}</div>
+                  <div style={{ fontSize:'12px', color:'var(--text2)', lineHeight:'1.7' }}>{step.desc}</div>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Sessions */}
           <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
             <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)' }}>
-              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--text)' }}>Session Windows</span>
+              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--text)' }}>Trading Window</span>
             </div>
-            {PLAN.sessions.map((s, i) => (
-              <div key={i} style={{ display:'flex', gap:'14px', alignItems:'center', padding:'11px 18px', borderBottom: i < PLAN.sessions.length-1 ? '1px solid var(--border)' : 'none' }}>
+            {SESSIONS.map((s, i) => (
+              <div key={i} style={{ display:'flex', gap:'14px', alignItems:'center', padding:'12px 18px', borderBottom: i < SESSIONS.length-1 ? '1px solid var(--border)' : 'none' }}>
                 <div style={{ width:'8px', height:'8px', borderRadius:'50%', background:s.color, flexShrink:0 }} />
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:'12px', fontWeight:'600', color:'var(--text)' }}>{s.name}</div>
-                  <div style={{ fontSize:'11px', color:'var(--muted)', marginTop:'1px' }}>{s.note}</div>
+                  <div style={{ fontSize:'12px', fontWeight:'600', color:'var(--text)', marginBottom:'1px' }}>{s.name}</div>
+                  <div style={{ fontSize:'11px', color:'var(--muted)' }}>{s.note}</div>
                 </div>
                 <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'var(--muted)', whiteSpace:'nowrap' }}>{s.time}</div>
               </div>
             ))}
           </div>
 
-          {/* Common mistakes */}
+          {/* Premium / Discount */}
           <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
-            <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', background:'var(--amber-bg)' }}>
-              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--amber)' }}>Common Mistakes to Avoid</span>
+            <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)' }}>
+              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--text)' }}>Premium & Discount</span>
             </div>
-            {PLAN.mistakes.map((m, i) => (
-              <div key={i} style={{ display:'flex', gap:'12px', alignItems:'center', padding:'10px 18px', borderBottom: i < PLAN.mistakes.length-1 ? '1px solid var(--border)' : 'none' }}>
-                <div style={{ width:'4px', height:'4px', borderRadius:'50%', background:'var(--amber)', flexShrink:0 }} />
-                <span style={{ fontSize:'12px', color:'var(--text2)', lineHeight:'1.5' }}>{m}</span>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr' }}>
+              <div style={{ padding:'16px 18px', borderRight:'1px solid var(--border)' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'8px' }}>
+                  <span style={{ fontSize:'12px', color:'var(--red)' }}>▲</span>
+                  <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--red)' }}>Premium</span>
+                </div>
+                <div style={{ fontSize:'12px', color:'var(--text2)', lineHeight:'1.7' }}>
+                  Price is in the upper half of the current range (above 50% equilibrium). Used for <strong style={{ color:'var(--text)', fontWeight:'600' }}>Short entries</strong>. Look for Sells from Premium PD arrays.
+                </div>
               </div>
-            ))}
+              <div style={{ padding:'16px 18px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'8px' }}>
+                  <span style={{ fontSize:'12px', color:'var(--green)' }}>▼</span>
+                  <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--green)' }}>Discount</span>
+                </div>
+                <div style={{ fontSize:'12px', color:'var(--text2)', lineHeight:'1.7' }}>
+                  Price is in the lower half of the current range (below 50% equilibrium). Used for <strong style={{ color:'var(--text)', fontWeight:'600' }}>Long entries</strong>. Look for Buys from Discount PD arrays.
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -296,48 +295,72 @@ export default function Playbook() {
       {tab === 'risk' && (
         <div style={{ maxWidth:'580px', display:'flex', flexDirection:'column', gap:'12px' }}>
 
-          {/* Risk levels */}
+          {/* Risk */}
           <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
             <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', background:'var(--amber-bg)' }}>
               <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--amber)' }}>Position Sizing</span>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)' }}>
-              {PLAN.risk.map((r, i) => (
-                <div key={i} style={{ padding:'16px 18px', borderRight: i<3 ? '1px solid var(--border)' : 'none' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)' }}>
+              {[
+                { label:'Risk Per Trade', value:'1%',  note:'Every trade — no exceptions',   col:'var(--text)'  },
+                { label:'Target',         value:'2R',  note:'2% return on 1% risk',          col:'var(--green)' },
+                { label:'Risk/Reward',    value:'1:2', note:'Minimum before taking a trade', col:'var(--blue)'  },
+              ].map((r, i) => (
+                <div key={i} style={{ padding:'16px 18px', borderRight: i<2 ? '1px solid var(--border)' : 'none' }}>
                   <div style={{ fontSize:'9px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'6px' }}>{r.label}</div>
-                  <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'20px', fontWeight:'600', color:r.col, marginBottom:'3px' }}>{r.value}</div>
+                  <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'22px', fontWeight:'600', color:r.col, marginBottom:'3px' }}>{r.value}</div>
                   <div style={{ fontSize:'10px', color:'var(--muted2)' }}>{r.note}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Entry rules */}
+          {/* Stop & entry */}
           <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
             <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)' }}>
-              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--text)' }}>Entry & Stop Rules</span>
+              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--text)' }}>Stop Loss & Entry Rules</span>
             </div>
             {[
-              { label:'Entry',       value:'Close of 30m or 1H engulfing candle' },
-              { label:'Stop — Long', value:'Below the low of the engulfing candle' },
-              { label:'Stop — Short',value:'Above the high of the engulfing candle' },
-              { label:'Target',      value:'1.5R from entry' },
-              { label:'Timeframe',   value:'30m chart primary, 1H for entry confirmation' },
+              { label:'Stop — Long',  value:'Above the breaker block that formed at the key level' },
+              { label:'Stop — Short', value:'Below the breaker block that formed at the key level' },
+              { label:'Entry',        value:'On close of candle — 15m preferred, 30m or 5m if clearer' },
+              { label:'Target',       value:'2R from entry price' },
+              { label:'Partials',     value:'Optional at 1R — move stop to break-even, let remainder run to 2R' },
             ].map((r, i, arr) => (
-              <div key={i} style={{ display:'flex', gap:'14px', padding:'12px 18px', alignItems:'center', borderBottom: i < arr.length-1 ? '1px solid var(--border)' : 'none' }}>
-                <div style={{ fontSize:'10px', fontWeight:'600', color:'var(--muted)', width:'80px', flexShrink:0, textTransform:'uppercase', letterSpacing:'.05em' }}>{r.label}</div>
-                <div style={{ fontSize:'12px', color:'var(--text2)' }}>{r.value}</div>
+              <div key={i} style={{ display:'flex', gap:'14px', padding:'12px 18px', alignItems:'flex-start', borderBottom: i<arr.length-1 ? '1px solid var(--border)' : 'none' }}>
+                <div style={{ fontSize:'10px', fontWeight:'600', color:'var(--muted)', width:'90px', flexShrink:0, textTransform:'uppercase', letterSpacing:'.05em', paddingTop:'1px' }}>{r.label}</div>
+                <div style={{ fontSize:'12px', color:'var(--text2)', lineHeight:'1.6' }}>{r.value}</div>
               </div>
             ))}
           </div>
 
-          {/* Post-trade review */}
+          {/* Common mistakes */}
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
+            <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', background:'var(--amber-bg)' }}>
+              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--amber)' }}>Common Mistakes</span>
+            </div>
+            {MISTAKES.map((m, i) => (
+              <div key={i} style={{ display:'flex', gap:'12px', alignItems:'center', padding:'10px 18px', borderBottom: i<MISTAKES.length-1 ? '1px solid var(--border)' : 'none' }}>
+                <div style={{ width:'4px', height:'4px', borderRadius:'50%', background:'var(--amber)', flexShrink:0 }} />
+                <span style={{ fontSize:'12px', color:'var(--text2)', lineHeight:'1.5' }}>{m}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Post-trade */}
           <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
             <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', background:'var(--green-bg)' }}>
-              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--green)' }}>Post-Trade Review</span>
+              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--green)' }}>Post-Trade Review Questions</span>
             </div>
-            {PLAN.review.map((q, i) => (
-              <div key={i} style={{ display:'flex', gap:'12px', alignItems:'center', padding:'10px 18px', borderBottom: i < PLAN.review.length-1 ? '1px solid var(--border)' : 'none' }}>
+            {[
+              'Was my bias clearly established before I looked for a setup?',
+              'Was the key level aligned with that bias?',
+              'Did price trade into the level during 02:00–10:00 NY?',
+              'Was there a clear breaker block on the 30m or 15m?',
+              'Did I wait for the breaker to close before entering?',
+              'Was my entry in Premium (Short) or Discount (Long)?',
+            ].map((q, i, arr) => (
+              <div key={i} style={{ display:'flex', gap:'12px', alignItems:'center', padding:'10px 18px', borderBottom: i<arr.length-1 ? '1px solid var(--border)' : 'none' }}>
                 <div style={{ width:'4px', height:'4px', borderRadius:'50%', background:'var(--border2)', flexShrink:0 }} />
                 <span style={{ fontSize:'12px', color:'var(--text2)', lineHeight:'1.5' }}>{q}</span>
               </div>

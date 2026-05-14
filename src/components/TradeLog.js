@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react'
 import { f2, fUSD, fR, equityCurveForTrades, BAL } from '../lib/stats'
 
-const TIMES = ['2:00','3:00','4:00','5:00','6:00','7:00','8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00']
-const EMPTY = { date: new Date().toISOString().split('T')[0], time: '', symbol: '', direction: '', setup: '', entry: '', bias: '', session: '', risk: '', outcome: '', grade: '', r_multiple: 1.5, pl: '', mistake: '', screenshot: '', journal: '' }
+const TIMES = ['02:00','02:30','03:00','03:30','04:00','04:30','05:00','05:30','06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00']
+const EMPTY = { date: new Date().toISOString().split('T')[0], time: '', symbol: '', direction: '', bias: '', session: '', level: '', pd_array: '', entry_tf: '', r_multiple: '2', risk: '1', outcome: '', pl: '', mistake: '', screenshot: '', journal: '' }
 
 function TradeForm({ initial, onSave, onCancel, title }) {
   const [form, setForm] = useState(initial || EMPTY)
@@ -35,19 +35,29 @@ function TradeForm({ initial, onSave, onCancel, title }) {
     <form onSubmit={submit}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: '12px', marginBottom: '12px' }}>
         {inp('date', 'Date', 'date')}
-        {sel('time', 'Time', TIMES)}
-        {sel('symbol', 'Symbol', ['NQ','ES','YM','DAX','FTSE100','GC','SI','EUR/USD','GBP/USD','AUD/USD','NZD/USD','USD/CHF','USD/CAD','USD/JPY','EUR/AUD','GBP/AUD','EUR/CAD','GBP/CAD','EUR/JPY','GBP/JPY','EUR/NZD','GBP/NZD','AUD/NZD','EUR/GBP'])}
+        {sel('time', 'Time (NY)', TIMES)}
+        {sel('symbol', 'Symbol', ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CHF','USD/CAD','USD/JPY','NQ','ES','YM','DAX','UK100','Gold','Silver','EUR/AUD','EUR/CAD','EUR/JPY','EUR/NZD','EUR/GBP','GBP/AUD','GBP/CAD','GBP/JPY','GBP/NZD','AUD/NZD'])}
         {sel('direction', 'Direction', ['Long','Short'])}
-        {sel('setup', 'Setup', ['PDH B&R','PDL B&R'])}
         {sel('bias', 'Bias', ['Bullish','Bearish'])}
-        {sel('entry', 'Entry Candle', ['30m Engulfing','1H Engulfing'])}
-        {sel('session', 'Session', ['London','New York','Overlap','Asia'])}
-        {inp('risk', 'Risk %', 'number', '1.0')}
+        {sel('session', 'Session', ['London (02:00–05:00)','New York AM (06:00–10:00)'])}
+        {sel('level', 'Key Level', ['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block'])}
+        <div className="form-group">
+          <label className="form-label">Premium / Discount</label>
+          <div style={{ display:'flex', gap:'8px', paddingTop:'4px' }}>
+            {['Premium','Discount'].map(v => (
+              <label key={v} style={{ display:'flex', alignItems:'center', gap:'5px', cursor:'pointer', fontSize:'12px', fontWeight: form.pd_array===v ? '600' : '400', color: form.pd_array===v ? (v==='Premium' ? 'var(--red)' : 'var(--green)') : 'var(--muted)', background: form.pd_array===v ? (v==='Premium' ? 'var(--red-bg)' : 'var(--green-bg)') : 'var(--surface2)', border: `1px solid ${form.pd_array===v ? (v==='Premium' ? 'var(--red-dim)' : 'var(--green-dim)') : 'var(--border)'}`, padding:'6px 12px', borderRadius:'var(--r-xs)', transition:'all .12s' }}>
+                <input type="radio" name="pd_array" value={v} checked={form.pd_array===v} onChange={set('pd_array')} style={{ display:'none' }} />
+                {v==='Premium' ? '▲' : '▼'} {v}
+              </label>
+            ))}
+          </div>
+        </div>
+        {sel('entry_tf', 'Entry TF', ['5m','15m','30m'])}
+        {inp('risk', 'Risk %', 'number', '1')}
+        {inp('r_multiple', 'R-Multiple', 'number', '2')}
+        {inp('pl', 'P/L % (+ or -)', 'number', '2')}
         {sel('outcome', 'Outcome', ['Win','Loss','Break Even'])}
-        {sel('grade', 'Grade', ['A+','A','B','C'])}
-        {inp('r_multiple', 'R-Multiple', 'number', '2.0')}
-        {inp('pl', 'P/L % (type 2 for 2%)', 'number', '2.0')}
-        {sel('mistake', 'Mistake', ['Entered before retest','No clear break','No engulfing confirmation','Wick missed level','Wrong bias','Moved stop early','Took early profit','Revenge trade','Overtraded','Hesitated on valid setup','No mistake'])}
+        {sel('mistake', 'Mistake', ['Wrong bias','Level not aligned with bias','Entered outside killzone','No breaker block formed','Entered before breaker closed','Premature entry — no confirmation','Moved stop too early','Took partial too early','Revenge trade','Overtraded','No mistake'])}
         {inp('screenshot', 'Screenshot URL', 'url', 'https://...')}
       </div>
       <div className="form-group" style={{ marginBottom: '14px' }}>
@@ -210,7 +220,7 @@ export default function TradeLog({ trades, onAdd, onEdit, onDelete, toast, start
                     <th>Setup</th>
                     <th>Session</th>
                     <th>Outcome</th>
-                    <th>Grade</th>
+                    
                     <ThH col="r_multiple">R</ThH>
                     <ThH col="pl">P/L %</ThH>
                     <th>P/L $</th>
