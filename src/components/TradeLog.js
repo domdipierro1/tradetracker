@@ -4,14 +4,48 @@ import { f2, fUSD, fR, equityCurveForTrades, BAL } from '../lib/stats'
 const TIMES = ['02:00','02:30','03:00','03:30','04:00','04:30','05:00','05:30','06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00']
 const EMPTY = { date: new Date().toISOString().split('T')[0], time: '', symbol: '', direction: '', bias: '', session: '', level: '', pd_array: '', entry_tf: '', r_multiple: '2', risk: '1', outcome: '', pl: '', mistake: '', screenshot: '', screenshot2: '', journal: '' }
 
+const DRAFT_KEY = 'tt26_trade_draft'
+
 function TradeForm({ initial, onSave, onCancel, title }) {
-  const [form, setForm] = useState(initial || EMPTY)
+  const isNew = !initial?.id  // only persist drafts for new trades, not edits
+
+  const [form, setForm] = useState(() => {
+    if (!isNew) return initial || EMPTY
+    // Restore draft from localStorage if it exists
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY)
+      if (saved) return { ...EMPTY, ...JSON.parse(saved) }
+    } catch {}
+    return EMPTY
+  })
   const [err, setErr] = useState('')
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  const set = k => e => {
+    const updated = { ...form, [k]: e.target.value }
+    setForm(updated)
+    // Persist draft to localStorage on every change
+    if (isNew) {
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(updated)) } catch {}
+    }
+  }
+
+  // For radio/toggle inputs that set value directly
+  const setVal = (k, v) => {
+    const updated = { ...form, [k]: v }
+    setForm(updated)
+    if (isNew) {
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(updated)) } catch {}
+    }
+  }
+
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY) } catch {}
+  }
 
   function submit(e) {
     e.preventDefault()
     if (!form.date || !form.outcome || form.pl === '') { setErr('Date, outcome and P/L % are required.'); return }
+    clearDraft()
     onSave({ ...form, pl: parseFloat(form.pl), risk: form.risk ? parseFloat(form.risk) : null, r_multiple: form.r_multiple ? parseFloat(form.r_multiple) : null })
   }
 
@@ -46,7 +80,7 @@ function TradeForm({ initial, onSave, onCancel, title }) {
           <div style={{ display:'flex', gap:'8px', paddingTop:'4px' }}>
             {['Premium','Discount'].map(v => (
               <label key={v} style={{ display:'flex', alignItems:'center', gap:'5px', cursor:'pointer', fontSize:'12px', fontWeight: form.pd_array===v ? '600' : '400', color: form.pd_array===v ? (v==='Premium' ? 'var(--red)' : 'var(--green)') : 'var(--muted)', background: form.pd_array===v ? (v==='Premium' ? 'var(--red-bg)' : 'var(--green-bg)') : 'var(--surface2)', border: `1px solid ${form.pd_array===v ? (v==='Premium' ? 'var(--red-dim)' : 'var(--green-dim)') : 'var(--border)'}`, padding:'6px 12px', borderRadius:'var(--r-xs)', transition:'all .12s' }}>
-                <input type="radio" name="pd_array" value={v} checked={form.pd_array===v} onChange={set('pd_array')} style={{ display:'none' }} />
+                <input type="radio" name="pd_array" value={v} checked={form.pd_array===v} onChange={e => setVal('pd_array', e.target.value)} style={{ display:'none' }} />
                 {v==='Premium' ? '▲' : '▼'} {v}
               </label>
             ))}
@@ -74,7 +108,7 @@ function TradeForm({ initial, onSave, onCancel, title }) {
       {err && <div style={{ color: 'var(--red)', fontSize: '12px', fontWeight: '600', marginBottom: '10px' }}>{err}</div>}
       <div style={{ display: 'flex', gap: '8px' }}>
         <button type="submit" className="btn btn-blue">{title || 'Save'}</button>
-        {onCancel && <button type="button" className="btn btn-outline" onClick={onCancel}>Cancel</button>}
+        {onCancel && <button type="button" className="btn btn-outline" onClick={() => { clearDraft(); onCancel() }}>Cancel</button>}
       </div>
     </form>
   )
