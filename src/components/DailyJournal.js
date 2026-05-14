@@ -31,7 +31,7 @@ function ChartImage({ url, label, large }) {
         <div style={{ fontSize:'10px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'6px' }}>{label}</div>
         {!err ? (
           <img src={url} alt={label} onError={() => setErr(true)} onClick={() => setOpen(true)}
-            style={{ width:'100%', borderRadius:'var(--r-sm)', border:'1px solid var(--border)', display:'block', cursor:'zoom-in', objectFit:'contain', maxHeight: large ? '400px' : '280px', background:'var(--surface2)' }} />
+            style={{ width:'100%', borderRadius:'var(--r-sm)', border:'1px solid var(--border)', display:'block', cursor:'zoom-in', objectFit:'contain', minHeight: large ? '200px' : '120px', maxHeight: large ? '500px' : '300px', background:'var(--surface2)' }} />
         ) : (
           <a href={url} target="_blank" rel="noopener noreferrer"
             style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'80px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'var(--r-sm)', fontSize:'12px', color:'var(--blue)', fontWeight:'500', textDecoration:'none', gap:'6px' }}>
@@ -93,7 +93,8 @@ function TradeForm({ onSave, onCancel }) {
 
   async function submit(e) {
     e.preventDefault()
-    if (!form.outcome || form.pl === '') { setErr('Outcome and P/L are required'); return }
+    if (!form.outcome) { setErr('Outcome is required'); return }
+    if (form.pl === '' || form.pl === null || form.pl === undefined) { setErr('P/L is required'); return }
     setSaving(true)
     try {
       await onSave({ ...form, pl: parseFloat(form.pl), risk: form.risk ? parseFloat(form.risk) : 1, r_multiple: form.r_multiple ? parseFloat(form.r_multiple) : 2 })
@@ -204,13 +205,13 @@ function TradeCard({ t, onDelete }) {
           <div style={{ fontSize:'13px', color:'var(--text)', lineHeight:'1.7', whiteSpace:'pre-wrap' }}>{t.journal}</div>
         </div>
       )}
-      {/* Charts */}
+      {/* Charts - inline display */}
       {(t.screenshot || t.screenshot2) && (
         <div style={{ padding:'14px 16px' }}>
           <div style={{ fontSize:'9px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'10px' }}>Charts</div>
           <div style={{ display:'grid', gridTemplateColumns: t.screenshot && t.screenshot2 ? '1fr 1fr' : '1fr', gap:'12px' }}>
-            <ChartImage url={t.screenshot}  label="HTF Context" large />
-            <ChartImage url={t.screenshot2} label="Entry Chart" large />
+            {t.screenshot  && <ChartImage url={t.screenshot}  label="HTF Context" large />}
+            {t.screenshot2 && <ChartImage url={t.screenshot2} label="Entry Chart"  large />}
           </div>
         </div>
       )}
@@ -294,10 +295,14 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   }
 
   async function handleAddTrade(tradeData) {
-    await onAddTrade({ ...tradeData, date: dateStr })
-    setShowTradeForm(false)
-    try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {}
-    toast('Trade logged ✓')
+    try {
+      await onAddTrade({ ...tradeData, date: dateStr })
+      setShowTradeForm(false)
+      try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {}
+      toast('Trade logged ✓')
+    } catch(err) {
+      toast('Error saving trade: ' + err.message)
+    }
   }
 
   function openTradeForm() {

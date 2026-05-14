@@ -93,3 +93,9 @@ create policy "Users can delete own notes" on public.daily_notes for delete usin
 
 -- Add screenshot2 column if not exists
 ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS screenshot2 text;
+
+-- Add new model fields to trades table
+ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS level text;
+ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS pd_array text;
+ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS entry_tf text;
+ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS screenshot2 text;
