@@ -2,7 +2,7 @@
 // Fetches Forex Factory calendar and returns events with correct times
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=3600')
+  res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=1200')
 
   const TARGET = ['USD', 'GBP', 'EUR']
 

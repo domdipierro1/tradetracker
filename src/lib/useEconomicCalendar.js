@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const CACHE_KEY = 'tt26_econ_v8'
+const CACHE_KEY = 'tt26_econ_v9'
 const CACHE_TTL = 60 * 60 * 1000
 
 function normalizeDate(d) {
@@ -94,7 +94,10 @@ export function useEconomicCalendar() {
 
       for (const source of SOURCES) {
         try {
-          const res = await fetch(source.url, { signal: AbortSignal.timeout(8000) })
+          const fetchUrl = source.url === '/api/calendar' 
+              ? `/api/calendar?t=${Math.floor(Date.now()/600000)}` // bust Vercel cache every 10min
+              : source.url
+            const res = await fetch(fetchUrl, { signal: AbortSignal.timeout(8000) })
           if (!res.ok) continue
           const raw = await res.json()
 

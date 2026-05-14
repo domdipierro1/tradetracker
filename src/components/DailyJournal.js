@@ -31,7 +31,7 @@ function ChartImage({ url, label, large }) {
         <div style={{ fontSize:'10px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'6px' }}>{label}</div>
         {!err ? (
           <img src={url} alt={label} onError={() => setErr(true)} onClick={() => setOpen(true)}
-            style={{ width:'100%', borderRadius:'var(--r-sm)', border:'1px solid var(--border)', display:'block', cursor:'zoom-in', objectFit:'cover', maxHeight: large ? '400px' : '280px' }} />
+            style={{ width:'100%', borderRadius:'var(--r-sm)', border:'1px solid var(--border)', display:'block', cursor:'zoom-in', objectFit:'contain', maxHeight: large ? '400px' : '280px', background:'var(--surface2)' }} />
         ) : (
           <a href={url} target="_blank" rel="noopener noreferrer"
             style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'80px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'var(--r-sm)', fontSize:'12px', color:'var(--blue)', fontWeight:'500', textDecoration:'none', gap:'6px' }}>
@@ -66,7 +66,7 @@ function DayNews({ dateStr }) {
       <div style={{ display:'flex', flexDirection:'column' }}>
         {events.map((e, i) => (
           <div key={i} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 16px', borderBottom: i < events.length-1 ? '1px solid var(--border)' : 'none' }}>
-            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--muted)', minWidth:'48px' }}>{formatFFTime(e.time)}</span>
+            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--muted)', minWidth:'48px' }}>{e.isHoliday ? "All Day" : (formatFFTime(e.time) !== "All Day" ? formatFFTime(e.time) : e.time || "All Day")}</span>
             <span style={{ fontSize:'11px', fontWeight:'700', color: CCY[e.country] || 'var(--muted)', background: e.country==='USD'?'#DBEAFE':e.country==='GBP'?'#EDE9FE':'#D1FAE5', padding:'2px 7px', borderRadius:'4px' }}>{e.country}</span>
             <span style={{ fontSize:'12px', color:'var(--text)', flex:1 }}>{e.title}</span>
             {e.forecast && <span style={{ fontSize:'11px', color:'var(--muted)', fontFamily:"'JetBrains Mono',monospace" }}>F: {e.forecast}</span>}

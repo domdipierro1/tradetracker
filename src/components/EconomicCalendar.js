@@ -50,7 +50,7 @@ export default function EconomicCalendar() {
             </div>
           ))}
           {fetchedAt && <span style={{ fontSize:'10px', color:'var(--muted2)' }}>Updated {fetchedAt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>}
-          <button className="btn btn-outline btn-sm" onClick={()=>{ sessionStorage.removeItem('tt26_econ_v7'); window.location.reload() }}>↻</button>
+          <button className="btn btn-outline btn-sm" onClick={()=>{ sessionStorage.removeItem('tt26_econ_v9'); window.location.reload() }}>↻</button>
         </div>
       </div>
 
@@ -69,7 +69,7 @@ export default function EconomicCalendar() {
 
       {!loading && error && (
         <div style={{ padding:'12px 14px', background:'var(--red-bg)', border:'1px solid var(--red-dim)', borderRadius:'var(--r)', color:'var(--red)', fontSize:'13px', fontWeight:'600' }}>
-          ⚠️ {error} — <button onClick={()=>{ sessionStorage.removeItem('tt26_econ_v7'); window.location.reload() }} style={{ color:'var(--blue)', background:'none', border:'none', cursor:'pointer', fontWeight:'700', fontFamily:'inherit', fontSize:'13px' }}>Retry</button>
+          ⚠️ {error} — <button onClick={()=>{ sessionStorage.removeItem('tt26_econ_v9'); window.location.reload() }} style={{ color:'var(--blue)', background:'none', border:'none', cursor:'pointer', fontWeight:'700', fontFamily:'inherit', fontSize:'13px' }}>Retry</button>
         </div>
       )}
 
