@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { computeStats, f2 } from '../lib/stats'
+import { computeStats, f2, f1 } from '../lib/stats'
 import DailyJournal from './DailyJournal'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -60,7 +60,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
 
   // Month stats
   const ms = computeStats(moTrades)
-  const mPL = moTrades.reduce((s,t) => s + (t.pl||0), 0)
+  const mPL = moTrades.reduce((s,t) => s + (t.pl||t.r_multiple||0), 0)
 
   // If a date is selected, show the DailyJournal for that date
   if (selectedDate) {
@@ -106,7 +106,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(100px,1fr))', gap:'8px', marginBottom:'16px' }}>
         {[
           { l:'Trades',   v:ms.n,                    c:'var(--text)' },
-          { l:'P/L',      v:`${mPL>=0?'+':''}${f2(mPL)}%`, c: mPL>=0?'var(--green)':'var(--red)' },
+          { l:'Total R',  v: f2(mPL), c: mPL>=0?'var(--green)':'var(--red)' },
           { l:'Win Rate', v:`${(ms.winRate*100).toFixed(0)}%`, c: ms.winRate>=.5?'var(--green)':'var(--red)' },
           { l:'Wins',     v:ms.wins,                 c:'var(--green)' },
           { l:'Losses',   v:ms.losses,               c: ms.losses>0?'var(--red)':'var(--text)' },
@@ -137,7 +137,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
           const d   = dayMap[ds]
           const isToday = ds === today
           const hasNote = !!noteMap[ds]
-          const pl  = d?.pl || 0
+          const pl  = d ? (d.trades.reduce((s,t) => s+(t.pl||t.r_multiple||0), 0)) : 0
           const cnt = d?.trades.length || 0
 
           return (
@@ -156,7 +156,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
 
               {cnt > 0 && <>
                 <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'13px', fontWeight:'600', color:numCol[cls], marginTop:'auto', lineHeight:1.2 }}>
-                  {pl>=0?'+':''}{f2(pl)}%
+                  {f2(pl)}
                 </span>
                 <span style={{ fontSize:'9px', color:numCol[cls], opacity:.8 }}>{cnt} trade{cnt>1?'s':''}</span>
                 <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background: cls==='win'?'var(--green-dim)':cls==='loss'?'var(--red-dim)':'var(--amber-dim)', color: cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--amber)' }}>

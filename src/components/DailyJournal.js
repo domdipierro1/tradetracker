@@ -9,7 +9,7 @@ const SYMBOLS = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CHF','USD/CAD','US
 const LEVELS  = ['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']
 const MISTAKES= ['No mistake','Wrong bias','Level not aligned with bias','Entered outside killzone','No breaker block formed','Entered before breaker closed','Premature entry — no confirmation','Moved stop too early','Took partial too early','Revenge trade','Overtraded']
 
-const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', risk:'1', r_multiple:'2', outcome:'', pl:'', mistake:'No mistake', screenshot:'', screenshot2:'', journal:'' }
+const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', r:'', outcome:'', mistake:'No mistake', screenshot:'', screenshot2:'', journal:'' }
 const TRADE_DRAFT = 'tt26_trade_draft'
 const FORM_OPEN   = 'tt26_form_open'
 
@@ -94,10 +94,11 @@ function TradeForm({ onSave, onCancel }) {
   async function submit(e) {
     e.preventDefault()
     if (!form.outcome) { setErr('Outcome is required'); return }
-    if (form.pl === '' || form.pl === null || form.pl === undefined) { setErr('P/L is required'); return }
+    if (form.r === '' || form.r === null || form.r === undefined) { setErr('R multiple is required'); return }
     setSaving(true)
     try {
-      await onSave({ ...form, pl: parseFloat(form.pl), risk: form.risk ? parseFloat(form.risk) : 1, r_multiple: form.r_multiple ? parseFloat(form.r_multiple) : 2 })
+      const rVal = parseFloat(form.r) || 0
+      await onSave({ ...form, r_multiple: rVal, pl: rVal, risk: 1 })
       clear(); setForm(EMPTY_TRADE)
     } catch(ex) { setErr('Error saving: ' + ex.message) }
     setSaving(false)
@@ -141,9 +142,11 @@ function TradeForm({ onSave, onCancel }) {
           </div>
         </div>
         {sel('entry_tf', 'Entry TF', ['5m','15m','30m'])}
-        {inp('risk', 'Risk %', 'number', '1')}
-        {inp('r_multiple', 'R-Multiple', 'number', '2')}
-        {inp('pl', 'P/L %', 'number', '2')}
+        <div className="form-group">
+          <label className="form-label">R Multiple</label>
+          <input className="form-input" type="number" step="0.1" value={form.r} onChange={set('r')} placeholder="e.g. +2, -1, +1.5" />
+          <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'3px' }}>Positive = win (+2R), Negative = loss (-1R)</div>
+        </div>
         {sel('outcome', 'Outcome', ['Win','Loss','Break Even'])}
         {sel('mistake', 'Mistake', MISTAKES)}
       </div>
@@ -182,7 +185,7 @@ function TradeCard({ t, onDelete }) {
         {t.time && <span style={{ fontSize:'11px', color:'var(--muted)', fontFamily:"'JetBrains Mono',monospace" }}>{t.time} NY</span>}
         {t.direction && <span className={`badge badge-${t.direction.toLowerCase()}`}>{t.direction}</span>}
         {t.outcome && <span className={`badge ${ob(t.outcome)}`}>{t.outcome}</span>}
-        <span style={{ marginLeft:'auto', fontFamily:"'JetBrains Mono',monospace", fontSize:'15px', fontWeight:'700', color: up?'var(--green)':'var(--red)' }}>{up?'+':''}{f2(t.pl||0)}%</span>
+        <span style={{ marginLeft:'auto', fontFamily:"'JetBrains Mono',monospace", fontSize:'15px', fontWeight:'700', color: up?'var(--green)':'var(--red)' }}>{f2(t.pl||t.r_multiple||0)}</span>
         {onDelete && <button onClick={() => { if(window.confirm('Delete this trade?')) onDelete(t.id) }} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--muted)', fontSize:'12px', padding:'0 2px' }}>✕</button>}
       </div>
       {/* Details */}
@@ -311,7 +314,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   }
 
   // Day P/L summary
-  const dayPL  = dayTrades.reduce((s, t) => s + (t.pl||0), 0)
+  const dayPL  = dayTrades.reduce((s, t) => s + (t.pl||t.r_multiple||0), 0)
   const dayUp  = dayPL >= 0
   const wins   = dayTrades.filter(t => t.outcome === 'Win').length
   const losses = dayTrades.filter(t => t.outcome === 'Loss').length
@@ -344,7 +347,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       {dayTrades.length > 0 && (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(100px,1fr))', gap:'8px', marginBottom:'14px' }}>
           {[
-            { label:'P/L',     v: `${dayUp?'+':''}${f2(dayPL)}%`, col: dayUp?'var(--green)':'var(--red)' },
+            { label:'Total R', v: f2(dayPL), col: dayUp?'var(--green)':'var(--red)' },
             { label:'Trades',  v: dayTrades.length, col:'var(--text)' },
             { label:'Wins',    v: wins,    col:'var(--green)' },
             { label:'Losses',  v: losses,  col: losses>0?'var(--red)':'var(--text)' },

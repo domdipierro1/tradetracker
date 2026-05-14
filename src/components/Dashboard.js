@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js/auto'
-import { computeStats, breakdownStats, f2, f1, fUSD, fR, fP, BAL } from '../lib/stats'
+import { computeStats, breakdownStats, f2, f1, fUSD, fR, fP, BAL, equityCurveForTrades } from '../lib/stats'
 
 const CHART_COLORS = {
   blue: '#2563EB', green: '#059669', red: '#DC2626',
@@ -131,8 +131,8 @@ export default function Dashboard({ trades, startingBalance, currency }) {
             { data: Array(s.curve.length).fill(BAL), borderColor: 'var(--border2)', borderWidth: 1.5, borderDash: [5,5], pointRadius: 0, fill: false }
           ] },
         options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-          plugins: { legend: { display: false }, tooltip: { filter: i => i.datasetIndex === 0, callbacks: { label: c => `Equity: ${Math.round(c.raw).toLocaleString('en-US')}` } } },
-          scales: { x: { display: false }, y: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => (v/1000).toFixed(0)+'k' } } } }
+          plugins: { legend: { display: false }, tooltip: { filter: i => i.datasetIndex === 0, callbacks: { label: c => `${c.raw >= 0 ? '+' : ''}${c.raw.toFixed(2)}R` } } },
+          scales: { x: { display: false }, y: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + 'R' } } } }
       }))
     }
 
@@ -154,12 +154,12 @@ export default function Dashboard({ trades, startingBalance, currency }) {
   }, [trades])
 
   const statCards = [
-    { label: 'Account Equity',  value: acctCurrSym + Math.round(s.equity).toLocaleString('en-US'),          sub: `${f2(s.totalPL)} all time`,           icon: '💰', color: 'blue',   valClass: 'blue'                         },
-    { label: 'Total Return',    value: f2(s.totalPL),            sub: `From ${acctCurrSym + Math.round(BAL).toLocaleString('en-US')}`,                   icon: '📈', color: s.totalPL>=0?'green':'red', valClass: s.totalPL>=0?'up':'down' },
+    { label: 'Account Equity',  value: acctCurrSym + Math.round((BAL * (1 + s.totalR/100))).toLocaleString('en-US'),          sub: `${f2(s.totalPL)} all time`,           icon: '💰', color: 'blue',   valClass: 'blue'                         },
+    { label: 'Total Return',    value: f2(s.totalPL),            sub: 'Cumulative R multiple',                   icon: '📈', color: s.totalPL>=0?'green':'red', valClass: s.totalPL>=0?'up':'down' },
     { label: 'Total Trades',    value: s.n,                      sub: `${s.wins}W · ${s.losses}L · ${s.bes}BE`, icon: '🔢', color: 'blue', valClass: 'blue' },
     { label: 'Win Rate',        value: fP(s.winRate),            sub: `${s.wins} of ${s.n} trades`,          icon: '🎯', color: s.winRate>=.5?'green':'red', valClass: s.winRate>=.5?'up':'down' },
     { label: 'Profit Factor',   value: s.pf ? s.pf.toFixed(2) : '—', sub: 'Target: 1.5R',             icon: '⚖️', color: 'purple', valClass: '' },
-    { label: 'Expectancy',      value: s.exp ? f2(s.exp) : '—', sub: 'Per trade edge',                       icon: '🧮', color: s.exp>0?'green':'red', valClass: s.exp>0?'up':'down' },
+    { label: 'Expectancy (R)',      value: s.exp ? f2(s.exp) : '—', sub: 'Per trade edge',                       icon: '🧮', color: s.exp>0?'green':'red', valClass: s.exp>0?'up':'down' },
     { label: 'Avg R-Multiple',  value: fR(s.avgR),               sub: 'Winning trades',                      icon: '🏆', color: 'amber', valClass: '' },
     { label: 'Avg Win',         value: s.avgWin ? f2(s.avgWin) : '—', sub: 'On winning trades',              icon: '✅', color: 'green', valClass: 'up' },
     { label: 'Avg Loss',        value: s.avgLoss ? f2(s.avgLoss) : '—', sub: 'On losing trades',             icon: '❌', color: 'red',   valClass: 'down' },

@@ -1,4 +1,5 @@
 import { computeStats } from '../lib/stats'
+
 import AccountManager from './AccountManager'
 
 const NAV = [
@@ -50,8 +51,8 @@ export default function Layout({ page, onNav, trades, user, onSignOut, onExport,
           <AccountManager accounts={accounts||[]} activeAccountId={activeAccountId} onSwitch={onSwitchAccount} onCreate={onCreateAccount} onEdit={onEditAccount} onDelete={onDeleteAccount} />
           <div style={{ background:'var(--surface2)', borderRadius:'var(--r-sm)', padding:'10px 12px', border:'1px solid var(--border)' }}>
             <div style={{ fontSize:'9px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.08em', textTransform:'uppercase', marginBottom:'3px' }}>Account Equity</div>
-            <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'15px', fontWeight:'600', color:'var(--text)' }}>{cs}{Math.round(s.equity).toLocaleString()}</div>
-            <div style={{ fontSize:'10px', color: up ? 'var(--green)' : 'var(--red)', marginTop:'1px', fontWeight:'500' }}>{up ? '+' : ''}{s.totalPL.toFixed(2)}% all time</div>
+            <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'15px', fontWeight:'600', color:'var(--text)' }}>{(s.totalR||0).toFixed(2)}R</div>
+            <div style={{ fontSize:'10px', color: up ? 'var(--green)' : 'var(--red)', marginTop:'1px', fontWeight:'500' }}>{s.wins||0}W / {s.losses||0}L · {s.n||0} trades</div>
           </div>
           <div style={{ display:'flex', gap:'4px' }}>
             <button className="btn btn-outline btn-sm" style={{ flex:1, justifyContent:'center', fontSize:'10px' }} onClick={onExport}>↑ Export</button>
