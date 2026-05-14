@@ -86,10 +86,10 @@ function TradeForm({ onSave, onCancel }) {
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const set  = k => e => { const u = { ...form, [k]: e.target.value }; setForm(u); try { localStorage.setItem(TRADE_DRAFT, JSON.stringify(u)) } catch {} }
-  const setV = (k, v) => { const u = { ...form, [k]: v }; setForm(u); try { localStorage.setItem(TRADE_DRAFT, JSON.stringify(u)) } catch {} }
+  const set  = k => e => { const u = { ...form, [k]: e.target.value }; setForm(u); try { localStorage.setItem(TRADE_DRAFT, JSON.stringify(u)) } catch(e) {} }
+  const setV = (k, v) => { const u = { ...form, [k]: v }; setForm(u); try { localStorage.setItem(TRADE_DRAFT, JSON.stringify(u)) } catch(e) {} }
 
-  function clear() { try { localStorage.removeItem(TRADE_DRAFT); sessionStorage.setItem(FORM_OPEN,'false') } catch {} }
+  function clear() { try { localStorage.removeItem(TRADE_DRAFT); sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }
 
   async function submit(e) {
     e.preventDefault()
@@ -296,13 +296,13 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   async function handleAddTrade(tradeData) {
     await onAddTrade({ ...tradeData, date: dateStr })
     setShowTradeForm(false)
-    try { sessionStorage.setItem(FORM_OPEN,'false') } catch {}
+    try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {}
     toast('Trade logged ✓')
   }
 
   function openTradeForm() {
     setShowTradeForm(true)
-    try { sessionStorage.setItem(FORM_OPEN,'true') } catch {}
+    try { sessionStorage.setItem(FORM_OPEN,'true') } catch(e) {}
   }
 
   // Day P/L summary
@@ -419,7 +419,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
 
         {showTradeForm && (
           <div style={{ marginBottom:'14px' }}>
-            <TradeForm onSave={handleAddTrade} onCancel={() => { setShowTradeForm(false); try { sessionStorage.setItem(FORM_OPEN,'false') } catch {} }} />
+            <TradeForm onSave={handleAddTrade} onCancel={() => { setShowTradeForm(false); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
           </div>
         )}
 
