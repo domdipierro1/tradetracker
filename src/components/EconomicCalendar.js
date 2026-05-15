@@ -1,3 +1,4 @@
+import React from 'react'
 import { useEconomicCalendar, currencyFlag, formatFFTime } from '../lib/useEconomicCalendar'
 
 const CCY_COLORS = {
@@ -28,6 +29,7 @@ function getWeekDays() {
 }
 
 export default function EconomicCalendar() {
+  const [refreshKey, setRefreshKey] = React.useState(0)
   const { events, loading, error, fetchedAt, eventsForDate } = useEconomicCalendar()
   const today    = new Date().toISOString().split('T')[0]
   const weekDays = getWeekDays()
@@ -44,7 +46,7 @@ export default function EconomicCalendar() {
         </div>
         <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
           {fetchedAt && <span style={{ fontSize:'10px', color:'var(--muted2)' }}>Updated {fetchedAt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>}
-          <button className="btn btn-icon btn-ghost" onClick={refresh} title="Refresh">↻</button>
+          <button className="btn btn-icon btn-ghost" onClick={() => { try { for(let i=1;i<=15;i++) sessionStorage.removeItem('tt26_econ_v'+i) } catch(e){} window.location.reload() }} title="Refresh">↻</button>
         </div>
       </div>
 
