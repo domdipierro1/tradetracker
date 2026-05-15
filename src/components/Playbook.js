@@ -106,7 +106,7 @@ export default function Playbook() {
     <div className="page active">
       <div style={{ marginBottom:'24px' }}>
         <h1 style={{ fontSize:'18px', fontWeight:'600', color:'var(--text)', letterSpacing:'-.02em', marginBottom:'4px' }}>
-          Market, Maker & Models
+          Market Maker and Models
         </h1>
         <p style={{ fontSize:'12px', color:'var(--muted)', lineHeight:'1.6', maxWidth:'520px' }}>
           Bias from weekly and daily. Key level aligned with bias. Killzone entry. Breaker block reversal signature. 1% risk to 2R target.
@@ -187,7 +187,7 @@ export default function Playbook() {
             </div>
             <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:'12px' }}>
               {[
-                { label:'Methodology',  value:'Market, Maker & Models' },
+                { label:'Methodology',  value:'Market Maker and Models' },
                 { label:'Bias TF',      value:'Weekly & Daily (discretionary)' },
                 { label:'Context TF',   value:'Daily & 4H' },
                 { label:'Entry TF',     value:'30m / 15m / 5m' },

@@ -363,11 +363,9 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
           {!isWeekly && !isToday && <div style={{ fontSize:'12px', color:'var(--muted)', marginTop:'2px' }}>{displayDate}</div>}
         </div>
         <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
-          {noteDirty && (
-            <button className="btn btn-blue btn-sm" onClick={saveNote} disabled={saving}>
-              {saving ? 'Saving...' : '💾 Save'}
-            </button>
-          )}
+          <button className="btn btn-blue btn-sm" onClick={saveNote} disabled={saving}>
+            {saving ? 'Saving...' : isWeekly ? '💾 Save Week' : '💾 Save Day'}
+          </button>
         </div>
       </div>
 
@@ -438,11 +436,11 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
               style={{ minHeight:'100px' }} />
           </div>
 
-          {/* Chart images — up to 4 */}
+          {/* Chart images — up to 4, none shown by default */}
           <div>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' }}>
               <div style={{ fontSize:'10px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.07em', textTransform:'uppercase' }}>Chart Images</div>
-              {[chart1, chart2, chart3, chart4].filter(Boolean).length < 4 && (
+              {[chart1, chart2, chart3, chart4].filter(v => v && v.trim()).length < 4 && (
                 <button type="button" className="btn btn-outline btn-sm"
                   onClick={() => {
                     if (!chart1) { setChart1(' '); markDirty() }
@@ -454,37 +452,29 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
                 </button>
               )}
             </div>
-            <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
-              {[
-                [chart1, setChart1, 'Chart 1'],
-                [chart2, setChart2, 'Chart 2'],
-                [chart3, setChart3, 'Chart 3'],
-                [chart4, setChart4, 'Chart 4'],
-              ].map(([val, setter, label], idx) => (val !== null && val !== undefined) && (
-                <div key={idx}>
-                  <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px' }}>
-                    <label className="form-label" style={{ margin:0 }}>{label}</label>
-                    <button type="button" onClick={() => { setter(''); markDirty() }}
-                      style={{ background:'none', border:'none', color:'var(--muted2)', cursor:'pointer', fontSize:'12px', padding:'0', marginLeft:'auto' }}>✕ Remove</button>
-                  </div>
-                  <input className="form-input" type="url"
-                    value={val === ' ' ? '' : val}
-                    onChange={e => { setter(e.target.value); markDirty() }}
-                    placeholder="Paste TradingView snapshot URL..." />
-                  {val && val.trim() && val.trim() !== '' && (
-                    <div style={{ marginTop:'8px' }}>
-                      <ChartImage url={val.trim()} label={label} large />
-                    </div>
-                  )}
+            {[
+              [chart1, setChart1, 'Chart 1'],
+              [chart2, setChart2, 'Chart 2'],
+              [chart3, setChart3, 'Chart 3'],
+              [chart4, setChart4, 'Chart 4'],
+            ].map(([val, setter, label], idx) => val ? (
+              <div key={idx} style={{ marginBottom:'12px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px' }}>
+                  <label className="form-label" style={{ margin:0 }}>{label}</label>
+                  <button type="button" onClick={() => { setter(''); markDirty() }}
+                    style={{ background:'none', border:'none', color:'var(--muted2)', cursor:'pointer', fontSize:'12px', padding:'0', marginLeft:'auto' }}>✕ Remove</button>
                 </div>
-              ))}
-            </div>
-            {!chart1 && !chart2 && !chart3 && !chart4 && (
-              <button type="button" className="btn btn-outline btn-sm"
-                onClick={() => { setChart1(' '); markDirty() }}>
-                + Add Chart Image
-              </button>
-            )}
+                <input className="form-input" type="url"
+                  value={val.trim()}
+                  onChange={e => { setter(e.target.value); markDirty() }}
+                  placeholder="Paste TradingView snapshot URL..." />
+                {val.trim() && (
+                  <div style={{ marginTop:'8px' }}>
+                    <ChartImage url={val.trim()} label={label} large />
+                  </div>
+                )}
+              </div>
+            ) : null)}
           </div>
         </div>
       </div>
