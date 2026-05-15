@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const CACHE_KEY = 'tt26_econ_v11'
+const BASE_CACHE_KEY = 'tt26_econ_v13'
 const CACHE_TTL = 60 * 60 * 1000
 
 function normalizeDate(d) {
@@ -65,7 +65,7 @@ export function currencyFlag(c) {
   return { USD: '🇺🇸', GBP: '🇬🇧', EUR: '🇪🇺' }[c] || ''
 }
 
-export function useEconomicCalendar() {
+export function useEconomicCalendar(weekOffset = 0) {
   const [events,    setEvents]    = useState([])
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)
@@ -75,7 +75,7 @@ export function useEconomicCalendar() {
     async function load() {
       // Check cache — but only use if cache key matches
       try {
-        const c = sessionStorage.getItem(CACHE_KEY)
+        const c = sessionStorage.getItem(BASE_CACHE_KEY + '_w' + weekOffset)
         if (c) {
           const p = JSON.parse(c)
           if (Date.now() - p.ts < CACHE_TTL) {
@@ -87,7 +87,7 @@ export function useEconomicCalendar() {
       // Try our Vercel proxy first (best — full server-side fetch)
       // Then CORS proxies as fallback
       const SOURCES = [
-        { url: '/api/calendar', isOurApi: true },
+        { url: `/api/calendar?week=${weekOffset}&t=${Math.floor(Date.now()/600000)}`, isOurApi: true },
         { url: 'https://corsproxy.io/?url=https://nfs.faireconomy.media/ff_calendar_thisweek.json', isOurApi: false },
         { url: 'https://api.allorigins.win/raw?url=https://nfs.faireconomy.media/ff_calendar_thisweek.json', isOurApi: false },
       ]
@@ -95,7 +95,7 @@ export function useEconomicCalendar() {
       for (const source of SOURCES) {
         try {
           const fetchUrl = source.url === '/api/calendar' 
-              ? `/api/calendar?t=${Math.floor(Date.now()/600000)}` // bust Vercel cache every 10min
+              ? `/api/calendar?week=${weekOffset}&t=${Math.floor(Date.now()/600000)}`
               : source.url
             const res = await fetch(fetchUrl, { signal: AbortSignal.timeout(8000) })
           if (!res.ok) continue
@@ -125,7 +125,7 @@ export function useEconomicCalendar() {
 
           setEvents(filtered)
           setFetchedAt(new Date())
-          sessionStorage.setItem(CACHE_KEY, JSON.stringify({ events: filtered, ts: Date.now() }))
+          sessionStorage.setItem(BASE_CACHE_KEY + '_w' + weekOffset, JSON.stringify({ events: filtered, ts: Date.now() }))
           setLoading(false)
           return
         } catch { continue }
@@ -135,7 +135,7 @@ export function useEconomicCalendar() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [weekOffset])
 
   function eventsForDate(dateStr) {
     return events.filter(e => e.date === dateStr)
