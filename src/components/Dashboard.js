@@ -1,108 +1,246 @@
 import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js/auto'
-import { computeStats, breakdownStats, f2, f1, fUSD, fR, fP, BAL, equityCurveForTrades } from '../lib/stats'
+import { computeStats, f2, fR, fP } from '../lib/stats'
 
-const CHART_COLORS = { blue:'#3B82F6', green:'#10B981', red:'#EF4444', amber:'#F59E0B', purple:'#8B5CF6', slate:'#64748B' }
-
-
-
-
-function StatCard({ label, value, sub, icon, color, valClass }) {
+// ── PREMIUM STAT CARD ────────────────────────────────────────────
+function KPI({ label, value, sub, accent, positive, negative, wide }) {
+  const col = positive ? '#10B981' : negative ? '#EF4444' : accent || '#6366F1'
   return (
-    <div className={`sc ${color}`}>
-      <div className="sc-icon">{icon}</div>
-      <div className="sc-label">{label}</div>
-      <div className={`sc-val ${valClass || ''}`}>{value}</div>
-      <div className="sc-sub">{sub}</div>
+    <div style={{
+      background: '#FFFFFF',
+      borderRadius: '20px',
+      padding: '22px 24px',
+      boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.05)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0',
+      position: 'relative',
+      overflow: 'hidden',
+      gridColumn: wide ? 'span 2' : 'span 1',
+    }}>
+      {/* Accent bar */}
+      <div style={{ position:'absolute', top:0, left:0, right:0, height:'3px', background:`linear-gradient(90deg, ${col}, ${col}88)`, borderRadius:'20px 20px 0 0' }} />
+      {/* Label */}
+      <div style={{ fontSize:'10px', fontWeight:'600', color:'#94A3B8', letterSpacing:'.08em', textTransform:'uppercase', marginBottom:'10px', marginTop:'4px' }}>{label}</div>
+      {/* Value */}
+      <div style={{ fontFamily:"'JetBrains Mono', monospace", fontSize:'28px', fontWeight:'700', color: col, lineHeight:'1', marginBottom:'8px', letterSpacing:'-.02em' }}>{value}</div>
+      {/* Sub */}
+      {sub && <div style={{ fontSize:'11px', color:'#94A3B8', fontWeight:'400' }}>{sub}</div>}
     </div>
   )
 }
 
-function ChartCard({ title, accentColor = 'var(--blue)', children }) {
+// ── CHART WRAPPER ────────────────────────────────────────────────
+function Panel({ title, accent, span, height, children }) {
   return (
-    <div style={{ background: 'linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92))', border: '1px solid rgba(226,232,240,.9)', borderRadius: '24px', padding: '18px', boxShadow: '0 20px 45px rgba(15,23,42,.08)', backdropFilter:'blur(18px)' }}>
-      <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span style={{ width: '3px', height: '11px', borderRadius: '2px', background: accentColor, display: 'inline-block' }} />
+    <div style={{
+      background: '#FFFFFF',
+      borderRadius: '20px',
+      padding: '22px 24px',
+      boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.05)',
+      gridColumn: span ? `span ${span}` : 'span 1',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      <div style={{ position:'absolute', top:0, left:0, right:0, height:'3px', background:`linear-gradient(90deg, ${accent||'#6366F1'}, ${accent||'#6366F1'}88)`, borderRadius:'20px 20px 0 0' }} />
+      <div style={{ fontSize:'11px', fontWeight:'700', color:'#64748B', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'16px', marginTop:'4px', display:'flex', alignItems:'center', gap:'6px' }}>
         {title}
       </div>
-      {children}
+      <div style={{ height: height || '180px' }}>{children}</div>
     </div>
   )
 }
 
-function useChart(id, config) {
-  const ref = useRef(null)
-  useEffect(() => {
-    if (!ref.current) return
-    const ctx = ref.current.getContext('2d')
-    const chart = new Chart(ctx, config)
-    return () => chart.destroy()
-  })
-  return ref
+// ── STREAK DOTS ──────────────────────────────────────────────────
+function StreakDots({ trades }) {
+  const last = trades.slice(-20)
+  if (!last.length) return <div style={{ color:'#94A3B8', fontSize:'12px', marginTop:'4px' }}>No trades yet</div>
+  return (
+    <div style={{ display:'flex', gap:'5px', flexWrap:'wrap', marginTop:'4px' }}>
+      {last.map((t, i) => (
+        <div key={i} style={{
+          width:'28px', height:'28px', borderRadius:'8px',
+          background: t.outcome==='Win' ? '#DCFCE7' : t.outcome==='Loss' ? '#FEE2E2' : '#FEF3C7',
+          border: `1.5px solid ${t.outcome==='Win' ? '#BBF7D0' : t.outcome==='Loss' ? '#FECACA' : '#FDE68A'}`,
+          display:'flex', alignItems:'center', justifyContent:'center',
+          fontSize:'10px', fontWeight:'700',
+          color: t.outcome==='Win' ? '#15803D' : t.outcome==='Loss' ? '#B91C1C' : '#B45309',
+        }}>
+          {t.outcome==='Win' ? 'W' : t.outcome==='Loss' ? 'L' : 'B'}
+        </div>
+      ))}
+    </div>
+  )
 }
 
 export default function Dashboard({ trades, startingBalance, currency }) {
-  const BAL = startingBalance || 100000
-  const acctCurrSym = currency === "GBP" ? "£" : currency === "EUR" ? "€" : "$"
-  const s = computeStats(trades, BAL)
-  const gradeSt = ['A+','A','B','C'].map(g => ({ grade: g, ...computeStats(trades.filter(t => t.grade === g), BAL) }))
-  const mistakes = ['FOMO entry','Moved stop','Revenge trade','Overtraded','Wrong bias','Hesitated','Early exit','Late entry']
+  const s = computeStats(trades, startingBalance || 100000)
 
-  // Rolling 20
+  const equityRef  = useRef(null)
+  const outcomeRef = useRef(null)
+  const dirRef     = useRef(null)
+  const symRef     = useRef(null)
+  const sessRef    = useRef(null)
+  const rdistRef   = useRef(null)
+  const rollingRef = useRef(null)
+
   const rolling = []
   for (let i = 19; i < trades.length; i++) {
     const sl = trades.slice(i - 19, i + 1)
     rolling.push(sl.filter(t => t.outcome === 'Win').length / 20 * 100)
   }
 
-  // Chart refs
-  const outcomeRef  = useRef(null)
-  const gradesRef   = useRef(null)
-  const dirRef      = useRef(null)
-  const symRef      = useRef(null)
-  const sessRef     = useRef(null)
-  const rdistRef    = useRef(null)
-  const equityRef   = useRef(null)
-  const rollingRef  = useRef(null)
-
   useEffect(() => {
     const charts = []
-    const donut = (el, labels, data, colors) => {
-      if (!el) return
-      const ch = new Chart(el.getContext('2d'), {
-        type: 'doughnut',
-        data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, spacing:4, hoverOffset: 12 }] },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '78%',
-          plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle', color: 'var(--text2)' } },
-            tooltip: { callbacks: { label: c => `${c.label}: ${c.raw} (${(c.raw / (c.dataset.data.reduce((a,b)=>a+b,0)||1) * 100).toFixed(1)}%)` } } } }
-      })
-      charts.push(ch)
-    }
-    const hbar = (el, labels, data, color) => {
-      if (!el) return
-      const ch = new Chart(el.getContext('2d'), {
-        type: 'bar',
-        data: { labels, datasets: [{ data, backgroundColor: data.map(v => v >= 0 ? color + '90' : '#EF444490'), borderColor: data.map(v => v >= 0 ? color : '#DC2626'), borderWidth: 2, borderRadius: 12, borderSkipped:false, barThickness:18 }] },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.raw >= 0 ? '+' : ''}${c.raw.toFixed(2)}%` } } },
-          scales: { x: { grid: { color: 'rgba(148,163,184,.12)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` } }, y: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11, weight: '600' }, color: 'var(--text2)' } } } }
-      })
-      charts.push(ch)
-    }
+    const safe = (ref, fn) => { if (ref.current) { const c = fn(ref.current.getContext('2d')); if (c) charts.push(c) } }
 
-    donut(outcomeRef.current, ['Win','Loss','BE'], [s.wins, s.losses, s.bes], ['#059669','#DC2626','#D97706'])
-    donut(gradesRef.current,  ['A+','A','B','C'], ['A+','A','B','C'].map(g => trades.filter(t => t.grade === g).length), ['#2563EB','#059669','#D97706','#DC2626'])
-    donut(dirRef.current, ['Long','Short'], [trades.filter(t=>t.direction==='Long').length, trades.filter(t=>t.direction==='Short').length], ['#059669','#DC2626'])
+    // Shared options
+    const font = (size, weight) => ({ family: 'Inter', size: size || 11, weight: weight || '500' })
+    const monoFont = (size) => ({ family: "'JetBrains Mono'", size: size || 11 })
+    const gridColor = 'rgba(148,163,184,.1)'
+    const tickColor = '#94A3B8'
 
-    const syms = ['NQ','ES','YM','DAX','FTSE100','GC','SI','EUR/USD','GBP/USD']
-    const sess = ['London','New York','Overlap','Asia']
-    hbar(symRef.current,  syms, syms.map(s2 => trades.filter(t=>t.symbol===s2).reduce((sum,t)=>sum+(t.pl||0),0)),  '#2563EB')
-    hbar(sessRef.current, sess, sess.map(s2 => trades.filter(t=>t.session===s2).reduce((sum,t)=>sum+(t.pl||0),0)), '#7C3AED')
+    // Equity curve
+    safe(equityRef, ctx => new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: s.curve.map((_, i) => i === 0 ? 'Start' : `#${i}`),
+        datasets: [
+          {
+            data: s.curve,
+            borderColor: '#6366F1',
+            borderWidth: 2.5,
+            fill: true,
+            backgroundColor: (ctx2) => {
+              const g = ctx2.chart.ctx.createLinearGradient(0, 0, 0, ctx2.chart.height)
+              g.addColorStop(0, 'rgba(99,102,241,.18)')
+              g.addColorStop(1, 'rgba(99,102,241,.01)')
+              return g
+            },
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            pointBackgroundColor: '#6366F1',
+            tension: .4,
+          },
+          {
+            data: Array(s.curve.length).fill(0),
+            borderColor: '#E2E8F0',
+            borderWidth: 1.5,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: false,
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1E293B',
+            padding: 12, cornerRadius: 10,
+            titleFont: font(11), bodyFont: { ...monoFont(12), weight: '700' },
+            filter: i => i.datasetIndex === 0,
+            callbacks: { label: c => ` ${c.raw >= 0 ? '+' : ''}${c.raw.toFixed(2)}R` }
+          }
+        },
+        scales: {
+          x: { display: false },
+          y: {
+            grid: { color: gridColor },
+            border: { display: false },
+            ticks: { font: monoFont(10), color: tickColor, callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + 'R' }
+          }
+        }
+      }
+    }))
+
+    // Outcome donut
+    safe(outcomeRef, ctx => new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Win', 'Loss', 'BE'],
+        datasets: [{ data: [s.wins, s.losses, s.bes], backgroundColor: ['#10B981', '#EF4444', '#F59E0B'], borderWidth: 0, spacing: 3, hoverOffset: 8 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '75%',
+        plugins: {
+          legend: { position: 'bottom', labels: { font: font(11, '600'), padding: 12, usePointStyle: true, pointStyle: 'circle', color: '#64748B' } },
+          tooltip: { backgroundColor: '#1E293B', padding: 10, cornerRadius: 8, bodyFont: font(12, '600') }
+        }
+      }
+    }))
+
+    // Direction donut
+    safe(dirRef, ctx => new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Long', 'Short'],
+        datasets: [{ data: [trades.filter(t => t.direction === 'Long').length, trades.filter(t => t.direction === 'Short').length], backgroundColor: ['#10B981', '#EF4444'], borderWidth: 0, spacing: 3, hoverOffset: 8 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '75%',
+        plugins: {
+          legend: { position: 'bottom', labels: { font: font(11, '600'), padding: 12, usePointStyle: true, pointStyle: 'circle', color: '#64748B' } },
+          tooltip: { backgroundColor: '#1E293B', padding: 10, cornerRadius: 8, bodyFont: font(12, '600') }
+        }
+      }
+    }))
+
+    // Symbol R bar
+    const syms = ['NQ', 'ES', 'YM', 'DAX', 'UK100', 'Gold', 'Silver', 'EUR/USD', 'GBP/USD', 'GBP/JPY', 'EUR/JPY']
+    const symData = syms.map(s2 => trades.filter(t => t.symbol === s2).reduce((sum, t) => sum + (t.pl || t.r_multiple || 0), 0))
+    safe(symRef, ctx => new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: syms,
+        datasets: [{
+          data: symData,
+          backgroundColor: symData.map(v => v >= 0 ? '#DCFCE7' : '#FEE2E2'),
+          borderColor: symData.map(v => v >= 0 ? '#10B981' : '#EF4444'),
+          borderWidth: 1.5, borderRadius: 8, borderSkipped: false, barThickness: 14,
+        }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1E293B', padding: 10, cornerRadius: 8, callbacks: { label: c => ` ${c.raw >= 0 ? '+' : ''}${c.raw.toFixed(2)}R` } } },
+        scales: {
+          x: { grid: { color: gridColor }, border: { display: false }, ticks: { font: monoFont(9), color: tickColor, callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + 'R' } },
+          y: { grid: { display: false }, border: { display: false }, ticks: { font: font(10, '600'), color: '#475569' } }
+        }
+      }
+    }))
+
+    // Session R bar
+    const sess = ['London (02:00–05:00)', 'New York AM (06:00–10:00)']
+    const sessLabels = ['London', 'New York AM']
+    const sessData = sess.map(s2 => trades.filter(t => t.session === s2).reduce((sum, t) => sum + (t.pl || t.r_multiple || 0), 0))
+    safe(sessRef, ctx => new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: sessLabels,
+        datasets: [{
+          data: sessData,
+          backgroundColor: sessData.map(v => v >= 0 ? '#EDE9FE' : '#FEE2E2'),
+          borderColor: sessData.map(v => v >= 0 ? '#8B5CF6' : '#EF4444'),
+          borderWidth: 1.5, borderRadius: 10, borderSkipped: false, barThickness: 32,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1E293B', padding: 10, cornerRadius: 8, callbacks: { label: c => ` ${c.raw >= 0 ? '+' : ''}${c.raw.toFixed(2)}R` } } },
+        scales: {
+          x: { grid: { display: false }, border: { display: false }, ticks: { font: font(11, '600'), color: '#475569' } },
+          y: { grid: { color: gridColor }, border: { display: false }, ticks: { font: monoFont(10), color: tickColor, callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + 'R' } }
+        }
+      }
+    }))
 
     // R distribution
-    if (rdistRef.current) {
-      const rb = { '<1R':0, '1R':0, '1.5R':0, '2R':0, '2.5R':0, '3R+':0 }
-      trades.filter(t=>t.r_multiple&&t.outcome==='Win').forEach(t => {
+    safe(rdistRef, ctx => {
+      const rb = { '<1R': 0, '1R': 0, '1.5R': 0, '2R': 0, '2.5R': 0, '3R+': 0 }
+      trades.filter(t => t.r_multiple && t.outcome === 'Win').forEach(t => {
         if (t.r_multiple < 1) rb['<1R']++
         else if (t.r_multiple < 1.5) rb['1R']++
         else if (t.r_multiple < 2) rb['1.5R']++
@@ -110,164 +248,113 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         else if (t.r_multiple < 3) rb['2.5R']++
         else rb['3R+']++
       })
-      charts.push(new Chart(rdistRef.current.getContext('2d'), {
+      return new Chart(ctx, {
         type: 'bar',
-        data: { labels: Object.keys(rb), datasets: [{ data: Object.values(rb), backgroundColor: 'rgba(59,130,246,.75)', borderColor: '#2563EB', borderWidth: 2, borderRadius: 14, borderSkipped:false }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-          scales: { x: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono', size: 11 }, color: 'var(--text2)' } }, y: { grid: { color: 'rgba(148,163,184,.12)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', stepSize: 1 } } } }
-      }))
-    }
-
-    // Equity curve
-    if (equityRef.current) {
-      charts.push(new Chart(equityRef.current.getContext('2d'), {
-        type: 'line',
-        data: { labels: s.curve.map((_,i) => i === 0 ? 'Start' : `#${i}`),
-          datasets: [
-            { data: s.curve, borderColor: '#2563EB', borderWidth: 4, fill: true, backgroundColor: 'rgba(59,130,246,.18)', pointRadius: 3, pointHoverRadius: 5, tension: .35 },
-            { data: Array(s.curve.length).fill(0), borderColor: 'var(--border2)', borderWidth: 1.5, borderDash: [5,5], pointRadius: 3, fill: false }
-          ] },
-        options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-          plugins: { legend: { display: false }, tooltip: { filter: i => i.datasetIndex === 0, callbacks: { label: c => `${c.raw >= 0 ? '+' : ''}${c.raw.toFixed(2)}R` } } },
-          scales: { x: { display: false }, y: { grid: { color: 'rgba(148,163,184,.12)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + 'R' } } } }
-      }))
-    }
+        data: {
+          labels: Object.keys(rb),
+          datasets: [{ data: Object.values(rb), backgroundColor: '#EDE9FE', borderColor: '#8B5CF6', borderWidth: 1.5, borderRadius: 10, borderSkipped: false }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1E293B', padding: 10, cornerRadius: 8, bodyFont: { ...font(12), weight: '700' } } },
+          scales: {
+            x: { grid: { display: false }, border: { display: false }, ticks: { font: { ...monoFont(10), weight: '600' }, color: '#475569' } },
+            y: { grid: { color: gridColor }, border: { display: false }, ticks: { font: monoFont(10), color: tickColor, stepSize: 1 } }
+          }
+        }
+      })
+    })
 
     // Rolling win rate
-    if (rollingRef.current && rolling.length > 0) {
-      charts.push(new Chart(rollingRef.current.getContext('2d'), {
-        type: 'line',
-        data: { labels: rolling.map((_,i) => `${i+20}`),
-          datasets: [
-            { data: rolling, borderColor: '#059669', borderWidth: 2, fill: true, backgroundColor: 'rgba(16,185,129,.18)', pointRadius: 3, tension: .4 },
-            { data: Array(rolling.length).fill(50), borderColor: 'var(--border2)', borderWidth: 1.5, borderDash: [4,4], pointRadius: 3, fill: false }
-          ] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-          scales: { x: { display: false }, y: { min: 0, max: 100, grid: { color: 'rgba(148,163,184,.12)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => v + '%' } } } }
-      }))
-    }
+    if (rolling.length > 0) safe(rollingRef, ctx => new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: rolling.map((_, i) => `${i + 20}`),
+        datasets: [
+          { data: rolling, borderColor: '#10B981', borderWidth: 2, fill: true, backgroundColor: (ctx2) => { const g = ctx2.chart.ctx.createLinearGradient(0, 0, 0, ctx2.chart.height); g.addColorStop(0, 'rgba(16,185,129,.15)'); g.addColorStop(1, 'rgba(16,185,129,.01)'); return g }, pointRadius: 0, tension: .4 },
+          { data: Array(rolling.length).fill(50), borderColor: '#E2E8F0', borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0, fill: false }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1E293B', padding: 10, cornerRadius: 8, callbacks: { label: c => ` ${c.raw.toFixed(1)}%` } } },
+        scales: {
+          x: { display: false },
+          y: { min: 0, max: 100, grid: { color: gridColor }, border: { display: false }, ticks: { font: monoFont(10), color: tickColor, callback: v => v + '%' } }
+        }
+      }
+    }))
 
     return () => charts.forEach(c => c.destroy())
   }, [trades])
 
-  const statCards = [
-    { label: 'Best Day R',      value: fR(s.bestTrade),          sub: 'Best single trade',                    icon: 'BD', color: 'green', valClass: 'up'                            },
-    { label: 'Total R',    value: f2(s.totalPL),            sub: 'Cumulative R multiple',                   icon: 'TR', color: s.totalPL>=0?'green':'red', valClass: s.totalPL>=0?'up':'down' },
-    { label: 'Total Trades',    value: s.n,                      sub: `${s.wins}W · ${s.losses}L · ${s.bes}BE`, icon: 'TT', color: 'blue', valClass: 'blue' },
-    { label: 'Win Rate',        value: fP(s.winRate),            sub: `${s.wins} of ${s.n} trades`,          icon: 'WR', color: s.winRate>=.5?'green':'red', valClass: s.winRate>=.5?'up':'down' },
-    { label: 'Profit Factor',   value: s.pf ? s.pf.toFixed(2) : '—', sub: 'Target: 1.5R',             icon: 'PF', color: 'purple', valClass: '' },
-    { label: 'Expectancy (R)',      value: s.exp ? f2(s.exp) : '—', sub: 'Per trade edge',                       icon: 'EX', color: s.exp>0?'green':'red', valClass: s.exp>0?'up':'down' },
-    { label: 'Avg R-Multiple',  value: fR(s.avgR),               sub: 'Winning trades',                      icon: 'BD', color: 'amber', valClass: '' },
-    { label: 'Avg Win',         value: s.avgWin ? f2(s.avgWin) : '—', sub: 'On winning trades',              icon: 'AW', color: 'green', valClass: 'up' },
-    { label: 'Avg Loss',        value: s.avgLoss ? f2(s.avgLoss) : '—', sub: 'On losing trades',             icon: 'AL', color: 'red',   valClass: 'down' },
-    { label: 'W/L Ratio',       value: s.wl ? s.wl.toFixed(2) : '—', sub: 'Avg win ÷ avg loss',             icon: 'WL', color: 'purple', valClass: '' },
-    { label: 'Max Drawdown',    value: s.maxDD ? f2(s.maxDD) : '—', sub: 'Peak to trough',                  icon: '📉', color: 'red',   valClass: 'down' },
-    { label: 'Best Trade',      value: s.best ? f2(s.best) : '—',   sub: 'Single best',                     icon: '🌟', color: 'green', valClass: 'up' },
-    { label: 'Worst Trade',     value: s.worst ? f2(s.worst) : '—', sub: 'Single worst',                    icon: '💔', color: 'red',   valClass: 'down' },
-    { label: 'Win Streak',      value: s.mw || '—',              sub: `Current: ${s.cw}`,                   icon: '🔥', color: 'amber', valClass: '' },
-  ]
+  // Empty state
+  const isEmpty = trades.length === 0
 
   return (
-    <div className="page active">
-      {/* Stat cards */}
-      <div className="stat-grid">
-        {statCards.map((c, i) => <StatCard key={i} {...c} />)}
+    <div style={{ padding:'28px', minHeight:'100vh', background:'#F8FAFC' }}>
+
+      {/* ── HEADER ── */}
+      <div style={{ marginBottom:'24px' }}>
+        <h1 style={{ fontSize:'22px', fontWeight:'700', color:'#0F172A', letterSpacing:'-.03em', marginBottom:'3px' }}>Dashboard</h1>
+        <p style={{ fontSize:'13px', color:'#94A3B8', fontWeight:'400' }}>
+          {isEmpty ? 'Log your first trade to start tracking performance' : `${trades.length} trade${trades.length > 1 ? 's' : ''} · All metrics in R multiples`}
+        </p>
       </div>
 
-      {/* Charts */}
-      <div className="sh"><h2>Performance Charts</h2></div>
-      <div className="cg" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: '14px', marginBottom: '24px' }}>
-        <ChartCard title="Win / Loss / Break Even"><div style={{ height: '180px' }}><canvas ref={outcomeRef} /></div></ChartCard>
-        <ChartCard title="Trade Grades"  accentColor="var(--purple)"><div style={{ height: '180px' }}><canvas ref={gradesRef} /></div></ChartCard>
-        <ChartCard title="Long vs Short" accentColor="var(--green)"><div style={{ height: '180px' }}><canvas ref={dirRef} /></div></ChartCard>
-        <ChartCard title="P/L by Symbol"><div style={{ height: '180px' }}><canvas ref={symRef} /></div></ChartCard>
-        <ChartCard title="P/L by Session" accentColor="var(--purple)"><div style={{ height: '180px' }}><canvas ref={sessRef} /></div></ChartCard>
-        <ChartCard title="R Distribution" accentColor="var(--amber)"><div style={{ height: '180px' }}><canvas ref={rdistRef} /></div></ChartCard>
+      {/* ── KPI GRID ── */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(170px, 1fr))', gap:'12px', marginBottom:'20px' }}>
+        <KPI label="Total R"       value={f2(s.totalR)}                  sub="Cumulative R earned"             accent="#6366F1" positive={s.totalR > 0} negative={s.totalR < 0} />
+        <KPI label="Total Trades"  value={s.n}                           sub={`${s.wins}W · ${s.losses}L · ${s.bes}BE`} accent="#0EA5E9" />
+        <KPI label="Win Rate"      value={fP(s.winRate)}                 sub={`${s.wins} of ${s.n} trades`}   positive={s.winRate >= .5} negative={s.winRate > 0 && s.winRate < .5} />
+        <KPI label="Expectancy"    value={s.expectancy ? fR(s.expectancy) : '—'} sub="Per trade edge"         positive={s.expectancy > 0} negative={s.expectancy < 0} accent="#6366F1" />
+        <KPI label="Profit Factor" value={s.profitFactor ? s.profitFactor.toFixed(2) : '—'} sub="Target: > 1.5" positive={s.profitFactor >= 1.5} negative={s.profitFactor > 0 && s.profitFactor < 1} accent="#8B5CF6" />
+        <KPI label="Avg Win"       value={s.avgWin ? fR(s.avgWin) : '—'}  sub="On winning trades"            positive accent="#10B981" />
+        <KPI label="Avg Loss"      value={s.avgLoss ? fR(s.avgLoss) : '—'} sub="On losing trades"            negative={s.avgLoss < 0} accent="#EF4444" />
+        <KPI label="Best Trade"    value={s.bestTrade ? fR(s.bestTrade) : '—'} sub="Single best"             positive accent="#10B981" />
+        <KPI label="Worst Trade"   value={s.worstTrade ? fR(s.worstTrade) : '—'} sub="Single worst"          negative={s.worstTrade < 0} accent="#EF4444" />
+        <KPI label="Max Drawdown"  value={s.maxDD ? fR(-s.maxDD) : '—'}   sub="Peak to trough"              negative={s.maxDD > 0} accent="#F59E0B" />
+        <KPI label="Win Streak"    value={s.maxWinStreak || '—'}          sub="Best consecutive wins"         accent="#F59E0B" />
+        <KPI label="W/L Ratio"     value={s.wlRatio ? s.wlRatio.toFixed(2) : '—'} sub="Avg win ÷ avg loss"  positive={s.wlRatio >= 1} accent="#6366F1" />
       </div>
 
-      {/* Equity curve */}
-      <div className="sh"><h2>Equity Curve</h2></div>
-      <div style={{ background: 'linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92))', border: '1px solid var(--border)', borderRadius: '24px', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
-        {s.curve.length > 1
-          ? <div style={{ height: '200px' }}><canvas ref={equityRef} /></div>
-          : <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: '13px' }}>Log some trades to see your equity curve</div>}
+      {/* ── RECENT TRADES STREAK ── */}
+      <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 3px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.05)', marginBottom:'20px', position:'relative', overflow:'hidden' }}>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:'3px', background:'linear-gradient(90deg, #F59E0B, #F59E0B88)', borderRadius:'20px 20px 0 0' }} />
+        <div style={{ fontSize:'11px', fontWeight:'700', color:'#64748B', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'12px', marginTop:'4px' }}>Last 20 Trades</div>
+        <StreakDots trades={trades} />
       </div>
 
-      {/* Rolling win rate */}
-      <div className="sh"><h2>Rolling 20-Trade Win Rate</h2><span className="sh-right">50% threshold line</span></div>
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
+      {/* ── EQUITY CURVE ── */}
+      <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 3px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.05)', marginBottom:'20px', position:'relative', overflow:'hidden' }}>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:'3px', background:'linear-gradient(90deg, #6366F1, #6366F188)', borderRadius:'20px 20px 0 0' }} />
+        <div style={{ fontSize:'11px', fontWeight:'700', color:'#64748B', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'16px', marginTop:'4px' }}>R Equity Curve</div>
+        {isEmpty
+          ? <div style={{ height:'220px', display:'flex', alignItems:'center', justifyContent:'center', color:'#CBD5E1', fontSize:'13px' }}>Log trades to see your equity curve</div>
+          : <div style={{ height:'220px' }}><canvas ref={equityRef} /></div>}
+      </div>
+
+      {/* ── CHARTS GRID ── */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))', gap:'14px', marginBottom:'20px' }}>
+        <Panel title="Outcome" accent="#10B981"><canvas ref={outcomeRef} /></Panel>
+        <Panel title="Long vs Short" accent="#6366F1"><canvas ref={dirRef} /></Panel>
+        <Panel title="R Distribution" accent="#8B5CF6"><canvas ref={rdistRef} /></Panel>
+        <Panel title="P/L by Session" accent="#8B5CF6" height="140px"><canvas ref={sessRef} /></Panel>
+        <Panel title="P/L by Symbol" accent="#0EA5E9" span={2} height="260px"><canvas ref={symRef} /></Panel>
+      </div>
+
+      {/* ── ROLLING WIN RATE ── */}
+      <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 3px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.05)', position:'relative', overflow:'hidden' }}>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:'3px', background:'linear-gradient(90deg, #10B981, #10B98188)', borderRadius:'20px 20px 0 0' }} />
+        <div style={{ fontSize:'11px', fontWeight:'700', color:'#64748B', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'4px', marginTop:'4px' }}>Rolling 20-Trade Win Rate</div>
+        <div style={{ fontSize:'11px', color:'#CBD5E1', marginBottom:'14px' }}>50% threshold line</div>
         {rolling.length > 0
-          ? <div style={{ height: '90px' }}><canvas ref={rollingRef} /></div>
-          : <div style={{ height: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: '12px' }}>Need 20+ trades</div>}
+          ? <div style={{ height:'160px' }}><canvas ref={rollingRef} /></div>
+          : <div style={{ height:'160px', display:'flex', alignItems:'center', justifyContent:'center', color:'#CBD5E1', fontSize:'13px' }}>Need 20+ trades</div>}
       </div>
 
-      {/* Streak */}
-      <div className="sh"><h2>Current Streak</h2></div>
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '12px' }}>
-          <div><div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Win Streak</div>
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '28px', fontWeight: '700', color: 'var(--green)' }}>{s.cw}</div></div>
-          <div><div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Loss Streak</div>
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '28px', fontWeight: '700', color: 'var(--red)' }}>{s.cl}</div></div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '8px' }}>Last 30 Trades</div>
-            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-              {trades.slice(-30).map((t, i) => (
-                <div key={i} title={`${t.outcome} — ${t.date}`} style={{ width: '12px', height: '12px', borderRadius: '50%', background: t.outcome==='Win'?'var(--green)':t.outcome==='Loss'?'var(--red)':'var(--amber)', flexShrink: 0 }} />
-              ))}
-              {trades.length === 0 && <span style={{ fontSize: '12px', color: 'var(--muted)' }}>No trades yet</span>}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Grade analysis */}
-      <div className="sh"><h2>Grade Analysis</h2></div>
-      <div className="tbl-card" style={{ marginBottom: '24px' }}>
-        <div className="tbl-wrap">
-          <table>
-            <thead><tr><th>Grade</th><th>Trades</th><th>Win %</th><th>Avg Win</th><th>Avg Loss</th><th>Avg R</th><th>Expectancy</th><th>% of Total</th></tr></thead>
-            <tbody>
-              {gradeSt.map(g => (
-                <tr key={g.grade}>
-                  <td><span className={`badge badge-${g.grade.replace('+','plus')}`}>{g.grade}</span></td>
-                  <td className="num">{g.n}</td>
-                  <td><span className={g.winRate >= .5 ? 'num-up' : 'num-dn'}>{fP(g.winRate)}</span></td>
-                  <td className="num-up">{g.avgWin ? f2(g.avgWin) : '—'}</td>
-                  <td className="num-dn">{g.avgLoss ? f2(g.avgLoss) : '—'}</td>
-                  <td className="num">{fR(g.avgR)}</td>
-                  <td className={g.exp > 0 ? 'num-up' : 'num-dn'}>{g.exp ? f2(g.exp) : '—'}</td>
-                  <td className="num">{trades.length ? (g.n / trades.length * 100).toFixed(1) + '%' : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Mistakes */}
-      <div className="sh"><h2>Mistake Frequency</h2></div>
-      <div className="tbl-card" style={{ marginBottom: '24px' }}>
-        <div className="tbl-wrap">
-          <table>
-            <thead><tr><th>Mistake</th><th>Count</th><th>% of Trades</th><th>P/L Impact</th></tr></thead>
-            <tbody>
-              {mistakes.map(m => {
-                const mt = trades.filter(t => t.mistake === m)
-                const pl = mt.reduce((s, t) => s + (t.pl || 0), 0)
-                return (
-                  <tr key={m}>
-                    <td style={{ fontWeight: '600', color: 'var(--red)' }}>{m}</td>
-                    <td className="num">{mt.length}</td>
-                    <td className="num">{trades.length ? (mt.length / trades.length * 100).toFixed(1) + '%' : '—'}</td>
-                    <td className={pl >= 0 ? 'num-up' : 'num-dn'}>{mt.length ? f2(pl) : '—'}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Mobile spacing */}
+      <div style={{ height:'20px' }} />
     </div>
   )
 }
