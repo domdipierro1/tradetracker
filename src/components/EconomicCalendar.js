@@ -75,8 +75,9 @@ export default function EconomicCalendar() {
       )}
 
       {!loading && error && (
-        <div style={{ padding:'12px 14px', background:'var(--red-bg)', border:'1px solid var(--red-dim)', borderRadius:'var(--r)', color:'var(--red)', fontSize:'13px', fontWeight:'600' }}>
-          ⚠️ {error} — <button onClick={()=>{ sessionStorage.removeItem('tt26_econ_v11'); window.location.reload() }} style={{ color:'var(--blue)', background:'none', border:'none', cursor:'pointer', fontWeight:'700', fontFamily:'inherit', fontSize:'13px' }}>Retry</button>
+        <div style={{ padding:'12px 14px', background: error.includes('not yet available') ? 'var(--amber-bg)' : 'var(--red-bg)', border: `1px solid ${error.includes('not yet available') ? 'var(--amber-dim)' : 'var(--red-dim)'}`, borderRadius:'var(--r)', color: error.includes('not yet available') ? 'var(--amber)' : 'var(--red)', fontSize:'13px', fontWeight:'500' }}>
+          {error.includes('not yet available') ? '📅' : '⚠️'} {error}
+          {!error.includes('not yet available') && <button onClick={()=>{ for(let i=1;i<=15;i++) sessionStorage.removeItem('tt26_econ_v'+i); window.location.reload() }} style={{ marginLeft:'8px', color:'var(--blue)', background:'none', border:'none', cursor:'pointer', fontWeight:'700', fontFamily:'inherit', fontSize:'13px' }}>Retry</button>}
         </div>
       )}
 
