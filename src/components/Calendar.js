@@ -25,8 +25,8 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast }) {
   const today      = new Date().toISOString().split('T')[0]
   const [month, setMonth] = useState(new Date().getMonth())
-  const [selectedDate, setSelectedDate] = useState(null) // null = show grid, string = show journal
-  const year = new Date().getFullYear()
+  const [year,  setYear]  = useState(Math.max(2026, new Date().getFullYear()))
+  const [selectedDate, setSelectedDate] = useState(null)
 
   const moTrades = trades.filter(t => {
     const d = new Date(t.date)
@@ -120,11 +120,22 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'16px', flexWrap:'wrap' }}>
         <div style={{ fontSize:'18px', fontWeight:'600', color:'var(--text)', flex:1, letterSpacing:'-.02em' }}>{MONTHS[month]} {year}</div>
-        <button onClick={() => setMonth(m => Math.max(0,m-1))} style={{ width:'32px', height:'32px', borderRadius:'var(--r-xs)', border:'1px solid var(--border)', background:'var(--surface)', cursor:'pointer', fontSize:'16px', display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
-        <button onClick={() => setMonth(m => Math.min(11,m+1))} style={{ width:'32px', height:'32px', borderRadius:'var(--r-xs)', border:'1px solid var(--border)', background:'var(--surface)', cursor:'pointer', fontSize:'16px', display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
+        <button onClick={() => { if(month===0){setMonth(11);setYear(y=>y-1)}else setMonth(m=>m-1) }} style={{ width:'32px', height:'32px', borderRadius:'var(--r-xs)', border:'1px solid var(--border)', background:'var(--surface)', cursor:'pointer', fontSize:'16px', display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
+        <button onClick={() => { if(month===11){setMonth(0);setYear(y=>y+1)}else setMonth(m=>m+1) }} style={{ width:'32px', height:'32px', borderRadius:'var(--r-xs)', border:'1px solid var(--border)', background:'var(--surface)', cursor:'pointer', fontSize:'16px', display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
         <select value={month} onChange={e => setMonth(+e.target.value)} style={{ padding:'6px 10px', borderRadius:'var(--r-xs)', border:'1px solid var(--border)', background:'var(--surface)', fontSize:'12px', fontWeight:'500', color:'var(--text)', fontFamily:'inherit', outline:'none', cursor:'pointer' }}>
           {MONTHS.map((m,i) => <option key={i} value={i}>{m}</option>)}
         </select>
+        <div style={{ display:'flex', alignItems:'center', gap:'0', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-xs)', overflow:'hidden' }}>
+          <button onClick={() => setYear(y => y - 1)}
+            style={{ width:'28px', height:'32px', border:'none', background:'transparent', cursor:'pointer', fontSize:'14px', color:'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center', transition:'background .1s' }}
+            onMouseEnter={e => e.currentTarget.style.background='var(--surface2)'}
+            onMouseLeave={e => e.currentTarget.style.background='transparent'}>‹</button>
+          <span style={{ padding:'0 10px', fontSize:'12px', fontWeight:'600', color:'var(--text)', minWidth:'36px', textAlign:'center', userSelect:'none' }}>{year}</span>
+          <button onClick={() => setYear(y => y + 1)}
+            style={{ width:'28px', height:'32px', border:'none', background:'transparent', cursor:'pointer', fontSize:'14px', color:'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center', transition:'background .1s' }}
+            onMouseEnter={e => e.currentTarget.style.background='var(--surface2)'}
+            onMouseLeave={e => e.currentTarget.style.background='transparent'}>›</button>
+        </div>
       </div>
 
       {/* Month KPIs */}
