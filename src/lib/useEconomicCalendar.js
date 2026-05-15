@@ -86,18 +86,16 @@ export function useEconomicCalendar(weekOffset = 0) {
 
       // Try our Vercel proxy first (best — full server-side fetch)
       // Then CORS proxies as fallback
+      const ffFile = weekOffset === 0 ? 'ff_calendar_thisweek.json' : 'ff_calendar_nextweek.json'
       const SOURCES = [
         { url: `/api/calendar?week=${weekOffset}&t=${Math.floor(Date.now()/600000)}`, isOurApi: true },
-        { url: 'https://corsproxy.io/?url=https://nfs.faireconomy.media/ff_calendar_thisweek.json', isOurApi: false },
-        { url: 'https://api.allorigins.win/raw?url=https://nfs.faireconomy.media/ff_calendar_thisweek.json', isOurApi: false },
+        { url: `https://corsproxy.io/?url=${encodeURIComponent('https://cdn-nfs.faireconomy.media/' + ffFile)}`, isOurApi: false },
+        { url: `https://corsproxy.io/?url=${encodeURIComponent('https://nfs.faireconomy.media/' + ffFile)}`, isOurApi: false },
       ]
 
       for (const source of SOURCES) {
         try {
-          const fetchUrl = source.url === '/api/calendar' 
-              ? `/api/calendar?week=${weekOffset}&t=${Math.floor(Date.now()/600000)}`
-              : source.url
-            const res = await fetch(fetchUrl, { signal: AbortSignal.timeout(8000) })
+          const res = await fetch(source.url, { signal: AbortSignal.timeout(8000) })
           if (!res.ok) continue
           const raw = await res.json()
 
