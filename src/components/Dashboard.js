@@ -292,7 +292,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
   const isEmpty = trades.length === 0
 
   return (
-    <div style={{ padding:'28px', minHeight:'100vh', background:'#F8FAFC' }}>
+    <div className="dashboard-page" style={{ padding:'28px', minHeight:'100vh', background:'#F8FAFC' }}>
 
       {/* ── HEADER ── */}
       <div style={{ marginBottom:'24px' }}>
@@ -303,12 +303,12 @@ export default function Dashboard({ trades, startingBalance, currency }) {
       </div>
 
       {/* ── KPI GRID ── */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(170px, 1fr))', gap:'12px', marginBottom:'20px' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(140px, 1fr))', gap:'12px', marginBottom:'20px' }}>
         <KPI label="Total R"       value={f2(s.totalR)}                  sub="Cumulative R earned"             accent="#6366F1" positive={s.totalR > 0} negative={s.totalR < 0} />
         <KPI label="Total Trades"  value={s.n}                           sub={`${s.wins}W · ${s.losses}L · ${s.bes}BE`} accent="#0EA5E9" />
         <KPI label="Win Rate"      value={fP(s.winRate)}                 sub={`${s.wins} of ${s.n} trades`}   positive={s.winRate >= .5} negative={s.winRate > 0 && s.winRate < .5} />
         <KPI label="Expectancy"    value={s.expectancy ? fR(s.expectancy) : '—'} sub="Per trade edge"         positive={s.expectancy > 0} negative={s.expectancy < 0} accent="#6366F1" />
-        <KPI label="Profit Factor" value={s.profitFactor ? s.profitFactor.toFixed(2) : '—'} sub="Target: > 1.5" positive={s.profitFactor >= 1.5} negative={s.profitFactor > 0 && s.profitFactor < 1} accent="#8B5CF6" />
+        <KPI label="Profit Factor" value={!s.profitFactor || s.profitFactor === 0 ? '—' : !isFinite(s.profitFactor) ? 'No losses' : s.profitFactor.toFixed(2)} sub="Target: > 1.5" positive={s.profitFactor >= 1.5} negative={s.profitFactor > 0 && s.profitFactor < 1} accent="#8B5CF6" />
         <KPI label="Avg Win"       value={s.avgWin ? fR(s.avgWin) : '—'}  sub="On winning trades"            positive accent="#10B981" />
         <KPI label="Avg Loss"      value={s.avgLoss ? fR(s.avgLoss) : '—'} sub="On losing trades"            negative={s.avgLoss < 0} accent="#EF4444" />
         <KPI label="Best Trade"    value={s.bestTrade ? fR(s.bestTrade) : '—'} sub="Single best"             positive accent="#10B981" />
