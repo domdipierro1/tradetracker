@@ -82,7 +82,7 @@ export default function Layout({ page, onNav, trades, user, onSignOut, onExport,
       </div>
 
       {/* BOTTOM NAV */}
-      <nav className="bot-nav" style={{ display:'none', position:'fixed', bottom:0, left:0, right:0, height:'var(--bot-h)', background:'var(--surface)', borderTop:'1px solid var(--border)', zIndex:100, paddingBottom:'env(safe-area-inset-bottom)' }}>
+      <nav className="bot-nav" style={{ display:'none', position:'fixed', bottom:0, left:0, right:0, height:'var(--bot-h)', background:'var(--surface)', borderTop:'1px solid var(--border)', zIndex:1000, paddingBottom:'env(safe-area-inset-bottom, 8px)', WebkitBackdropFilter:'blur(10px)', backdropFilter:'blur(10px)' }}>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', height:'100%' }}>
           {NAV.map(item => {
             const active = page === item.id
@@ -101,8 +101,15 @@ export default function Layout({ page, onNav, trades, user, onSignOut, onExport,
       <style>{`
         @media(max-width:768px){
           .sidebar{display:none!important}
-          .main{margin-left:0!important;padding-bottom:calc(var(--bot-h)+8px)}
-          .bot-nav{display:block!important}
+          .main{margin-left:0!important;padding-bottom:calc(var(--bot-h)+20px)}
+          .bot-nav{
+            display:flex!important;
+            position:fixed!important;
+            bottom:0!important;
+            left:0!important;
+            right:0!important;
+            z-index:1000!important;
+          }
         }
       `}</style>
     </div>
