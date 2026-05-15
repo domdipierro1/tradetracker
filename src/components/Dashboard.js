@@ -189,7 +189,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
     }))
 
     // Symbol R bar
-    const syms = ['NQ', 'ES', 'YM', 'DAX', 'UK100', 'Gold', 'Silver', 'EUR/USD', 'GBP/USD', 'GBP/JPY', 'EUR/JPY']
+    const syms = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','Gold','Silver']
     const symData = syms.map(s2 => trades.filter(t => t.symbol === s2).reduce((sum, t) => sum + (t.pl || t.r_multiple || 0), 0))
     safe(symRef, ctx => new Chart(ctx, {
       type: 'bar',

@@ -1,120 +1,101 @@
-// All stats calculated in R multiples
-// pl field stores R value directly (e.g. +2, -1, +1.5)
-// 1R = 1% risk per trade
+-- ════════════════════════════════════════════════════════════════
+-- TradeTracker '26 — Supabase Schema v3
+-- Safe to re-run. Paste into SQL Editor → Run
+-- ════════════════════════════════════════════════════════════════
 
-export const BAL = 100000
+-- ── ACCOUNTS ────────────────────────────────────────────────────
+-- Each user can have multiple accounts (live, prop, demo etc)
+create table if not exists public.accounts (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid references auth.users(id) on delete cascade not null,
+  name          text not null default 'Main Account',
+  starting_balance numeric not null default 100000,
+  currency      text not null default 'USD',
+  account_type  text default 'Live',   -- Live | Prop | Demo | Paper
+  broker        text,
+  color         text default '#2563EB',
+  is_default    boolean default false,
+  created_at    timestamptz default now()
+);
+create index if not exists accounts_user_id_idx on public.accounts(user_id);
+alter table public.accounts enable row level security;
+drop policy if exists "Users can view own accounts"   on public.accounts;
+drop policy if exists "Users can insert own accounts" on public.accounts;
+drop policy if exists "Users can update own accounts" on public.accounts;
+drop policy if exists "Users can delete own accounts" on public.accounts;
+create policy "Users can view own accounts"   on public.accounts for select using (auth.uid()=user_id);
+create policy "Users can insert own accounts" on public.accounts for insert with check (auth.uid()=user_id);
+create policy "Users can update own accounts" on public.accounts for update using (auth.uid()=user_id);
+create policy "Users can delete own accounts" on public.accounts for delete using (auth.uid()=user_id);
 
-export function computeStats(trades, startingBalance) {
-  const wins   = trades.filter(t => t.outcome === 'Win')
-  const losses = trades.filter(t => t.outcome === 'Loss')
-  const bes    = trades.filter(t => t.outcome === 'Break Even')
-  const n      = trades.length
+-- ── TRADES ──────────────────────────────────────────────────────
+create table if not exists public.trades (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references auth.users(id) on delete cascade not null,
+  account_id   uuid references public.accounts(id) on delete cascade,
+  date         date not null,
+  time         text, symbol text, direction text,
+  setup        text,
+  entry       text, bias text, smt text, session text,
+  risk         numeric, outcome text, grade text,
+  r_multiple   numeric, pl numeric not null,
+  mistake      text, screenshot text, journal text,
+  created_at   timestamptz default now()
+);
+create index if not exists trades_user_id_idx    on public.trades(user_id);
+create index if not exists trades_account_id_idx on public.trades(account_id);
+create index if not exists trades_user_date_idx  on public.trades(user_id, date);
+alter table public.trades enable row level security;
+drop policy if exists "Users can view own trades"   on public.trades;
+drop policy if exists "Users can insert own trades" on public.trades;
+drop policy if exists "Users can update own trades" on public.trades;
+drop policy if exists "Users can delete own trades" on public.trades;
+create policy "Users can view own trades"   on public.trades for select using (auth.uid()=user_id);
+create policy "Users can insert own trades" on public.trades for insert with check (auth.uid()=user_id);
+create policy "Users can update own trades" on public.trades for update using (auth.uid()=user_id);
+create policy "Users can delete own trades" on public.trades for delete using (auth.uid()=user_id);
 
-  // All P/L in R
-  const totalR    = trades.reduce((s, t) => s + (t.pl || t.r_multiple || 0), 0)
-  const winRate   = n ? wins.length / n : 0
-  const avgWin    = wins.length   ? wins.reduce((s,t) => s+(t.pl||t.r_multiple||0),0)/wins.length : 0
-  const avgLoss   = losses.length ? losses.reduce((s,t) => s+(t.pl||t.r_multiple||0),0)/losses.length : 0
-  const bestTrade = n ? Math.max(...trades.map(t => t.pl||t.r_multiple||0)) : 0
-  const worstTrade= n ? Math.min(...trades.map(t => t.pl||t.r_multiple||0)) : 0
-  const wlRatio   = avgLoss !== 0 ? Math.abs(avgWin / avgLoss) : 0
-  const expectancy= (winRate * avgWin) + ((1-winRate) * avgLoss)
+-- ── DAILY NOTES ─────────────────────────────────────────────────
+create table if not exists public.daily_notes (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid references auth.users(id) on delete cascade not null,
+  account_id        uuid references public.accounts(id) on delete cascade,
+  date              date not null,
+  note_type         text default 'day',
+  note              text,
+  mood              text,
+  consistency       text,
+  market_conditions text,
+  htf_bias          text,
+  observations      text,
+  execution_review  text,
+  trading_errors    text,
+  improvements      text,
+  week_summary      text,
+  top_mistake       text,
+  what_worked       text,
+  next_week_goal    text,
+  rule_compliance   text,
+  created_at        timestamptz default now(),
+  updated_at        timestamptz default now(),
+  unique(user_id, account_id, date)
+);
+create index if not exists daily_notes_user_date_idx on public.daily_notes(user_id, date);
+alter table public.daily_notes enable row level security;
+drop policy if exists "Users can view own notes"   on public.daily_notes;
+drop policy if exists "Users can insert own notes" on public.daily_notes;
+drop policy if exists "Users can update own notes" on public.daily_notes;
+drop policy if exists "Users can delete own notes" on public.daily_notes;
+create policy "Users can view own notes"   on public.daily_notes for select using (auth.uid()=user_id);
+create policy "Users can insert own notes" on public.daily_notes for insert with check (auth.uid()=user_id);
+create policy "Users can update own notes" on public.daily_notes for update using (auth.uid()=user_id);
+create policy "Users can delete own notes" on public.daily_notes for delete using (auth.uid()=user_id);
 
-  // Profit factor
-  const grossWin  = wins.reduce((s,t) => s+(t.pl||t.r_multiple||0),0)
-  const grossLoss = Math.abs(losses.reduce((s,t) => s+(t.pl||t.r_multiple||0),0))
-  const profitFactor = grossLoss > 0 ? grossWin / grossLoss : grossWin > 0 ? Infinity : 0
+-- Add screenshot2 column if not exists
+ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS screenshot2 text;
 
-  // Max drawdown in R (peak to trough)
-  let peak = 0, trough = 0, maxDD = 0, running = 0
-  trades.forEach(t => {
-    running += (t.pl||t.r_multiple||0)
-    if (running > peak) peak = running
-    const dd = peak - running
-    if (dd > maxDD) { maxDD = dd; trough = running }
-  })
-
-  // Streak
-  let curStreak = 0, maxWinStreak = 0, maxLossStreak = 0
-  let streakType = null
-  trades.forEach(t => {
-    const isWin = t.outcome === 'Win'
-    if (isWin) {
-      if (streakType === 'win') curStreak++
-      else { streakType = 'win'; curStreak = 1 }
-      if (curStreak > maxWinStreak) maxWinStreak = curStreak
-    } else if (t.outcome === 'Loss') {
-      if (streakType === 'loss') curStreak++
-      else { streakType = 'loss'; curStreak = 1 }
-      if (curStreak > maxLossStreak) maxLossStreak = curStreak
-    }
-  })
-
-  // Build R curve for equity chart
-  let runR = 0
-  const curve = [0, ...trades.map(t => {
-    runR += (t.pl || t.r_multiple || 0)
-    return parseFloat(runR.toFixed(2))
-  })]
-
-  return {
-    n, wins: wins.length, losses: losses.length, bes: bes.length,
-    totalR, totalPL: totalR,
-    winRate, avgWin, avgLoss, bestTrade, worstTrade,
-    wlRatio, expectancy, profitFactor, maxDD,
-    maxWinStreak, maxLossStreak,
-    equity: totalR,
-    curve, // R curve array for equity chart
-  }
-}
-
-// Equity curve — cumulative R over time
-export function equityCurveForTrades(trades) {
-  let r = 0
-  return [
-    { label: 'Start', r: 0 },
-    ...trades.map((t, i) => {
-      r += (t.pl || t.r_multiple || 0)
-      return { label: t.date, r: parseFloat(r.toFixed(2)) }
-    })
-  ]
-}
-
-// Format R value
-export function fR(r) {
-  if (r == null || isNaN(r)) return '—'
-  const n = parseFloat(r)
-  return (n >= 0 ? '+' : '') + n.toFixed(2) + 'R'
-}
-
-// Format R short
-export function f2(r) {
-  if (r == null || isNaN(r)) return '—'
-  const n = parseFloat(r)
-  return (n >= 0 ? '+' : '') + n.toFixed(2) + 'R'
-}
-
-export function f1(r) {
-  if (r == null || isNaN(r)) return '—'
-  const n = parseFloat(r)
-  return (n >= 0 ? '+' : '') + n.toFixed(1) + 'R'
-}
-
-// Keep fUSD for account equity display (not trade P/L)
-export function fUSD(v) {
-  if (v == null || isNaN(v)) return '—'
-  return '$' + Math.round(v).toLocaleString('en-US')
-}
-
-export function fP(v) {
-  if (v == null || isNaN(v)) return '—'
-  return (v * 100).toFixed(1) + '%'
-}
-
-// Breakdown stats by category
-export function breakdownStats(trades, key, items) {
-  return items.map(item => {
-    const group = trades.filter(t => t[key] === item)
-    return { label: item, ...computeStats(group) }
-  })
-}
+-- Add new model fields to trades table
+ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS level text;
+ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS pd_array text;
+ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS entry_tf text;
+ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS screenshot2 text;
