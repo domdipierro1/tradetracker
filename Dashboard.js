@@ -3,12 +3,12 @@ import { computeStats } from '../lib/stats'
 import AccountManager from './AccountManager'
 
 const NAV = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'journal',   label: 'Journal'    },
-  { id: 'calendar',  label: 'Calendar'   },
-  { id: 'news',      label: 'News'       },
-  { id: 'analysis',  label: 'Analysis'   },
-  { id: 'playbook',  label: 'Playbook'   },
+  { id: 'dashboard', label: 'Dashboard',         short: 'Dash' },
+  { id: 'journal',   label: 'Journal',            short: 'Jour' },
+  { id: 'calendar',  label: 'Calendar',           short: 'Cal'  },
+  { id: 'news',      label: 'Economic Calendar',  short: 'News' },
+  { id: 'analysis',  label: 'Analysis',           short: 'Anal' },
+  { id: 'playbook',  label: 'Playbook',           short: 'Play' },
 ]
 
 function sym(currency) {
@@ -91,7 +91,7 @@ export default function Layout({ page, onNav, trades, user, onSignOut, onExport,
                 style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'2px', cursor:'pointer', border:'none', background:'none', fontFamily:'Inter,sans-serif', transition:'all .12s', padding:'4px 2px', position:'relative' }}>
                 {active && <div style={{ position:'absolute', top:'4px', width:'14px', height:'2px', borderRadius:'1px', background:'var(--blue)' }} />}
                 <div style={{ width:'6px', height:'6px', borderRadius:'50%', background: active ? 'var(--blue)' : 'var(--border2)', margin:'4px 0 2px', transition:'background .12s' }} />
-                <span style={{ fontSize:'8px', fontWeight: active ? '600' : '400', color: active ? 'var(--blue)' : 'var(--muted)', letterSpacing:'.04em', textTransform:'uppercase' }}>{item.label.slice(0,4)}</span>
+                <span style={{ fontSize:'8px', fontWeight: active ? '600' : '400', color: active ? 'var(--blue)' : 'var(--muted)', letterSpacing:'.04em', textTransform:'uppercase' }}>{item.short || item.label.slice(0,4)}</span>
               </button>
             )
           })}
