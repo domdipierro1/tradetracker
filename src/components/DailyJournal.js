@@ -3,7 +3,6 @@ import { computeStats, f2 } from '../lib/stats'
 import { useEconomicCalendar, currencyFlag, formatFFTime } from '../lib/useEconomicCalendar'
 
 // ── CONSTANTS ────────────────────────────────────────────────────
-const MOODS   = ['Focused','Confident','Patient','Calm','Anxious','Rushed','Tired','Distracted','Tilted']
 const TIMES   = ['02:00','02:30','03:00','03:30','04:00','04:30','05:00','05:30','06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00']
 const SYMBOLS = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CHF','USD/CAD','USD/JPY','NQ','ES','YM','DAX','UK100','Gold','Silver','EUR/AUD','EUR/CAD','EUR/JPY','EUR/NZD','EUR/GBP','GBP/AUD','GBP/CAD','GBP/JPY','GBP/NZD','AUD/NZD']
 const LEVELS  = ['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']
@@ -267,6 +266,8 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [plan,       setPlan]       = useState('')
   const [chart1,     setChart1]     = useState('')
   const [chart2,     setChart2]     = useState('')
+  const [chart3,     setChart3]     = useState('')
+  const [chart4,     setChart4]     = useState('')
   const [eodReview,  setEodReview]  = useState('')
   const [followedPlan, setFollowedPlan] = useState('')
   const [wentWell,   setWentWell]   = useState('')
@@ -281,6 +282,8 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setPlan(existingNote.market_conditions || '')
       setChart1(existingNote.observations || '')
       setChart2(existingNote.execution_review || '')
+      setChart3(existingNote.week_summary || '')
+      setChart4(existingNote.top_mistake || '')
       setEodReview(existingNote.trading_errors || '')
       setFollowedPlan(existingNote.consistency || '')
       setWentWell(existingNote.what_worked || '')
@@ -288,6 +291,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
     } else {
       setMood(''); setBias(''); setPlan(''); setChart1(''); setChart2('')
       setEodReview(''); setFollowedPlan(''); setWentWell(''); setImprove('')
+      setChart3(''); setChart4('')
     }
     setNoteDirty(false)
   }, [dateStr, existingNote?.id])
@@ -307,6 +311,8 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         market_conditions: plan,
         observations:     chart1,
         execution_review: chart2,
+        week_summary:     chart3,
+        top_mistake:      chart4,
         trading_errors:   eodReview,
         consistency:      followedPlan,
         what_worked:      wentWell,
@@ -413,11 +419,10 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
           {/* Mood + Bias row */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
             <div className="form-group">
-              <label className="form-label">Mood</label>
-              <select className="form-input" value={mood} onChange={e => { setMood(e.target.value); markDirty() }}>
-                <option value="">How are you feeling?</option>
-                {MOODS.map(m => <option key={m}>{m}</option>)}
-              </select>
+              <label className="form-label">{isWeekly ? 'How did you feel this week?' : 'How are you feeling?'}</label>
+              <textarea className="form-input" value={mood} onChange={e => { setMood(e.target.value); markDirty() }}
+                placeholder={isWeekly ? "Reflect on your mental state this week — were you patient, disciplined, emotional?" : "Describe how you are feeling going into this session..."}
+                style={{ minHeight:'60px', resize:'vertical' }} />
             </div>
             <div className="form-group">
               <label className="form-label">Bias Today</label>
@@ -433,24 +438,52 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
               style={{ minHeight:'100px' }} />
           </div>
 
-          {/* Chart images */}
+          {/* Chart images — up to 4 */}
           <div>
-            <div style={{ fontSize:'10px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'10px' }}>Chart Images</div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px' }}>
-              <div className="form-group">
-                <label className="form-label">Chart 1 URL</label>
-                <input className="form-input" type="url" value={chart1} onChange={e => { setChart1(e.target.value); markDirty() }} placeholder="Paste TradingView snapshot URL..." />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Chart 2 URL</label>
-                <input className="form-input" type="url" value={chart2} onChange={e => { setChart2(e.target.value); markDirty() }} placeholder="Paste TradingView snapshot URL..." />
-              </div>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'10px' }}>
+              <div style={{ fontSize:'10px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.07em', textTransform:'uppercase' }}>Chart Images</div>
+              {[chart1, chart2, chart3, chart4].filter(Boolean).length < 4 && (
+                <button type="button" className="btn btn-outline btn-sm"
+                  onClick={() => {
+                    if (!chart1) { setChart1(' '); markDirty() }
+                    else if (!chart2) { setChart2(' '); markDirty() }
+                    else if (!chart3) { setChart3(' '); markDirty() }
+                    else if (!chart4) { setChart4(' '); markDirty() }
+                  }}>
+                  + Add Chart
+                </button>
+              )}
             </div>
-            {(chart1 || chart2) && (
-              <div style={{ display:'grid', gridTemplateColumns: chart1 && chart2 ? '1fr 1fr' : '1fr', gap:'12px' }}>
-                <ChartImage url={chart1} label="Chart 1" large />
-                <ChartImage url={chart2} label="Chart 2" large />
-              </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+              {[
+                [chart1, setChart1, 'Chart 1'],
+                [chart2, setChart2, 'Chart 2'],
+                [chart3, setChart3, 'Chart 3'],
+                [chart4, setChart4, 'Chart 4'],
+              ].map(([val, setter, label], idx) => (val !== null && val !== undefined) && (
+                <div key={idx}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'6px' }}>
+                    <label className="form-label" style={{ margin:0 }}>{label}</label>
+                    <button type="button" onClick={() => { setter(''); markDirty() }}
+                      style={{ background:'none', border:'none', color:'var(--muted2)', cursor:'pointer', fontSize:'12px', padding:'0', marginLeft:'auto' }}>✕ Remove</button>
+                  </div>
+                  <input className="form-input" type="url"
+                    value={val === ' ' ? '' : val}
+                    onChange={e => { setter(e.target.value); markDirty() }}
+                    placeholder="Paste TradingView snapshot URL..." />
+                  {val && val.trim() && val.trim() !== '' && (
+                    <div style={{ marginTop:'8px' }}>
+                      <ChartImage url={val.trim()} label={label} large />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {!chart1 && !chart2 && !chart3 && !chart4 && (
+              <button type="button" className="btn btn-outline btn-sm"
+                onClick={() => { setChart1(' '); markDirty() }}>
+                + Add Chart Image
+              </button>
             )}
           </div>
         </div>

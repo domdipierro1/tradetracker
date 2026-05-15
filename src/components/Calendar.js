@@ -61,8 +61,8 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
     const d = dayMap[ds]
     const hasNote = !!noteMap[ds]
     if (!d?.trades.length) {
-      if (isToday) return 'today-empty'
-      if (hasNote) return 'note-only'
+      if (hasNote) return 'note-only'   // note but no trades = grey (even if today)
+      if (isToday) return 'today-empty' // today with no note and no trades = blue
       return 'no-trade'
     }
     return d.pl > 0 ? 'win' : d.pl < 0 ? 'loss' : 'be'
@@ -74,7 +74,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
     be:           { bg:'var(--amber-bg)', border:'var(--amber-dim)' },
     'no-trade':   { bg:'var(--surface)',  border:'var(--border)'    },
     'today-empty':{ bg:'var(--blue-bg)',  border:'var(--blue)'      },
-    'note-only':  { bg:'var(--surface3)', border:'var(--border2)'   },
+    'note-only':  { bg:'#D8D8D4',         border:'#BEBEBB'          },
     weekend:      { bg:'var(--surface2)', border:'var(--border)'    },
   }
   const numCol = {
