@@ -3,12 +3,12 @@ import { computeStats } from '../lib/stats'
 import AccountManager from './AccountManager'
 
 const NAV = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'journal',   label: 'Journal'    },
-  { id: 'calendar',  label: 'Econ Cal'   },
-  { id: 'news',      label: 'Economic Calendar', short: 'News' },
-  { id: 'analysis',  label: 'Analysis'   },
-  { id: 'playbook',  label: 'Playbook'   },
+  { id: 'dashboard', label: 'Dashboard',         short: 'Dash' },
+  { id: 'journal',   label: 'Journal',            short: 'Jour' },
+  { id: 'calendar',  label: 'Calendar',           short: 'Cal'  },
+  { id: 'news',      label: 'Economic Calendar',  short: 'News' },
+  { id: 'analysis',  label: 'Analysis',           short: 'Anal' },
+  { id: 'playbook',  label: 'Playbook',           short: 'Play' },
 ]
 
 function sym(currency) {

@@ -41,16 +41,10 @@ export default function EconomicCalendar() {
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px', flexWrap:'wrap', gap:'10px' }}>
         <div>
           <h1 style={{ fontSize:'18px', fontWeight:'800', color:'var(--text)' }}>Economic Calendar</h1>
-          <div style={{ fontSize:'11px', color:'var(--muted)', marginTop:'2px', fontWeight:'600' }}>🔴 High impact + bank holidays · USD · GBP · EUR</div>
         </div>
-        <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
-          {[['🇺🇸','USD',usd,'--blue'],['🇬🇧','GBP',gbp,'--purple'],['🇪🇺','EUR',eur,'--green']].map(([flag,cur,count,col])=>(
-            <div key={cur} style={{ display:'flex', alignItems:'center', gap:'5px', padding:'5px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-xs)', fontSize:'11px', fontWeight:'700' }}>
-              <span>{flag}</span><span style={{ color:`var(${col})` }}>{cur}</span><span style={{ color:'var(--muted)' }}>{count}</span>
-            </div>
-          ))}
+        <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
           {fetchedAt && <span style={{ fontSize:'10px', color:'var(--muted2)' }}>Updated {fetchedAt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>}
-          <button className="btn btn-outline btn-sm" onClick={()=>{ sessionStorage.removeItem('tt26_econ_v11'); window.location.reload() }}>↻</button>
+          <button className="btn btn-icon btn-ghost" onClick={refresh} title="Refresh">↻</button>
         </div>
       </div>
 
