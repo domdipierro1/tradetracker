@@ -12,11 +12,11 @@ const CHART_COLORS = {
 
 function StatCard({ label, value, sub, icon, color, valClass }) {
   return (
-    <div className={`sc ${color}`} style={{ position: 'relative', overflow: 'hidden', borderRadius: '24px', border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(145deg, rgba(20,24,38,.96), rgba(13,17,28,.88))', boxShadow: '0 20px 40px rgba(0,0,0,.28)' }}>
+    <div className={`sc ${color}`} style={{ position: 'relative', overflow: 'hidden', borderRadius: '24px', border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(145deg, rgba(30,41,59,.92), rgba(51,65,85,.82))', boxShadow: '0 20px 40px rgba(0,0,0,.28)' }}>
       <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at top right, ${color === 'green' ? 'rgba(16,185,129,.18)' : color === 'red' ? 'rgba(239,68,68,.18)' : color === 'purple' ? 'rgba(124,58,237,.18)' : 'rgba(59,130,246,.14)'}, transparent 55%)`, pointerEvents: 'none' }} />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', position: 'relative' }}>
         <div className="sc-label">{label}</div>
-        <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(12px)' }}>
+        <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(12px)' }}>
           <div style={{ width: '10px', height: '10px', borderRadius: '999px', background: icon }} />
         </div>
       </div>
@@ -28,7 +28,7 @@ function StatCard({ label, value, sub, icon, color, valClass }) {
 
 function ChartCard({ title, accentColor = 'var(--blue)', children }) {
   return (
-    <div style={{ background: 'linear-gradient(180deg, rgba(20,24,38,.96), rgba(10,14,24,.94))', border: '1px solid rgba(255,255,255,.06)', borderRadius: '28px', padding: '22px', boxShadow: '0 24px 60px rgba(0,0,0,.28)', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ background: 'linear-gradient(180deg, rgba(30,41,59,.88), rgba(15,23,42,.72))', border: '1px solid rgba(255,255,255,.06)', borderRadius: '28px', padding: '22px', boxShadow: '0 24px 60px rgba(0,0,0,.28)', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '180px', height: '180px', borderRadius: '50%', background: `${accentColor}18`, filter: 'blur(20px)' }} />
       <div style={{ position: 'relative', fontSize: '11px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -83,8 +83,8 @@ export default function Dashboard({ trades, startingBalance, currency }) {
       if (!el) return
       const ch = new Chart(el.getContext('2d'), {
         type: 'doughnut',
-        data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 3, borderColor: 'var(--surface)', hoverOffset: 5 }] },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '78%', animation: { duration: 1200 },
+        data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 3, borderColor: 'rgba(255,255,255,0.08)', hoverOffset: 10, spacing: 4 }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '82%', animation: { duration: 1200 },
           plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle', color: 'var(--text2)' } },
             tooltip: { callbacks: { label: c => `${c.label}: ${c.raw} (${(c.raw / (c.dataset.data.reduce((a,b)=>a+b,0)||1) * 100).toFixed(1)}%)` } } } }
       })
@@ -94,7 +94,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
       if (!el) return
       const ch = new Chart(el.getContext('2d'), {
         type: 'bar',
-        data: { labels, datasets: [{ data, backgroundColor: data.map(v => v >= 0 ? color + '30' : '#DC262630'), borderColor: data.map(v => v >= 0 ? color : '#DC2626'), borderWidth: 1.5, borderRadius: 12, barThickness: 14 }] },
+        data: { labels, datasets: [{ data, backgroundColor: data.map(v => v >= 0 ? `${color}99` : 'rgba(239,68,68,.55)'), borderColor: data.map(v => v >= 0 ? color : '#DC2626'), borderWidth: 1.5, borderRadius: 18, barThickness: 18 }] },
         options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.raw >= 0 ? '+' : ''}${c.raw.toFixed(2)}%` } } },
           scales: { x: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` } }, y: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11, weight: '600' }, color: 'var(--text2)' } } } }
@@ -124,7 +124,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
       })
       charts.push(new Chart(rdistRef.current.getContext('2d'), {
         type: 'bar',
-        data: { labels: Object.keys(rb), datasets: [{ data: Object.values(rb), backgroundColor: '#2563EB22', borderColor: '#2563EB', borderWidth: 2, borderRadius: 6 }] },
+        data: { labels: Object.keys(rb), datasets: [{ data: Object.values(rb), backgroundColor: ['rgba(59,130,246,.55)','rgba(139,92,246,.55)','rgba(16,185,129,.55)','rgba(245,158,11,.55)','rgba(236,72,153,.55)','rgba(6,182,212,.55)'], borderColor: '#2563EB', borderWidth: 2, borderRadius: 14 }] },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
           scales: { x: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono', size: 11 }, color: 'var(--text2)' } }, y: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', stepSize: 1 } } } }
       }))
@@ -136,7 +136,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         type: 'line',
         data: { labels: s.curve.map((_,i) => i === 0 ? 'Start' : `#${i}`),
           datasets: [
-            { data: s.curve, borderColor: '#2563EB', borderWidth: 3, fill: true, backgroundColor: 'rgba(37,99,235,.12)', pointRadius: 0, pointHoverRadius: 6, tension: .42 },
+            { data: s.curve, borderColor: '#2563EB', borderWidth: 3, fill: true, backgroundColor: (ctx) => { const g = ctx.chart.ctx.createLinearGradient(0,0,0,220); g.addColorStop(0,'rgba(59,130,246,.45)'); g.addColorStop(1,'rgba(59,130,246,.02)'); return g }, pointRadius: 0, pointHoverRadius: 8, pointBackgroundColor:'#fff', tension: .42 },
             { data: Array(s.curve.length).fill(0), borderColor: 'var(--border2)', borderWidth: 1.5, borderDash: [5,5], pointRadius: 0, fill: false }
           ] },
         options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
@@ -151,7 +151,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         type: 'line',
         data: { labels: rolling.map((_,i) => `${i+20}`),
           datasets: [
-            { data: rolling, borderColor: '#059669', borderWidth: 3, fill: true, backgroundColor: 'rgba(5,150,105,.12)', pointRadius: 0, tension: .45 },
+            { data: rolling, borderColor: '#059669', borderWidth: 3, fill: true, backgroundColor: (ctx) => { const g = ctx.chart.ctx.createLinearGradient(0,0,0,140); g.addColorStop(0,'rgba(16,185,129,.4)'); g.addColorStop(1,'rgba(16,185,129,.03)'); return g }, pointRadius: 0, tension: .45 },
             { data: Array(rolling.length).fill(50), borderColor: 'var(--border2)', borderWidth: 1.5, borderDash: [4,4], pointRadius: 0, fill: false }
           ] },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
@@ -163,7 +163,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
   }, [trades])
 
   const statCards = [
-    { label: 'Best Day R',      value: fR(s.bestTrade),          sub: 'Best single trade',                    icon: '#10B981', color: 'green', valClass: 'up'                            },
+    { label: 'Top Performing Trade',      value: fR(s.bestTrade),          sub: 'Highest quality execution',                    icon: '#10B981', color: 'green', valClass: 'up'                            },
     { label: 'Total R',    value: f2(s.totalPL),            sub: 'Cumulative R multiple',                   icon: '#3B82F6', color: s.totalPL>=0?'green':'red', valClass: s.totalPL>=0?'up':'down' },
     { label: 'Total Trades',    value: s.n,                      sub: `${s.wins}W · ${s.losses}L · ${s.bes}BE`, icon: '#8B5CF6', color: 'blue', valClass: 'blue' },
     { label: 'Win Rate',        value: fP(s.winRate),            sub: `${s.wins} of ${s.n} trades`,          icon: '#06B6D4', color: s.winRate>=.5?'green':'red', valClass: s.winRate>=.5?'up':'down' },
@@ -199,7 +199,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
 
       {/* Equity curve */}
       <div className="sh"><h2>Equity Curve</h2></div>
-      <div style={{ background: 'linear-gradient(180deg, rgba(20,24,38,.96), rgba(10,14,24,.94))', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
+      <div style={{ background: 'linear-gradient(180deg, rgba(30,41,59,.88), rgba(15,23,42,.72))', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
         {s.curve.length > 1
           ? <div style={{ height: '200px' }}><canvas ref={equityRef} /></div>
           : <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: '13px' }}>Log some trades to see your equity curve</div>}
@@ -207,15 +207,15 @@ export default function Dashboard({ trades, startingBalance, currency }) {
 
       {/* Rolling win rate */}
       <div className="sh"><h2>Rolling 20-Trade Win Rate</h2><span className="sh-right">50% threshold line</span></div>
-      <div style={{ background: 'linear-gradient(180deg, rgba(20,24,38,.96), rgba(10,14,24,.94))', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
+      <div style={{ background: 'linear-gradient(180deg, rgba(30,41,59,.88), rgba(15,23,42,.72))', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
         {rolling.length > 0
           ? <div style={{ height: '90px' }}><canvas ref={rollingRef} /></div>
           : <div style={{ height: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: '12px' }}>Need 20+ trades</div>}
       </div>
 
       {/* Streak */}
-      <div className="sh"><h2>Current Streak</h2></div>
-      <div style={{ background: 'linear-gradient(180deg, rgba(20,24,38,.96), rgba(10,14,24,.94))', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
+      <div className="sh"><h2>Performance Momentum</h2></div>
+      <div style={{ background: 'linear-gradient(180deg, rgba(30,41,59,.88), rgba(15,23,42,.72))', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '12px' }}>
           <div><div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Win Streak</div>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '28px', fontWeight: '700', color: 'var(--green)' }}>{s.cw}</div></div>
