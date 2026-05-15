@@ -2,6 +2,24 @@ import { useState } from 'react'
 import { computeStats, f2, f1 } from '../lib/stats'
 import DailyJournal from './DailyJournal'
 
+
+// Get Mon-Sun week containing a given date string
+function getWeekRange(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00')
+  const dow = d.getDay() // 0=Sun
+  const mon = new Date(d); mon.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1))
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+  const fmt = dt => dt.toISOString().split('T')[0]
+  return { mon: fmt(mon), sun: fmt(sun) }
+}
+
+function getWeekR(trades, sundayDateStr) {
+  const { mon, sun } = getWeekRange(sundayDateStr)
+  return trades
+    .filter(t => t.date >= mon && t.date <= sun)
+    .reduce((s, t) => s + (t.pl || t.r_multiple || 0), 0)
+}
+
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast }) {
@@ -41,7 +59,12 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
     const isToday = ds === today
     if (dow >= 5 && !isToday) return 'weekend'
     const d = dayMap[ds]
-    if (!d?.trades.length) return isToday ? 'today-empty' : 'no-trade'
+    const hasNote = !!noteMap[ds]
+    if (!d?.trades.length) {
+      if (isToday) return 'today-empty'
+      if (hasNote) return 'note-only'
+      return 'no-trade'
+    }
     return d.pl > 0 ? 'win' : d.pl < 0 ? 'loss' : 'be'
   }
 
@@ -51,6 +74,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
     be:           { bg:'var(--amber-bg)', border:'var(--amber-dim)' },
     'no-trade':   { bg:'var(--surface)',  border:'var(--border)'    },
     'today-empty':{ bg:'var(--blue-bg)',  border:'var(--blue)'      },
+    'note-only':  { bg:'var(--surface3)', border:'var(--border2)'   },
     weekend:      { bg:'var(--surface2)', border:'var(--border)'    },
   }
   const numCol = {
@@ -85,6 +109,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
           onDeleteTrade={onDeleteTrade}
           toast={toast}
           dateStr={selectedDate}
+          isWeekly={new Date(selectedDate + 'T12:00:00').getDay() === 0}
         />
       </div>
     )
@@ -110,7 +135,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
           { l:'Win Rate', v:`${(ms.winRate*100).toFixed(0)}%`, c: ms.winRate>=.5?'var(--green)':'var(--red)' },
           { l:'Wins',     v:ms.wins,                 c:'var(--green)' },
           { l:'Losses',   v:ms.losses,               c: ms.losses>0?'var(--red)':'var(--text)' },
-          { l:'Notes',    v:(dailyNotes||[]).filter(n=>n.date?.startsWith(`${year}-${String(month+1).padStart(2,'0')}`)).length, c:'var(--blue)' },
+          
         ].map((k,i) => (
           <div key={i} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-sm)', padding:'10px 13px', boxShadow:'var(--shadow)' }}>
             <div style={{ fontSize:'9px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'3px' }}>{k.l}</div>
@@ -136,13 +161,14 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
           const cs  = cellStyle[cls]
           const d   = dayMap[ds]
           const isToday = ds === today
-          const hasNote = !!noteMap[ds]
+          const dow2 = (firstDow + day - 1) % 7
+          const isSundayCell = dow2 === 6
           const pl  = d ? (d.trades.reduce((s,t) => s+(t.pl||t.r_multiple||0), 0)) : 0
           const cnt = d?.trades.length || 0
 
           return (
             <div key={i} onClick={() => setSelectedDate(ds)}
-              style={{ background:cs.bg, border:`1.5px solid ${cs.border}`, borderRadius:'var(--r-sm)', minHeight:'78px', padding:'7px', display:'flex', flexDirection:'column', gap:'2px', cursor:'pointer', transition:'all .15s', position:'relative', opacity: cls==='weekend'?.55:1 }}
+              style={{ background: isSundayCell ? 'var(--purple-bg)' : cs.bg, border:`1.5px solid ${isSundayCell ? 'var(--purple-dim)' : cs.border}`, borderRadius:'var(--r-sm)', minHeight:'78px', padding:'7px', display:'flex', flexDirection:'column', gap:'2px', cursor:'pointer', transition:'all .15s', position:'relative', opacity: cls==='weekend'?.55:1 }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow='var(--shadow-md)'; e.currentTarget.style.transform='translateY(-1px)' }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow=''; e.currentTarget.style.transform='' }}>
 
@@ -151,7 +177,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                   <span style={{ fontSize:'11px', fontWeight:'600', color:numCol[cls] }}>{day}</span>
                   {isToday && <div style={{ fontSize:'8px', fontWeight:'700', color:'var(--blue)', letterSpacing:'.04em' }}>TODAY</div>}
                 </div>
-                {hasNote && <span style={{ fontSize:'9px' }}>📝</span>}
+                
               </div>
 
               {cnt > 0 && <>

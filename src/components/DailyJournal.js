@@ -13,6 +13,17 @@ const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', lev
 const TRADE_DRAFT = 'tt26_trade_draft'
 const FORM_OPEN   = 'tt26_form_open'
 
+
+// Get Mon-Sun range for a given date
+function getWeekRange(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00')
+  const dow = d.getDay()
+  const mon = new Date(d); mon.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1))
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+  const fmt = dt => dt.toISOString().split('T')[0]
+  return { mon: fmt(mon), sun: fmt(sun) }
+}
+
 // ── HELPERS ──────────────────────────────────────────────────────
 function toDateStr(d) { return d.toISOString().split('T')[0] }
 function fmtDisplayDate(ds) {
@@ -223,9 +234,10 @@ function TradeCard({ t, onDelete }) {
 }
 
 // ── MAIN COMPONENT ───────────────────────────────────────────────
-export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast, dateStr: propDateStr }) {
+export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast, dateStr: propDateStr, isWeekly: propIsWeekly }) {
   const today = toDateStr(new Date())
   const [dateStr, setDateStr] = useState(propDateStr || today)
+  const isWeekly = propIsWeekly || false
   const [showTradeForm, setShowTradeForm] = useState(() => {
     try { return sessionStorage.getItem(FORM_OPEN) === 'true' } catch { return false }
   })
@@ -237,6 +249,15 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const isToday = dateStr === today
   const displayDate = fmtDisplayDate(dateStr)
   const dayTrades = trades.filter(t => t.date === dateStr)
+
+  // Week trades (Mon-Sun of the Sunday selected)
+  const weekRange = isWeekly ? getWeekRange(dateStr) : null
+  const weekTrades = isWeekly && weekRange
+    ? trades.filter(t => t.date >= weekRange.mon && t.date <= weekRange.sun).sort((a,b) => a.date.localeCompare(b.date))
+    : []
+  const weekR = weekTrades.reduce((s,t) => s+(t.pl||t.r_multiple||0), 0)
+  const weekWins = weekTrades.filter(t => t.outcome==='Win').length
+  const weekLosses = weekTrades.filter(t => t.outcome==='Loss').length
   const dayStats  = computeStats(dayTrades)
   const existingNote = dailyNotes?.find(n => n.date === dateStr) || null
 
@@ -279,7 +300,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       await onSaveNote({
         id:               existingNote?.id,
         date:             dateStr,
-        note_type:        'day',
+        note_type:        isWeekly ? 'week' : 'day',
         note:             plan,
         mood,
         htf_bias:         bias,
@@ -325,26 +346,47 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       {/* ── PAGE HEADER ── */}
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'20px', flexWrap:'wrap', gap:'10px' }}>
         <div>
-          <h1 style={{ fontSize:'18px', fontWeight:'600', color:'var(--text)', letterSpacing:'-.02em' }}>{isToday ? 'Today' : displayDate}</h1>
-          {!isToday && <div style={{ fontSize:'12px', color:'var(--muted)', marginTop:'2px' }}>{displayDate}</div>}
+          <h1 style={{ fontSize:'18px', fontWeight:'600', color:'var(--text)', letterSpacing:'-.02em' }}>
+            {isWeekly ? 'Weekly Review' : isToday ? 'Today' : displayDate}
+          </h1>
+          {isWeekly && weekRange && (
+            <div style={{ fontSize:'12px', color:'var(--muted)', marginTop:'2px' }}>
+              Week of {new Date(weekRange.mon+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – {new Date(weekRange.sun+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
+            </div>
+          )}
+          {!isWeekly && !isToday && <div style={{ fontSize:'12px', color:'var(--muted)', marginTop:'2px' }}>{displayDate}</div>}
         </div>
         <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
           {noteDirty && (
             <button className="btn btn-blue btn-sm" onClick={saveNote} disabled={saving}>
-              {saving ? 'Saving...' : '💾 Save Day'}
+              {saving ? 'Saving...' : '💾 Save'}
             </button>
-          )}
-          {isToday && (
-            <button className="btn btn-outline btn-sm" onClick={() => setDateStr(today)}>Today</button>
           )}
         </div>
       </div>
 
+      {/* ── WEEKLY STATS BAR ── */}
+      {isWeekly && weekTrades.length > 0 && (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(100px,1fr))', gap:'8px', marginBottom:'14px' }}>
+          {[
+            { label:'Week R',   v: f2(weekR),    col: weekR>=0?'var(--green)':'var(--red)' },
+            { label:'Trades',   v: weekTrades.length, col:'var(--text)' },
+            { label:'Wins',     v: weekWins,     col:'var(--green)' },
+            { label:'Losses',   v: weekLosses,   col: weekLosses>0?'var(--red)':'var(--text)' },
+          ].map((s,i) => (
+            <div key={i} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-sm)', padding:'10px 13px', boxShadow:'var(--shadow)' }}>
+              <div style={{ fontSize:'9px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'3px' }}>{s.label}</div>
+              <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'17px', fontWeight:'600', color:s.col }}>{s.v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── TODAY'S NEWS ── */}
       <DayNews dateStr={dateStr} />
 
-      {/* ── DAY STATS (if trades exist) ── */}
-      {dayTrades.length > 0 && (
+      {/* ── DAY STATS (if trades exist and not weekly) ── */}
+      {!isWeekly && dayTrades.length > 0 && (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(100px,1fr))', gap:'8px', marginBottom:'14px' }}>
           {[
             { label:'Total R', v: f2(dayPL), col: dayUp?'var(--green)':'var(--red)' },
@@ -363,7 +405,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       {/* ── THE DAY PLAN ── */}
       <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)', marginBottom:'14px' }}>
         <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', background:'var(--blue-bg)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--blue)' }}>📋 Day Plan</span>
+          <span style={{ fontSize:'11px', fontWeight:'600', color: isWeekly ? 'var(--purple)' : 'var(--blue)' }}>{isWeekly ? '📋 Weekly Review' : '📋 Day Plan'}</span>
           {noteDirty && <span style={{ fontSize:'10px', color:'var(--muted)', fontStyle:'italic' }}>Unsaved changes</span>}
         </div>
         <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:'14px' }}>
@@ -379,15 +421,15 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             </div>
             <div className="form-group">
               <label className="form-label">Bias Today</label>
-              <input className="form-input" value={bias} onChange={e => { setBias(e.target.value); markDirty() }} placeholder="e.g. Bearish NQ, Bullish GBP/USD..." />
+              <input className="form-input" value={bias} onChange={e => { setBias(e.target.value); markDirty() }} placeholder={isWeekly ? "Overall bias heading into next week..." : "e.g. Bearish NQ, Bullish GBP/USD..."} />
             </div>
           </div>
 
           {/* Trading Plan */}
           <div className="form-group">
-            <label className="form-label">Trading Plan</label>
+            <label className="form-label">{isWeekly ? "Week Summary" : "Trading Plan"}</label>
             <textarea className="form-input" value={plan} onChange={e => { setPlan(e.target.value); markDirty() }}
-              placeholder="What are you watching today? Key levels, your bias read, what you need to see to take a trade..."
+              placeholder={isWeekly ? "Overall week summary — how did the week go, key themes, what you observed..." : "What are you watching today? Key levels, your bias read, what you need to see to take a trade..."}
               style={{ minHeight:'100px' }} />
           </div>
 
@@ -416,41 +458,57 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
 
       {/* ── TRADES ── */}
       <div style={{ marginBottom:'14px' }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
-          <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.07em', textTransform:'uppercase' }}>
-            Trades {dayTrades.length > 0 && `(${dayTrades.length})`}
-          </span>
-          {!showTradeForm && (
-            <button className="btn btn-blue btn-sm" onClick={openTradeForm}>+ Log Trade</button>
-          )}
-        </div>
-
-        {showTradeForm && (
-          <div style={{ marginBottom:'14px' }}>
-            <TradeForm onSave={handleAddTrade} onCancel={() => { setShowTradeForm(false); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
-          </div>
+        {!isWeekly && (
+          <>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
+              <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.07em', textTransform:'uppercase' }}>
+                Trades {dayTrades.length > 0 && `(${dayTrades.length})`}
+              </span>
+              {!showTradeForm && (
+                <button className="btn btn-blue btn-sm" onClick={openTradeForm}>+ Log Trade</button>
+              )}
+            </div>
+            {showTradeForm && (
+              <div style={{ marginBottom:'14px' }}>
+                <TradeForm onSave={handleAddTrade} onCancel={() => { setShowTradeForm(false); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
+              </div>
+            )}
+            {dayTrades.length === 0 && !showTradeForm && (
+              <div style={{ padding:'24px', textAlign:'center', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', color:'var(--muted)', fontSize:'13px', boxShadow:'var(--shadow)' }}>
+                No trades logged for this day
+              </div>
+            )}
+            {dayTrades.map(t => (
+              <TradeCard key={t.id} t={t} onDelete={isToday ? onDeleteTrade : null} />
+            ))}
+          </>
         )}
 
-        {dayTrades.length === 0 && !showTradeForm && (
-          <div style={{ padding:'24px', textAlign:'center', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', color:'var(--muted)', fontSize:'13px', boxShadow:'var(--shadow)' }}>
-            No trades logged for this day
-          </div>
+        {isWeekly && (
+          <>
+            <div style={{ fontSize:'11px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'12px' }}>
+              Week Trades {weekTrades.length > 0 && `(${weekTrades.length})`}
+            </div>
+            {weekTrades.length === 0 ? (
+              <div style={{ padding:'24px', textAlign:'center', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', color:'var(--muted)', fontSize:'13px', boxShadow:'var(--shadow)' }}>
+                No trades logged this week
+              </div>
+            ) : weekTrades.map(t => (
+              <TradeCard key={t.id} t={t} onDelete={null} />
+            ))}
+          </>
         )}
-
-        {dayTrades.map(t => (
-          <TradeCard key={t.id} t={t} onDelete={isToday ? onDeleteTrade : null} />
-        ))}
       </div>
 
       {/* ── END OF DAY REVIEW ── */}
       <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)', marginBottom:'14px' }}>
         <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', background:'var(--green-bg)' }}>
-          <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--green)' }}>📝 End of Day Review</span>
+          <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--green)' }}>{isWeekly ? '📝 End of Week Review' : '📝 End of Day Review'}</span>
         </div>
         <div style={{ padding:'16px 18px', display:'flex', flexDirection:'column', gap:'14px' }}>
 
           <div className="form-group">
-            <label className="form-label">Did you follow your plan?</label>
+            <label className="form-label">{isWeekly ? "Did you follow your rules this week?" : "Did you follow your plan?"}</label>
             <div style={{ display:'flex', gap:'6px', paddingTop:'4px', flexWrap:'wrap' }}>
               {['Yes','Mostly','No'].map(v => (
                 <button key={v} type="button" onClick={() => { setFollowedPlan(v); markDirty() }}
@@ -464,24 +522,24 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
           <div className="form-group">
             <label className="form-label">How did the day go?</label>
             <textarea className="form-input" value={eodReview} onChange={e => { setEodReview(e.target.value); markDirty() }}
-              placeholder="Overall feel of the session, how price moved, any notable observations..." style={{ minHeight:'80px' }} />
+placeholder={isWeekly ? "How did the week go overall? Key patterns, market behaviour, notable setups..." : "Overall feel of the session, how price moved, any notable observations..."} style={{ minHeight:'80px' }} />
           </div>
 
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
             <div className="form-group">
               <label className="form-label">What went well?</label>
               <textarea className="form-input" value={wentWell} onChange={e => { setWentWell(e.target.value); markDirty() }}
-                placeholder="Execution, patience, reading the market..." style={{ minHeight:'70px' }} />
+  placeholder={isWeekly ? "Best trades, good decisions, habits that worked..." : "Execution, patience, reading the market..."} style={{ minHeight:'70px' }} />
             </div>
             <div className="form-group">
               <label className="form-label">What to improve?</label>
               <textarea className="form-input" value={improve} onChange={e => { setImprove(e.target.value); markDirty() }}
-                placeholder="One specific thing for tomorrow..." style={{ minHeight:'70px' }} />
+  placeholder={isWeekly ? "Key focus for next week — one specific improvement..." : "One specific thing for tomorrow..."} style={{ minHeight:'70px' }} />
             </div>
           </div>
 
           <button className="btn btn-blue" onClick={saveNote} disabled={saving} style={{ alignSelf:'flex-start' }}>
-            {saving ? 'Saving...' : '💾 Save Day'}
+            {saving ? 'Saving...' : isWeekly ? '💾 Save Week' : '💾 Save Day'}
           </button>
         </div>
       </div>
