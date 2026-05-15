@@ -164,6 +164,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
           const dow2 = (firstDow + day - 1) % 7
           const isSundayCell = dow2 === 6
           const hasWeeklyNote = isSundayCell && !!noteMap[ds]
+          const hasNote = !!noteMap[ds]
           const pl  = d ? (d.trades.reduce((s,t) => s+(t.pl||t.r_multiple||0), 0)) : 0
           const cnt = d?.trades.length || 0
 
