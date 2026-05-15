@@ -163,6 +163,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
           const isToday = ds === today
           const dow2 = (firstDow + day - 1) % 7
           const isSundayCell = dow2 === 6
+          const hasWeeklyNote = isSundayCell && !!noteMap[ds]
           const pl  = d ? (d.trades.reduce((s,t) => s+(t.pl||t.r_multiple||0), 0)) : 0
           const cnt = d?.trades.length || 0
 
@@ -177,7 +178,22 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                   <span style={{ fontSize:'11px', fontWeight:'600', color:numCol[cls] }}>{day}</span>
                   {isToday && <div style={{ fontSize:'8px', fontWeight:'700', color:'var(--blue)', letterSpacing:'.04em' }}>TODAY</div>}
                 </div>
-                
+                {(hasNote && !isSundayCell) && (
+                  <div style={{ width:'16px', height:'16px', borderRadius:'5px', background:'rgba(99,102,241,.12)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    <svg width="9" height="9" viewBox="0 0 9 9" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M6.5 1L8 2.5L3 7.5H1.5V6L6.5 1Z" stroke="#6366F1" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M5.5 2L7 3.5" stroke="#6366F1" strokeWidth="1.1" strokeLinecap="round"/>
+                    </svg>
+                  </div>
+                )}
+                {hasWeeklyNote && (
+                  <div style={{ width:'16px', height:'16px', borderRadius:'5px', background:'rgba(99,102,241,.12)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    <svg width="9" height="9" viewBox="0 0 9 9" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M6.5 1L8 2.5L3 7.5H1.5V6L6.5 1Z" stroke="#6366F1" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M5.5 2L7 3.5" stroke="#6366F1" strokeWidth="1.1" strokeLinecap="round"/>
+                    </svg>
+                  </div>
+                )}
               </div>
 
               {cnt > 0 && <>
@@ -201,7 +217,10 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
             <span style={{ width:'10px', height:'10px', borderRadius:'2px', background:bg, border:`1.5px solid ${bc}`, display:'inline-block' }} />{l}
           </div>
         ))}
-        <div style={{ marginLeft:'auto', fontSize:'10px', color:'var(--muted2)' }}>Click any day to open daily journal</div>
+        <div style={{ display:'flex', alignItems:'center', gap:'5px', fontSize:'11px', color:'var(--muted)' }}>
+          <span style={{ width:'7px', height:'7px', borderRadius:'50%', background:'var(--purple)', display:'inline-block' }} />Weekly review saved
+        </div>
+        <div style={{ marginLeft:'auto', fontSize:'10px', color:'var(--muted2)' }}>Click any day to open</div>
       </div>
     </div>
   )
