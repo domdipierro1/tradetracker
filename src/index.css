@@ -204,3 +204,11 @@ select.form-input { cursor: pointer; }
 .recharts-cartesian-grid line{stroke:rgba(148,163,184,.15)!important;}
 .recharts-line-curve{filter:drop-shadow(0 4px 10px rgba(59,130,246,.25));}
 .recharts-tooltip-wrapper{border-radius:16px;overflow:hidden;}
+
+canvas{background:linear-gradient(180deg,#ffffff,#f8fafc);border-radius:18px;padding:10px;}
+.sc-icon{background:rgba(255,255,255,.9)!important;border:1px solid rgba(226,232,240,.9);font-size:11px;font-weight:800;letter-spacing:.08em;color:#334155;box-shadow:0 6px 18px rgba(15,23,42,.08);}
+.cg > div{position:relative;overflow:hidden;}
+.cg > div::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at top right,rgba(59,130,246,.08),transparent 35%);pointer-events:none;}
+
+canvas{background:linear-gradient(180deg,#fff,#f8fafc);border-radius:18px;padding:10px;}
+.sc-icon{background:rgba(255,255,255,.9)!important;border:1px solid rgba(226,232,240,.9);font-size:11px;font-weight:800;letter-spacing:.08em;color:#334155;box-shadow:0 6px 18px rgba(15,23,42,.08);}
