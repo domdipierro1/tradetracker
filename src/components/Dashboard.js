@@ -12,23 +12,32 @@ const CHART_COLORS = {
 
 function StatCard({ label, value, sub, icon, color, valClass }) {
   return (
-    <div className={`sc ${color}`}>
-      <div className="sc-icon">{icon}</div>
-      <div className="sc-label">{label}</div>
-      <div className={`sc-val ${valClass || ''}`}>{value}</div>
-      <div className="sc-sub">{sub}</div>
+    <div className={`sc ${color}`} style={{ position: 'relative', overflow: 'hidden', borderRadius: '24px', border: '1px solid rgba(255,255,255,.06)', background: 'linear-gradient(145deg, rgba(20,24,38,.96), rgba(13,17,28,.88))', boxShadow: '0 20px 40px rgba(0,0,0,.28)' }}>
+      <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at top right, ${color === 'green' ? 'rgba(16,185,129,.18)' : color === 'red' ? 'rgba(239,68,68,.18)' : color === 'purple' ? 'rgba(124,58,237,.18)' : 'rgba(59,130,246,.14)'}, transparent 55%)`, pointerEvents: 'none' }} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', position: 'relative' }}>
+        <div className="sc-label">{label}</div>
+        <div style={{ width: '42px', height: '42px', borderRadius: '14px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(12px)' }}>
+          <div style={{ width: '10px', height: '10px', borderRadius: '999px', background: icon }} />
+        </div>
+      </div>
+      <div className={`sc-val ${valClass || ''}`} style={{ position: 'relative', fontSize: '30px', letterSpacing: '-0.03em' }}>{value}</div>
+      <div className="sc-sub" style={{ position: 'relative', marginTop: '6px', color: 'rgba(255,255,255,.56)' }}>{sub}</div>
     </div>
   )
 }
 
 function ChartCard({ title, accentColor = 'var(--blue)', children }) {
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', boxShadow: 'var(--shadow)' }}>
-      <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span style={{ width: '3px', height: '11px', borderRadius: '2px', background: accentColor, display: 'inline-block' }} />
-        {title}
+    <div style={{ background: 'linear-gradient(180deg, rgba(20,24,38,.96), rgba(10,14,24,.94))', border: '1px solid rgba(255,255,255,.06)', borderRadius: '28px', padding: '22px', boxShadow: '0 24px 60px rgba(0,0,0,.28)', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: '180px', height: '180px', borderRadius: '50%', background: `${accentColor}18`, filter: 'blur(20px)' }} />
+      <div style={{ position: 'relative', fontSize: '11px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '999px', background: accentColor, display: 'inline-block', boxShadow: `0 0 14px ${accentColor}` }} />
+          {title}
+        </div>
+        <div style={{ width: '72px', height: '1px', background: `linear-gradient(90deg, ${accentColor}, transparent)` }} />
       </div>
-      {children}
+      <div style={{ position: 'relative' }}>{children}</div>
     </div>
   )
 }
@@ -75,7 +84,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
       const ch = new Chart(el.getContext('2d'), {
         type: 'doughnut',
         data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 3, borderColor: 'var(--surface)', hoverOffset: 5 }] },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '70%',
+        options: { responsive: true, maintainAspectRatio: false, cutout: '78%', animation: { duration: 1200 },
           plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11, weight: '600' }, padding: 12, usePointStyle: true, pointStyle: 'circle', color: 'var(--text2)' } },
             tooltip: { callbacks: { label: c => `${c.label}: ${c.raw} (${(c.raw / (c.dataset.data.reduce((a,b)=>a+b,0)||1) * 100).toFixed(1)}%)` } } } }
       })
@@ -85,7 +94,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
       if (!el) return
       const ch = new Chart(el.getContext('2d'), {
         type: 'bar',
-        data: { labels, datasets: [{ data, backgroundColor: data.map(v => v >= 0 ? color + '30' : '#DC262630'), borderColor: data.map(v => v >= 0 ? color : '#DC2626'), borderWidth: 2, borderRadius: 5 }] },
+        data: { labels, datasets: [{ data, backgroundColor: data.map(v => v >= 0 ? color + '30' : '#DC262630'), borderColor: data.map(v => v >= 0 ? color : '#DC2626'), borderWidth: 1.5, borderRadius: 12, barThickness: 14 }] },
         options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.raw >= 0 ? '+' : ''}${c.raw.toFixed(2)}%` } } },
           scales: { x: { grid: { color: 'var(--border)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: 'var(--muted)', callback: v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` } }, y: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11, weight: '600' }, color: 'var(--text2)' } } } }
@@ -127,7 +136,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         type: 'line',
         data: { labels: s.curve.map((_,i) => i === 0 ? 'Start' : `#${i}`),
           datasets: [
-            { data: s.curve, borderColor: '#2563EB', borderWidth: 2.5, fill: true, backgroundColor: 'rgba(37,99,235,.07)', pointRadius: 0, pointHoverRadius: 5, tension: .35 },
+            { data: s.curve, borderColor: '#2563EB', borderWidth: 3, fill: true, backgroundColor: 'rgba(37,99,235,.12)', pointRadius: 0, pointHoverRadius: 6, tension: .42 },
             { data: Array(s.curve.length).fill(0), borderColor: 'var(--border2)', borderWidth: 1.5, borderDash: [5,5], pointRadius: 0, fill: false }
           ] },
         options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
@@ -142,7 +151,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         type: 'line',
         data: { labels: rolling.map((_,i) => `${i+20}`),
           datasets: [
-            { data: rolling, borderColor: '#059669', borderWidth: 2, fill: true, backgroundColor: 'rgba(5,150,105,.07)', pointRadius: 0, tension: .4 },
+            { data: rolling, borderColor: '#059669', borderWidth: 3, fill: true, backgroundColor: 'rgba(5,150,105,.12)', pointRadius: 0, tension: .45 },
             { data: Array(rolling.length).fill(50), borderColor: 'var(--border2)', borderWidth: 1.5, borderDash: [4,4], pointRadius: 0, fill: false }
           ] },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
@@ -154,20 +163,20 @@ export default function Dashboard({ trades, startingBalance, currency }) {
   }, [trades])
 
   const statCards = [
-    { label: 'Best Day R',      value: fR(s.bestTrade),          sub: 'Best single trade',                    icon: '🏆', color: 'green', valClass: 'up'                            },
-    { label: 'Total R',    value: f2(s.totalPL),            sub: 'Cumulative R multiple',                   icon: '📈', color: s.totalPL>=0?'green':'red', valClass: s.totalPL>=0?'up':'down' },
-    { label: 'Total Trades',    value: s.n,                      sub: `${s.wins}W · ${s.losses}L · ${s.bes}BE`, icon: '🔢', color: 'blue', valClass: 'blue' },
-    { label: 'Win Rate',        value: fP(s.winRate),            sub: `${s.wins} of ${s.n} trades`,          icon: '🎯', color: s.winRate>=.5?'green':'red', valClass: s.winRate>=.5?'up':'down' },
-    { label: 'Profit Factor',   value: s.pf ? s.pf.toFixed(2) : '—', sub: 'Target: 1.5R',             icon: '⚖️', color: 'purple', valClass: '' },
-    { label: 'Expectancy (R)',      value: s.exp ? f2(s.exp) : '—', sub: 'Per trade edge',                       icon: '🧮', color: s.exp>0?'green':'red', valClass: s.exp>0?'up':'down' },
-    { label: 'Avg R-Multiple',  value: fR(s.avgR),               sub: 'Winning trades',                      icon: '🏆', color: 'amber', valClass: '' },
-    { label: 'Avg Win',         value: s.avgWin ? f2(s.avgWin) : '—', sub: 'On winning trades',              icon: '✅', color: 'green', valClass: 'up' },
-    { label: 'Avg Loss',        value: s.avgLoss ? f2(s.avgLoss) : '—', sub: 'On losing trades',             icon: '❌', color: 'red',   valClass: 'down' },
-    { label: 'W/L Ratio',       value: s.wl ? s.wl.toFixed(2) : '—', sub: 'Avg win ÷ avg loss',             icon: '📊', color: 'purple', valClass: '' },
-    { label: 'Max Drawdown',    value: s.maxDD ? f2(s.maxDD) : '—', sub: 'Peak to trough',                  icon: '📉', color: 'red',   valClass: 'down' },
-    { label: 'Best Trade',      value: s.best ? f2(s.best) : '—',   sub: 'Single best',                     icon: '🌟', color: 'green', valClass: 'up' },
-    { label: 'Worst Trade',     value: s.worst ? f2(s.worst) : '—', sub: 'Single worst',                    icon: '💔', color: 'red',   valClass: 'down' },
-    { label: 'Win Streak',      value: s.mw || '—',              sub: `Current: ${s.cw}`,                   icon: '🔥', color: 'amber', valClass: '' },
+    { label: 'Best Day R',      value: fR(s.bestTrade),          sub: 'Best single trade',                    icon: '#10B981', color: 'green', valClass: 'up'                            },
+    { label: 'Total R',    value: f2(s.totalPL),            sub: 'Cumulative R multiple',                   icon: '#3B82F6', color: s.totalPL>=0?'green':'red', valClass: s.totalPL>=0?'up':'down' },
+    { label: 'Total Trades',    value: s.n,                      sub: `${s.wins}W · ${s.losses}L · ${s.bes}BE`, icon: '#8B5CF6', color: 'blue', valClass: 'blue' },
+    { label: 'Win Rate',        value: fP(s.winRate),            sub: `${s.wins} of ${s.n} trades`,          icon: '#06B6D4', color: s.winRate>=.5?'green':'red', valClass: s.winRate>=.5?'up':'down' },
+    { label: 'Profit Factor',   value: s.pf ? s.pf.toFixed(2) : '—', sub: 'Target: 1.5R',             icon: '#A855F7', color: 'purple', valClass: '' },
+    { label: 'Expectancy (R)',      value: s.exp ? f2(s.exp) : '—', sub: 'Per trade edge',                       icon: '#F59E0B', color: s.exp>0?'green':'red', valClass: s.exp>0?'up':'down' },
+    { label: 'Avg R-Multiple',  value: fR(s.avgR),               sub: 'Winning trades',                      icon: '#10B981', color: 'amber', valClass: '' },
+    { label: 'Avg Win',         value: s.avgWin ? f2(s.avgWin) : '—', sub: 'On winning trades',              icon: '#22C55E', color: 'green', valClass: 'up' },
+    { label: 'Avg Loss',        value: s.avgLoss ? f2(s.avgLoss) : '—', sub: 'On losing trades',             icon: '#EF4444', color: 'red',   valClass: 'down' },
+    { label: 'W/L Ratio',       value: s.wl ? s.wl.toFixed(2) : '—', sub: 'Avg win ÷ avg loss',             icon: '#6366F1', color: 'purple', valClass: '' },
+    { label: 'Max Drawdown',    value: s.maxDD ? f2(s.maxDD) : '—', sub: 'Peak to trough',                  icon: '#F97316', color: 'red',   valClass: 'down' },
+    { label: 'Best Trade',      value: s.best ? f2(s.best) : '—',   sub: 'Single best',                     icon: '#14B8A6', color: 'green', valClass: 'up' },
+    { label: 'Worst Trade',     value: s.worst ? f2(s.worst) : '—', sub: 'Single worst',                    icon: '#DC2626', color: 'red',   valClass: 'down' },
+    { label: 'Win Streak',      value: s.mw || '—',              sub: `Current: ${s.cw}`,                   icon: '#F59E0B', color: 'amber', valClass: '' },
   ]
 
   return (
@@ -178,7 +187,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
       </div>
 
       {/* Charts */}
-      <div className="sh"><h2>Performance Charts</h2></div>
+      <div className="sh" style={{ marginBottom: '18px' }}><h2 style={{ fontSize: '28px', letterSpacing: '-0.04em' }}>Performance Intelligence</h2></div>
       <div className="cg" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: '14px', marginBottom: '24px' }}>
         <ChartCard title="Win / Loss / Break Even"><div style={{ height: '180px' }}><canvas ref={outcomeRef} /></div></ChartCard>
         <ChartCard title="Trade Grades"  accentColor="var(--purple)"><div style={{ height: '180px' }}><canvas ref={gradesRef} /></div></ChartCard>
@@ -190,7 +199,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
 
       {/* Equity curve */}
       <div className="sh"><h2>Equity Curve</h2></div>
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
+      <div style={{ background: 'linear-gradient(180deg, rgba(20,24,38,.96), rgba(10,14,24,.94))', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
         {s.curve.length > 1
           ? <div style={{ height: '200px' }}><canvas ref={equityRef} /></div>
           : <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: '13px' }}>Log some trades to see your equity curve</div>}
@@ -198,7 +207,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
 
       {/* Rolling win rate */}
       <div className="sh"><h2>Rolling 20-Trade Win Rate</h2><span className="sh-right">50% threshold line</span></div>
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
+      <div style={{ background: 'linear-gradient(180deg, rgba(20,24,38,.96), rgba(10,14,24,.94))', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
         {rolling.length > 0
           ? <div style={{ height: '90px' }}><canvas ref={rollingRef} /></div>
           : <div style={{ height: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: '12px' }}>Need 20+ trades</div>}
@@ -206,7 +215,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
 
       {/* Streak */}
       <div className="sh"><h2>Current Streak</h2></div>
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
+      <div style={{ background: 'linear-gradient(180deg, rgba(20,24,38,.96), rgba(10,14,24,.94))', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px', marginBottom: '24px', boxShadow: 'var(--shadow)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '12px' }}>
           <div><div style={{ fontSize: '10px', fontWeight: '700', color: 'var(--muted)', letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: '3px' }}>Win Streak</div>
             <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '28px', fontWeight: '700', color: 'var(--green)' }}>{s.cw}</div></div>
