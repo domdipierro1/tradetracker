@@ -290,6 +290,10 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [chart2,     setChart2]     = useState('')
   const [chart3,     setChart3]     = useState('')
   const [chart4,     setChart4]     = useState('')
+  const [chartNote1, setChartNote1] = useState('')
+  const [chartNote2, setChartNote2] = useState('')
+  const [chartNote3, setChartNote3] = useState('')
+  const [chartNote4, setChartNote4] = useState('')
   const [eodReview,  setEodReview]  = useState('')
   const [followedPlan, setFollowedPlan] = useState('')
   const [wentWell,   setWentWell]   = useState('')
@@ -306,6 +310,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setChart2(existingNote.execution_review || '')
       setChart3(existingNote.week_summary || '')
       setChart4(existingNote.top_mistake || '')
+      try { const notes = JSON.parse(existingNote.improvements||'[]'); setChartNote1(notes[0]||''); setChartNote2(notes[1]||''); setChartNote3(notes[2]||''); setChartNote4(notes[3]||'') } catch(e) {}
       setEodReview(existingNote.trading_errors || '')
       setFollowedPlan(existingNote.consistency || '')
       setWentWell(existingNote.what_worked || '')
@@ -314,6 +319,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setMood(''); setBias(''); setPlan(''); setChart1(''); setChart2('')
       setEodReview(''); setFollowedPlan(''); setWentWell(''); setImprove('')
       setChart3(''); setChart4('')
+      setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('')
     }
     setNoteDirty(false)
   }, [dateStr, existingNote?.id])
@@ -335,6 +341,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         execution_review: chart2,
         week_summary:     chart3,
         top_mistake:      chart4,
+        improvements:     JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
         trading_errors:   eodReview,
         consistency:      followedPlan,
         what_worked:      wentWell,
