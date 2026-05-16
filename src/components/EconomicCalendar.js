@@ -61,11 +61,11 @@ function useMag7(weekDates) {
 
 export default function EconomicCalendar() {
   const [refreshKey, setRefreshKey] = React.useState(0)
-  const [weekOffset, setWeekOffset] = React.useState(0)
+  // Auto-show next week on Saturday & Sunday for weekly prep
+  const _day = new Date().getDay()
+  const weekOffset = (_day === 6 || _day === 0) ? 1 : 0
   const { events, loading, error, fetchedAt, eventsForDate } = useEconomicCalendar(weekOffset)
-
-  // Week label
-  const weekLabel = weekOffset === 0 ? 'This Week' : weekOffset === 1 ? 'Next Week' : `Week +${weekOffset}`
+  const weekLabel = weekOffset === 0 ? 'This Week' : 'Next Week'
   const today    = new Date().toISOString().split('T')[0]
   const weekDays = getWeekDays()
   const weekDateStrings = weekDays.map(d => d.dateStr || d.date)
