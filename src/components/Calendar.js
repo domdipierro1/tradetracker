@@ -23,7 +23,7 @@ function getWeekR(trades, sundayDateStr) {
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast }) {
-  const today      = new Date().toISOString().split('T')[0]
+  const today      = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
   const [month, setMonth] = useState(new Date().getMonth())
   const [year,  setYear]  = useState(Math.max(2026, new Date().getFullYear()))
   const [selectedDate, setSelectedDate] = useState(null)
