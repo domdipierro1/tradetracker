@@ -31,8 +31,7 @@ export function currencyFlag(c) {
 
 export function formatFFTime(t) { return t || '' }
 
-export function useEconomicCalendar() {
-  const weekOffset = 0
+export function useEconomicCalendar(weekOffset = 0) {
   const [events,    setEvents]    = useState([])
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)
@@ -57,7 +56,7 @@ export function useEconomicCalendar() {
       const TARGET = ['USD', 'GBP', 'EUR']
       const monday = getMonday(weekOffset)
       const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
-      const ffSlug  = 'thisweek'
+      const ffSlug  = weekOffset === 0 ? 'thisweek' : 'nextweek'
       const ffParam = `${months[monday.getMonth()]}${monday.getDate()}.${monday.getFullYear()}`
 
       function parseFFJson(data) {
@@ -85,9 +84,13 @@ export function useEconomicCalendar() {
 
       // Sources to try in order
       const SOURCES = [
-        { url: `/api/calendar?t=${Math.floor(Date.now()/600000)}`, isOurApi: true },
-        { url: `https://corsproxy.io/?url=${encodeURIComponent('https://cdn-nfs.faireconomy.media/ff_calendar_thisweek.json')}`, isOurApi: false },
-        { url: `https://api.allorigins.win/raw?url=${encodeURIComponent('https://nfs.faireconomy.media/ff_calendar_thisweek.json')}`, isOurApi: false },
+        // Our Vercel API (handles thisweek/nextweek JSON)
+        { url: `/api/calendar?week=${weekOffset}&t=${Math.floor(Date.now()/600000)}`, isOurApi: true },
+        // Direct FF JSON via CORS proxies — works for thisweek/nextweek
+        { url: `https://corsproxy.io/?url=${encodeURIComponent(`https://cdn-nfs.faireconomy.media/ff_calendar_${ffSlug}.json`)}`, isOurApi: false },
+        { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://nfs.faireconomy.media/ff_calendar_${ffSlug}.json`)}`, isOurApi: false },
+        // FF calendar page via CORS proxy — works for ANY week
+        { url: `https://corsproxy.io/?url=${encodeURIComponent(`https://www.forexfactory.com/calendar?week=${ffParam}`)}`, isOurApi: false, isHtml: true },
       ]
 
       for (const source of SOURCES) {
@@ -96,7 +99,34 @@ export function useEconomicCalendar() {
           if (!res.ok) continue
           let items = []
 
-          {
+          if (source.isHtml) {
+            // Parse FF HTML calendar page
+            const html = await res.text()
+            if (!html.includes('calendar__row')) continue
+            const rows = html.split('<tr class="calendar__row')
+            let curDate = ''
+            for (const row of rows.slice(1)) {
+              const dm = row.match(/calendar__date[^>]*>([\s\S]*?)<\/td>/)
+              if (dm) { const raw = dm[1].replace(/<[^>]+>/g,'').trim(); if (raw) curDate = raw }
+              const cm = row.match(/calendar__currency[^>]*>\s*([A-Z]{3})\s*<\/td>/)
+              if (!cm || !TARGET.includes(cm[1])) continue
+              if (!row.includes('impact--high') && !row.includes('impact--holiday')) continue
+              const isHoliday = row.includes('impact--holiday')
+              const tm = row.match(/calendar__time[^>]*>([\s\S]*?)<\/td>/)
+              const time = tm ? tm[1].replace(/<[^>]+>/g,'').trim() : ''
+              const em = row.match(/calendar__event[^>]*>[\s\S]*?<span[^>]*>([\s\S]*?)<\/span>/)
+              const title = em ? em[1].replace(/<[^>]+>/g,'').trim() : ''
+              const fc = row.match(/calendar__forecast[^>]*>([\s\S]*?)<\/td>/)
+              const pr = row.match(/calendar__previous[^>]*>([\s\S]*?)<\/td>/)
+              const ac = row.match(/calendar__actual[^>]*>([\s\S]*?)<\/td>/)
+              let date = ''
+              if (curDate) {
+                try { const d = new Date(`${curDate} ${monday.getFullYear()}`); if (!isNaN(d)) date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` } catch {}
+              }
+              if (!title) continue
+              items.push({ title, country:cm[1], date, time, impact:isHoliday?'Holiday':'High', forecast:fc?fc[1].replace(/<[^>]+>/g,'').trim()||null:null, previous:pr?pr[1].replace(/<[^>]+>/g,'').trim()||null:null, actual:ac?ac[1].replace(/<[^>]+>/g,'').trim()||null:null, isHoliday })
+            }
+          } else {
             const raw = await res.json()
             const data = source.isOurApi ? (raw.events || []) : (Array.isArray(raw) ? raw : [])
             items = source.isOurApi ? data : (parseFFJson(data) || [])
@@ -104,6 +134,8 @@ export function useEconomicCalendar() {
               // Already filtered and parsed by our API
               items = data
             }
+          }
+
           if (!items.length) continue
 
           // Filter to target currencies if not already done

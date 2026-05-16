@@ -92,7 +92,14 @@ export default function EconomicCalendar() {
           <h1 style={{ fontSize:'18px', fontWeight:'800', color:'var(--text)' }}>Economic Calendar</h1>
         </div>
         <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
-          {fetchedAt && <span style={{ fontSize:'10px', color:'var(--muted2)' }}>Updated {fetchedAt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>}
+          {/* Week navigation */}
+          <div style={{ display:'flex', alignItems:'center', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'var(--r-xs)', overflow:'hidden' }}>
+            <button onClick={() => setWeekOffset(w => w - 1)}
+              style={{ width:'28px', height:'30px', border:'none', background:'transparent', cursor:'pointer', fontSize:'14px', color:'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
+            <span style={{ padding:'0 10px', fontSize:'11px', fontWeight:'600', color:'var(--text)', whiteSpace:'nowrap' }}>{getWeekLabel(weekOffset)}</span>
+            <button onClick={() => setWeekOffset(w => w + 1)}
+              style={{ width:'28px', height:'30px', border:'none', background:'transparent', cursor:'pointer', fontSize:'14px', color:'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
+          </div>
           {fetchedAt && <span style={{ fontSize:'10px', color:'var(--muted2)' }}>Updated {fetchedAt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>}
           <button className="btn btn-icon btn-ghost" onClick={() => { try { for(let i=1;i<=15;i++) { sessionStorage.removeItem('tt26_econ_v'+i); sessionStorage.removeItem('tt26_econ_v12_w0'); sessionStorage.removeItem('tt26_econ_v12_w1') } } catch(e){} window.location.reload() }} title="Refresh">↻</button>
         </div>
@@ -109,8 +116,9 @@ export default function EconomicCalendar() {
       )}
 
       {!loading && error && (
-        <div style={{ padding:'12px 14px', background:'var(--red-bg)', border:'1px solid var(--red-dim)', borderRadius:'var(--r)', color:'var(--red)', fontSize:'12px', fontWeight:'500' }}>
-          ⚠️ {error} <button onClick={()=>{ for(let i=1;i<=20;i++) sessionStorage.removeItem('tt26_econ_v'+i+'_w0'); window.location.reload() }} style={{ marginLeft:'8px', color:'var(--blue)', background:'none', border:'none', cursor:'pointer', fontWeight:'700', fontFamily:'inherit', fontSize:'12px' }}>Retry</button>
+        <div style={{ padding:'12px 14px', background: error.includes('not yet available') ? 'var(--amber-bg)' : 'var(--red-bg)', border: `1px solid ${error.includes('not yet available') ? 'var(--amber-dim)' : 'var(--red-dim)'}`, borderRadius:'var(--r)', color: error.includes('not yet available') ? 'var(--amber)' : 'var(--red)', fontSize:'13px', fontWeight:'500' }}>
+          {error.includes('not yet available') ? '📅' : '⚠️'} {error}
+          {!error.includes('not yet available') && <button onClick={()=>{ for(let i=1;i<=15;i++) sessionStorage.removeItem('tt26_econ_v'+i); window.location.reload() }} style={{ marginLeft:'8px', color:'var(--blue)', background:'none', border:'none', cursor:'pointer', fontWeight:'700', fontFamily:'inherit', fontSize:'13px' }}>Retry</button>}
         </div>
       )}
 
