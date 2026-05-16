@@ -13,6 +13,7 @@ import Calendar from './components/Calendar'
 import NewsTab from './components/NewsTab'
 import DailyJournal from './components/DailyJournal'
 import Analysis from './components/Analysis'
+import Macro from './components/Macro'
 import Playbook from './components/Playbook'
 
 export default function App() {

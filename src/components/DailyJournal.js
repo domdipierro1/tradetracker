@@ -8,7 +8,7 @@ const SYMBOLS = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','US
 const LEVELS  = ['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']
 const MISTAKES= ['No mistake','Wrong bias','Level not aligned with bias','Entered outside killzone','No breaker block formed','Entered before breaker closed','Premature entry — no confirmation','Moved stop too early','Took partial too early','Revenge trade','Overtraded']
 
-const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', r:'', outcome:'', mistake:'No mistake', screenshot:'', screenshot2:'', journal:'' }
+const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', r:'', mae:'', mfe:'', outcome:'', mistake:'No mistake', screenshot:'', screenshot2:'', journal:'' }
 const TRADE_DRAFT = 'tt26_trade_draft'
 const FORM_OPEN   = 'tt26_form_open'
 
@@ -108,7 +108,7 @@ function TradeForm({ onSave, onCancel }) {
     setSaving(true)
     try {
       const rVal = parseFloat(form.r) || 0
-      await onSave({ ...form, r_multiple: rVal, pl: rVal, risk: 1 })
+      await onSave({ ...form, r_multiple: rVal, pl: rVal, risk: 1, mae: form.mae ? parseFloat(form.mae) : null, mfe: form.mfe ? parseFloat(form.mfe) : null })
       clear(); setForm(EMPTY_TRADE)
     } catch(ex) { console.error('Trade save error:', ex); setErr('Error saving: ' + (ex.message || 'Unknown error')) }
     setSaving(false)

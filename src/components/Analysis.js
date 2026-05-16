@@ -196,6 +196,92 @@ export default function Analysis({ trades }) {
             </div>
           </div>
 
+          {/* ── MAE / MFE ── */}
+          {trades.some(t => t.mae != null || t.mfe != null) && (
+            <div style={{ marginBottom:'32px' }}>
+              <SectionHeader title="MAE / MFE Analysis" sub="Most Adverse & Favourable Excursion in R — how far trades moved against/for you" />
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))', gap:'14px' }}>
+
+                {/* MAE summary */}
+                <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'16px' }}>
+                    <div style={{ width:'3px', height:'18px', borderRadius:'2px', background:'#EF4444' }} />
+                    <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>MAE — Max Against You</span>
+                  </div>
+                  {(() => {
+                    const wins = trades.filter(t => t.outcome==='Win' && t.mae!=null)
+                    const loss = trades.filter(t => t.outcome==='Loss' && t.mae!=null)
+                    const avgWinMAE = wins.length ? (wins.reduce((s,t)=>s+parseFloat(t.mae),0)/wins.length).toFixed(2) : null
+                    const avgLossMAE = loss.length ? (loss.reduce((s,t)=>s+parseFloat(t.mae),0)/loss.length).toFixed(2) : null
+                    return (
+                      <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                        {avgWinMAE && (
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'#F0FDF4', borderRadius:'10px', border:'1px solid #BBF7D0' }}>
+                            <span style={{ fontSize:'12px', color:'#065F46', fontWeight:'500' }}>Avg MAE on Winners</span>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#10B981' }}>{avgWinMAE}R</span>
+                          </div>
+                        )}
+                        {avgLossMAE && (
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'#FEF2F2', borderRadius:'10px', border:'1px solid #FECACA' }}>
+                            <span style={{ fontSize:'12px', color:'#7F1D1D', fontWeight:'500' }}>Avg MAE on Losers</span>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#EF4444' }}>{avgLossMAE}R</span>
+                          </div>
+                        )}
+                        <div style={{ fontSize:'11px', color:'#94A3B8', padding:'8px 12px', background:'#F8FAFC', borderRadius:'8px', lineHeight:'1.6' }}>
+                          {avgWinMAE && parseFloat(avgWinMAE) < 0.5 ? '✓ Winners barely move against you — stop placement is good' :
+                           avgWinMAE && parseFloat(avgWinMAE) > 1 ? '⚠ Winners going deep before turning — consider tighter stops' :
+                           'Keep tracking to build a meaningful sample'}
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* MFE summary */}
+                <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'16px' }}>
+                    <div style={{ width:'3px', height:'18px', borderRadius:'2px', background:'#10B981' }} />
+                    <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>MFE — Max In Your Favour</span>
+                  </div>
+                  {(() => {
+                    const wins = trades.filter(t => t.outcome==='Win' && t.mfe!=null)
+                    const loss = trades.filter(t => t.outcome==='Loss' && t.mfe!=null)
+                    const avgWinMFE = wins.length ? (wins.reduce((s,t)=>s+parseFloat(t.mfe),0)/wins.length).toFixed(2) : null
+                    const avgLossMFE = loss.length ? (loss.reduce((s,t)=>s+parseFloat(t.mfe),0)/loss.length).toFixed(2) : null
+                    const targetR = 2
+                    const earlyExits = wins.filter(t => t.mfe!=null && parseFloat(t.mfe) > targetR + 0.3)
+                    return (
+                      <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                        {avgWinMFE && (
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'#F0FDF4', borderRadius:'10px', border:'1px solid #BBF7D0' }}>
+                            <span style={{ fontSize:'12px', color:'#065F46', fontWeight:'500' }}>Avg MFE on Winners</span>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#10B981' }}>{avgWinMFE}R</span>
+                          </div>
+                        )}
+                        {avgLossMFE && (
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'#FEF2F2', borderRadius:'10px', border:'1px solid #FECACA' }}>
+                            <span style={{ fontSize:'12px', color:'#7F1D1D', fontWeight:'500' }}>Avg MFE on Losers</span>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#EF4444' }}>{avgLossMFE}R</span>
+                          </div>
+                        )}
+                        {earlyExits.length > 0 && (
+                          <div style={{ fontSize:'11px', color:'#92400E', padding:'8px 12px', background:'#FFFBEB', borderRadius:'8px', border:'1px solid #FDE68A', lineHeight:'1.6' }}>
+                            ⚠ {earlyExits.length} winner{earlyExits.length>1?'s':''} reached beyond 2.3R — consider trailing your stop
+                          </div>
+                        )}
+                        {!earlyExits.length && avgWinMFE && (
+                          <div style={{ fontSize:'11px', color:'#94A3B8', padding:'8px 12px', background:'#F8FAFC', borderRadius:'8px', lineHeight:'1.6' }}>
+                            {parseFloat(avgWinMFE) <= 2.3 ? '✓ Trades reaching target without much overshoot — 2R target is well calibrated' : 'Keep tracking to build a meaningful sample'}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── TIME HEATMAP ── */}
           <div style={{ marginBottom:'20px' }}>
             <SectionHeader title="Time of Day" sub="R performance by NY session hour · 02:00–10:00" />

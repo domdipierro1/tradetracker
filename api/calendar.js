@@ -1,5 +1,4 @@
-// api/calendar.js
-// ?week=0 = this week, ?week=1 = next week
+// api/calendar.js — FF calendar with proper next week support
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600')
@@ -31,8 +30,8 @@ export default async function handler(req, res) {
           date = rawDate
         } else if (/^\d{2}-\d{2}-\d{4}$/.test(rawDate)) {
           const [m, d, y] = rawDate.split('-'); date = `${y}-${m}-${d}`
-        } else { date = rawDate }
-
+        }
+        // Convert 12h time
         if (time && /\d(am|pm)/i.test(time)) {
           const m = time.match(/(\d{1,2}):(\d{2})(am|pm)/i)
           if (m) {
@@ -46,46 +45,48 @@ export default async function handler(req, res) {
       })
   }
 
-  const ffSlug  = weekOffset === 0 ? 'thisweek' : 'nextweek'
+  const ffSlug = weekOffset === 0 ? 'thisweek' : 'nextweek'
+
+  // Multiple CDN attempts with different headers
   const URLS = [
     `https://cdn-nfs.faireconomy.media/ff_calendar_${ffSlug}.json`,
     `https://nfs.faireconomy.media/ff_calendar_${ffSlug}.json`,
   ]
 
+  const HEADERS_LIST = [
+    {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Referer': 'https://www.forexfactory.com/',
+      'Origin': 'https://www.forexfactory.com',
+      'Cache-Control': 'no-cache',
+    },
+    {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      'Accept': 'application/json',
+    },
+  ]
+
   for (const url of URLS) {
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json, text/plain, */*',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Referer': 'https://www.forexfactory.com/',
-          'Origin': 'https://www.forexfactory.com',
-        },
-        signal: AbortSignal.timeout(10000),
-      })
-      if (!response.ok) {
-        console.log(`${url} returned ${response.status}`)
-        continue
-      }
-      const data = await response.json()
-      const events = parseEvents(data)
-      if (!events || events.length === 0) continue
-      return res.status(200).json({ ok: true, events, source: url, week: weekOffset, fetched_at: new Date().toISOString() })
-    } catch (err) {
-      console.error(`${url} failed: ${err.message}`)
-      continue
+    for (const headers of HEADERS_LIST) {
+      try {
+        const response = await fetch(url, { headers, signal: AbortSignal.timeout(10000) })
+        if (!response.ok) { console.log(`${url} → ${response.status}`); continue }
+        const data = await response.json()
+        const events = parseEvents(data)
+        if (!events || events.length === 0) continue
+        return res.status(200).json({ ok: true, events, source: url, week: weekOffset, fetched_at: new Date().toISOString() })
+      } catch (err) { console.error(`${url}: ${err.message}`); continue }
     }
   }
 
-  // If next week genuinely not available yet (FF publishes it mid-week)
+  // Next week not available yet
   if (weekOffset === 1) {
     return res.status(200).json({
-      ok: false,
-      events: [],
-      error: 'Next week\'s calendar is not yet available. Forex Factory publishes it mid-week.',
-      week: weekOffset,
-      fetched_at: new Date().toISOString()
+      ok: false, events: [],
+      error: "Next week's calendar isn't available yet — Forex Factory publishes it mid-week.",
+      week: weekOffset, fetched_at: new Date().toISOString()
     })
   }
 

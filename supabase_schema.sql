@@ -99,3 +99,7 @@ ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS level text;
 ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS pd_array text;
 ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS entry_tf text;
 ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS screenshot2 text;
+
+-- MAE/MFE columns
+ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS mae numeric;
+ALTER TABLE public.trades ADD COLUMN IF NOT EXISTS mfe numeric;

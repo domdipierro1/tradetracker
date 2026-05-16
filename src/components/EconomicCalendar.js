@@ -37,6 +37,8 @@ export default function EconomicCalendar() {
   const weekLabel = weekOffset === 0 ? 'This Week' : weekOffset === 1 ? 'Next Week' : `Week +${weekOffset}`
   const today    = new Date().toISOString().split('T')[0]
   const weekDays = getWeekDays()
+  const weekDateStrings = weekDays.map(d => d.date)
+  const mag7Week = useMag7(weekDateStrings)
   const usd = events.filter(e=>e.country==='USD').length
   const gbp = events.filter(e=>e.country==='GBP').length
   const eur = events.filter(e=>e.country==='EUR').length

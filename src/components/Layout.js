@@ -8,6 +8,7 @@ const NAV = [
   { id: 'calendar',  label: 'Calendar',           short: 'Cal'  },
   { id: 'news',      label: 'Economic Calendar',  short: 'News' },
   { id: 'analysis',  label: 'Analysis',           short: 'Anal' },
+  { id: 'macro',     label: 'Macro',              short: 'Mcro' },
   { id: 'playbook',  label: 'Playbook',           short: 'Play' },
 ]
 
