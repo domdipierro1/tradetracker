@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { computeStats, f2 } from '../lib/stats'
 import { useEconomicCalendar, currencyFlag, formatFFTime } from '../lib/useEconomicCalendar'
 
@@ -254,6 +254,86 @@ function TradeCard({ t, onDelete }) {
   )
 }
 
+// ── AUTO-EXPANDING TEXTAREA ──────────────────────────────────────
+function AutoTextarea({ value, onChange, placeholder, style, minHeight = 80 }) {
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.style.height = 'auto'
+      ref.current.style.height = Math.max(minHeight, ref.current.scrollHeight) + 'px'
+    }
+  }, [value, minHeight])
+
+  function handleKeyDown(e) {
+    // Auto bullet: press Enter after a line starting with • or - to continue bullets
+    if (e.key === 'Enter') {
+      const textarea = e.target
+      const pos = textarea.selectionStart
+      const text = textarea.value
+      const lineStart = text.lastIndexOf('\n', pos - 1) + 1
+      const currentLine = text.substring(lineStart, pos)
+      const bulletMatch = currentLine.match(/^([•\-]\s)/)
+      if (bulletMatch) {
+        e.preventDefault()
+        const bullet = bulletMatch[1]
+        const newText = text.substring(0, pos) + '\n' + bullet + text.substring(pos)
+        onChange({ target: { value: newText } })
+        // Move cursor after bullet
+        setTimeout(() => {
+          textarea.selectionStart = textarea.selectionEnd = pos + 1 + bullet.length
+        }, 0)
+      }
+    }
+    // Type • with Cmd+8 or Ctrl+8
+    if ((e.metaKey || e.ctrlKey) && e.key === '8') {
+      e.preventDefault()
+      const textarea = e.target
+      const pos = textarea.selectionStart
+      const text = textarea.value
+      const lineStart = text.lastIndexOf('\n', pos - 1) + 1
+      const currentLine = text.substring(lineStart, pos)
+      if (!currentLine.startsWith('• ')) {
+        const newText = text.substring(0, lineStart) + '• ' + text.substring(lineStart)
+        onChange({ target: { value: newText } })
+        setTimeout(() => { textarea.selectionStart = textarea.selectionEnd = pos + 2 }, 0)
+      }
+    }
+  }
+
+  const baseStyle = {
+    width: '100%',
+    background: '#F8FAFC',
+    border: '1.5px solid #E2E8F0',
+    borderRadius: '12px',
+    padding: '12px 14px',
+    fontSize: '13px',
+    color: '#0F172A',
+    fontFamily: 'inherit',
+    outline: 'none',
+    resize: 'none',
+    lineHeight: '1.7',
+    transition: 'border-color .15s',
+    boxSizing: 'border-box',
+    overflow: 'hidden',
+    minHeight: minHeight + 'px',
+    ...style,
+  }
+
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={onChange}
+      onKeyDown={handleKeyDown}
+      placeholder={placeholder}
+      style={baseStyle}
+      onFocus={e => e.target.style.borderColor = '#6366F1'}
+      onBlur={e => e.target.style.borderColor = '#E2E8F0'}
+    />
+  )
+}
+
 // ── MAIN COMPONENT ───────────────────────────────────────────────
 export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast, dateStr: propDateStr, isWeekly: propIsWeekly }) {
   const today = toDateStr(new Date())
@@ -454,10 +534,8 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
               <div>
                 <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Feeling</label>
-                <textarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }}
-                  placeholder="How are you feeling going into today's session?"
-                  style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'12px 14px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'70px', lineHeight:'1.6', transition:'border-color .15s', boxSizing:'border-box' }}
-                  onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+                <AutoTextarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }}
+                  placeholder="How are you feeling going into today's session?" minHeight={70} />
               </div>
               <div>
                 <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Bias Today</label>
@@ -469,10 +547,8 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             </div>
             <div>
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Trading Plan</label>
-              <textarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }}
-                placeholder="What are you watching? Key levels, bias read, what needs to happen for you to take a trade..."
-                style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'14px 16px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'110px', lineHeight:'1.7', transition:'border-color .15s', boxSizing:'border-box' }}
-                onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+              <AutoTextarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }}
+                placeholder="What are you watching? Key levels, bias read, what needs to happen for you to take a trade..." minHeight={110} />
             </div>
           </>)}
 
@@ -480,10 +556,8 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
           {isWeekly && (<>
             <div>
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Plan for the Week</label>
-              <textarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }}
-                placeholder="Macro backdrop, key themes, currencies to focus on, what you need to see to trade..."
-                style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'14px 16px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'120px', lineHeight:'1.7', transition:'border-color .15s', boxSizing:'border-box' }}
-                onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+              <AutoTextarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }}
+                placeholder="Macro backdrop, key themes, currencies to focus on, what you need to see to trade..." minHeight={120} />
             </div>
           </>)}
 
@@ -516,7 +590,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
                   placeholder="Paste TradingView snapshot URL..."
                   style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'9px 12px', fontSize:'12px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', marginBottom:'8px', transition:'border-color .15s' }}
                   onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
-                <textarea value={note} onChange={e => { setNote(e.target.value); markDirty() }}
+                <AutoTextarea value={note} onChange={e => { setNote(e.target.value); markDirty() }}
                   placeholder={isWeekly ? "What are you watching on this chart — key levels, setup, bias..." : "Chart analysis notes..."}
                   style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'9px 12px', fontSize:'12px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'60px', lineHeight:'1.6', boxSizing:'border-box', marginBottom: val.trim() ? '10px' : '0', transition:'border-color .15s' }}
                   onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
@@ -605,30 +679,25 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>
               {isWeekly ? 'How did the week go?' : 'How did the session go?'}
             </label>
-            <textarea value={eodReview} onChange={e => { setEodReview(e.target.value); markDirty() }}
+            <AutoTextarea value={eodReview} onChange={e => { setEodReview(e.target.value); markDirty() }}
               placeholder={isWeekly ? "Overall feel of the week — market conditions, your execution, what stood out..." : "Overall feel of the session — how price moved, your execution, anything notable..."}
-              style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'14px 16px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'90px', lineHeight:'1.7', transition:'border-color .15s', boxSizing:'border-box' }}
-              onFocus={e => e.target.style.borderColor='#10B981'}
-              onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+              minHeight={90}
+              style={{ background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px' }} />
           </div>
 
           {/* Went well / Improve */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
             <div>
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#10B981', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>What went well</label>
-              <textarea value={wentWell} onChange={e => { setWentWell(e.target.value); markDirty() }}
+              <AutoTextarea value={wentWell} onChange={e => { setWentWell(e.target.value); markDirty() }}
                 placeholder={isWeekly ? "Best decisions, good habits, what worked..." : "Execution, patience, market reads..."}
-                style={{ width:'100%', background:'#F0FDF4', border:'1.5px solid #BBF7D0', borderRadius:'12px', padding:'12px 14px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'80px', lineHeight:'1.6', transition:'border-color .15s', boxSizing:'border-box' }}
-                onFocus={e => e.target.style.borderColor='#10B981'}
-                onBlur={e => e.target.style.borderColor='#BBF7D0'} />
+                minHeight={80} style={{ background:'#F0FDF4', border:'1.5px solid #BBF7D0', borderRadius:'12px' }} />
             </div>
             <div>
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#EF4444', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>What to improve</label>
-              <textarea value={improve} onChange={e => { setImprove(e.target.value); markDirty() }}
+              <AutoTextarea value={improve} onChange={e => { setImprove(e.target.value); markDirty() }}
                 placeholder={isWeekly ? "One key focus for next week..." : "One specific thing for tomorrow..."}
-                style={{ width:'100%', background:'#FEF2F2', border:'1.5px solid #FECACA', borderRadius:'12px', padding:'12px 14px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'80px', lineHeight:'1.6', transition:'border-color .15s', boxSizing:'border-box' }}
-                onFocus={e => e.target.style.borderColor='#EF4444'}
-                onBlur={e => e.target.style.borderColor='#FECACA'} />
+                minHeight={80} style={{ background:'#FEF2F2', border:'1.5px solid #FECACA', borderRadius:'12px' }} />
             </div>
           </div>
 

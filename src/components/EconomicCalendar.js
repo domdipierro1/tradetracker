@@ -64,6 +64,7 @@ export default function EconomicCalendar() {
   // Always show current week - FF JSON updates every Monday automatically
   const weekOffset = 0
   const { events, loading, error, fetchedAt, eventsForDate } = useEconomicCalendar(weekOffset)
+  const weekDays = getWeekDays()
 
   return (
     <div className="page active">
