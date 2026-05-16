@@ -28,59 +28,49 @@ function BreakdownTable({ title, k, items, trades, accent = '#6366F1' }) {
   }).filter(r => r.n > 0)
 
   const maxR = Math.max(...rows.map(r => Math.abs(r.totalR || 0)), 0.01)
-
   if (rows.length === 0) return null
 
-  return (
-    <div style={{ background:'#FFFFFF', borderRadius:'20px', overflow:'hidden', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'0' }}>
-      {/* Card header */}
-      <div style={{ padding:'16px 20px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
-        <div style={{ width:'3px', height:'18px', borderRadius:'2px', background: accent, flexShrink:0 }} />
-        <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>{title}</span>
-        <span style={{ marginLeft:'auto', fontSize:'11px', color:'#94A3B8' }}>{rows.length} categories</span>
-      </div>
+  const G = '1fr 36px 50px 36px 76px 50px'
 
-      {/* Table */}
-      <div>
-        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'12px' }}>
-          <thead>
-            <tr style={{ background:'#F8FAFC' }}>
-              {['','Trades','Win %','Avg Win','Avg Loss','Total R','Exp'].map((h,i) => (
-                <th key={i} style={{ padding:'9px 14px', textAlign: i===0?'left':'right', fontSize:'10px', fontWeight:'600', color:'#94A3B8', letterSpacing:'.07em', textTransform:'uppercase', borderBottom:'1px solid #F1F5F9', whiteSpace:'nowrap' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => {
-              const barPct = Math.min(100, Math.abs(r.totalR || 0) / maxR * 100)
-              const barCol = (r.totalR || 0) >= 0 ? '#10B981' : '#EF4444'
-              return (
-                <tr key={r.label} style={{ borderBottom: i < rows.length-1 ? '1px solid #F8FAFC' : 'none', transition:'background .1s' }}
-                  onMouseEnter={e => e.currentTarget.style.background='#F8FAFC'}
-                  onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                  <td style={{ padding:'10px 12px', fontWeight:'600', color:'#334155', fontSize:'12px', maxWidth:'140px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.label}</td>
-                  <td style={{ padding:'10px 12px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", color:'#475569', fontSize:'12px' }}>{r.n}</td>
-                  <td style={{ padding:'10px 12px', textAlign:'right' }}>
-                    <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'600', color: r.winRate >= .5 ? '#10B981' : '#EF4444' }}>{fP(r.winRate)}</span>
-                  </td>
-                  <td style={{ padding:'10px 12px', textAlign:'right' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:'5px', justifyContent:'flex-end' }}>
-                      <div style={{ width:'36px', height:'4px', background:'#F1F5F9', borderRadius:'2px', overflow:'hidden' }}>
-                        <div style={{ width: barPct+'%', height:'100%', background: barCol, borderRadius:'2px' }} />
-                      </div>
-                      <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color: barCol, minWidth:'34px', textAlign:'right' }}>{f1(r.totalR || 0)}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding:'10px 12px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'600', color: (r.expectancy||0) > 0 ? '#10B981' : '#EF4444' }}>{r.expectancy ? f2(r.expectancy) : '—'}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+  return (
+    <div style={{ background:'#FFFFFF', borderRadius:'20px', overflow:'hidden', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)' }}>
+      <div style={{ padding:'14px 18px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+        <div style={{ width:'3px', height:'16px', borderRadius:'2px', background: accent, flexShrink:0 }} />
+        <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>{title}</span>
+        <span style={{ marginLeft:'auto', fontSize:'11px', color:'#94A3B8' }}>{rows.length} categor{rows.length===1?'y':'ies'}</span>
+      </div>
+      <div style={{ padding:'0 18px' }}>
+        <div style={{ display:'grid', gridTemplateColumns:G, padding:'8px 0 6px', borderBottom:'1px solid #F1F5F9' }}>
+          {['','Tr','Win%','W','Total R','Exp'].map((h,i) => (
+            <div key={i} style={{ fontSize:'9px', fontWeight:'700', color:'#94A3B8', letterSpacing:'.06em', textTransform:'uppercase', textAlign:i===0?'left':'right' }}>{h}</div>
+          ))}
+        </div>
+        {rows.map((r, i) => {
+          const barPct = Math.min(100, Math.abs(r.totalR||0) / maxR * 100)
+          const rCol = (r.totalR||0) >= 0 ? '#10B981' : '#EF4444'
+          return (
+            <div key={r.label} style={{ display:'grid', gridTemplateColumns:G, padding:'9px 0', borderBottom: i<rows.length-1?'1px solid #F8FAFC':'none', transition:'background .1s', margin:'0 -18px', padding:'9px 18px' }}
+              onMouseEnter={e=>e.currentTarget.style.background='#F8FAFC'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <div style={{ fontWeight:'600', color:'#334155', fontSize:'12px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', paddingRight:'6px' }} title={r.label}>{r.label}</div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", color:'#64748B', fontSize:'11px' }}>{r.n}</div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color: r.winRate>=.5?'#10B981':'#EF4444' }}>{fP(r.winRate)}</div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#10B981', fontWeight:'500' }}>{r.wins||0}</div>
+              <div style={{ display:'flex', alignItems:'center', gap:'4px', justifyContent:'flex-end' }}>
+                <div style={{ width:'28px', height:'3px', background:'#F1F5F9', borderRadius:'2px', overflow:'hidden', flexShrink:0 }}>
+                  <div style={{ width:barPct+'%', height:'100%', background:rCol, borderRadius:'2px' }} />
+                </div>
+                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'700', color:rCol, minWidth:'30px', textAlign:'right' }}>{f1(r.totalR||0)}</span>
+              </div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color:(r.expectancy||0)>0?'#10B981':'#EF4444' }}>{r.expectancy?f2(r.expectancy):'—'}</div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
 }
+
 
 export default function Analysis({ trades }) {
   // Best combos
