@@ -376,7 +376,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const losses = dayTrades.filter(t => t.outcome === 'Loss').length
 
   return (
-    <div style={{ padding:'24px', maxWidth:'860px', margin:'0 auto' }}>
+    <div style={{ padding:'24px', maxWidth:'860px', margin:'0 auto', display:'flex', flexDirection:'column' }}>
 
       {/* ── HEADER ── */}
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'24px', flexWrap:'wrap', gap:'12px' }}>
@@ -399,6 +399,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       </div>
 
       {/* ── WEEKLY STATS ── */}
+      
       {isWeekly && weekTrades.length > 0 && (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'10px', marginBottom:'20px' }}>
           {[
@@ -433,10 +434,10 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       )}
 
       {/* ── TODAY'S NEWS ── */}
-      <DayNews dateStr={dateStr} />
+      <div style={{ order:0 }}><DayNews dateStr={dateStr} />
 
       {/* ── DAY PLAN CARD ── */}
-      <div style={{ background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+      <div style={{ order: isWeekly ? 2 : 1, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
         {/* Card header */}
         <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
@@ -453,10 +454,10 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
             <div>
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>
-                {isWeekly ? 'Mental State' : 'Feeling'}
+                {isWeekly ? 'Week Overall' : 'Mental State'}
               </label>
               <textarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }}
-                placeholder={isWeekly ? "How did you feel this week? Patient, disciplined, emotional?" : "How are you feeling going into today's session?"}
+                placeholder={isWeekly ? "Rate the week overall — execution quality, discipline, emotional control..." : "How are you feeling going into today's session?"}
                 style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'12px 14px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'70px', lineHeight:'1.6', transition:'border-color .15s', boxSizing:'border-box' }}
                 onFocus={e => e.target.style.borderColor='#6366F1'}
                 onBlur={e => e.target.style.borderColor='#E2E8F0'} />
@@ -521,7 +522,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       </div>
 
       {/* ── TRADES ── */}
-      <div style={{ marginBottom:'16px' }}>
+      <div style={{ order: 3, marginBottom:'16px' }}>
         {!isWeekly && (
           <>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
@@ -562,7 +563,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       </div>
 
       {/* ── END OF DAY / WEEK REVIEW ── */}
-      <div style={{ background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+      <div style={{ order: isWeekly ? 1 : 4, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
         <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
           <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#ECFDF5', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>
             {isWeekly ? '📊' : '✍️'}
@@ -623,6 +624,20 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
                 onBlur={e => e.target.style.borderColor='#FECACA'} />
             </div>
           </div>
+
+          {/* Next week forecast — weekly only */}
+          {isWeekly && (
+            <div>
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#6366F1', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>
+                Next Week Forecast
+              </label>
+              <textarea value={bias} onChange={e => { setBias(e.target.value); markDirty() }}
+                placeholder="Directional bias heading into next week — key levels to watch, currencies to focus on, upcoming news to be aware of..."
+                style={{ width:'100%', background:'#F3F0FF', border:'1.5px solid #C4B5FD', borderRadius:'12px', padding:'14px 16px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'90px', lineHeight:'1.7', transition:'border-color .15s', boxSizing:'border-box' }}
+                onFocus={e => e.target.style.borderColor='#6366F1'}
+                onBlur={e => e.target.style.borderColor='#C4B5FD'} />
+            </div>
+          )}
 
           {/* Save */}
           <button onClick={saveNote} disabled={saving}

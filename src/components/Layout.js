@@ -1,3 +1,4 @@
+import React, { useRef } from 'react'
 import { computeStats } from '../lib/stats'
 
 import AccountManager from './AccountManager'
@@ -23,8 +24,8 @@ export default function Layout({ page, onNav, trades, user, onSignOut, onExport,
   const up = s.totalPL >= 0
 
   // Swipe navigation
-  const touchStartX = React.useRef(null)
-  const touchStartY = React.useRef(null)
+  const touchStartX = useRef(null)
+  const touchStartY = useRef(null)
 
   function handleTouchStart(e) {
     touchStartX.current = e.touches[0].clientX
