@@ -79,34 +79,40 @@ export default async function handler(req, res) {
   }
 
   const SOURCES = [
-    // MQL5 range API — free, no key, full year coverage
+    // MQL5 range — free, no key, full year
     {
       url: `https://www.mql5.com/en/economic-calendar/content?from=${from}&to=${to}&currencies=USD,GBP,EUR&importance=3`,
       parse: parseMQL5Events,
+      headers: { 'User-Agent':'Mozilla/5.0', 'Accept':'application/json', 'X-Requested-With':'XMLHttpRequest', 'Referer':'https://www.mql5.com/en/economic-calendar' },
     },
-    // FF thisweek/nextweek JSON
+    // MQL5 alternative URL format
+    {
+      url: `https://www.mql5.com/en/economic-calendar/content?from=${from}&to=${to}&importance=3`,
+      parse: parseMQL5Events,
+      headers: { 'User-Agent':'Mozilla/5.0', 'Accept':'application/json', 'X-Requested-With':'XMLHttpRequest', 'Referer':'https://www.mql5.com/en/economic-calendar' },
+    },
+    // FF CDN
     {
       url: weekOffset === 0
         ? 'https://cdn-nfs.faireconomy.media/ff_calendar_thisweek.json'
         : 'https://cdn-nfs.faireconomy.media/ff_calendar_nextweek.json',
       parse: parseFFEvents,
+      headers: { 'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept':'application/json', 'Referer':'https://www.forexfactory.com/', 'Origin':'https://www.forexfactory.com' },
     },
+    // FF direct
     {
       url: weekOffset === 0
         ? 'https://nfs.faireconomy.media/ff_calendar_thisweek.json'
         : 'https://nfs.faireconomy.media/ff_calendar_nextweek.json',
       parse: parseFFEvents,
+      headers: { 'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept':'application/json', 'Referer':'https://www.forexfactory.com/' },
     },
   ]
 
   for (const source of SOURCES) {
     try {
       const r = await fetch(source.url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'application/json, text/html, */*',
-          'Referer': 'https://www.forexfactory.com/',
-        },
+        headers: source.headers || { 'User-Agent':'Mozilla/5.0', 'Accept':'application/json' },
         signal: AbortSignal.timeout(10000),
       })
       if (!r.ok) { console.log(`${source.url}: ${r.status}`); continue }

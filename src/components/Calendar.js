@@ -76,12 +76,15 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
     be:           { bg:'var(--amber-bg)', border:'var(--amber-dim)' },
     'no-trade':   { bg:'var(--surface)',  border:'var(--border)'    },
     'today-empty':{ bg:'var(--blue-bg)',  border:'var(--blue)'      },
+    'today-win':  { bg:'var(--blue-bg)',  border:'var(--blue)'      },
+    'today-loss': { bg:'var(--blue-bg)',  border:'var(--blue)'      },
+    'today-be':   { bg:'var(--blue-bg)',  border:'var(--blue)'      },
     'note-only':  { bg:'var(--surface)',   border:'var(--border)'    },
     weekend:      { bg:'var(--surface2)', border:'var(--border)'    },
   }
   const numCol = {
     win:'var(--green)', loss:'var(--red)', be:'var(--amber)',
-    'no-trade':'var(--muted)', 'today-empty':'var(--blue)', weekend:'var(--muted2)'
+    'no-trade':'var(--muted)', 'today-empty':'var(--blue)', 'today-win':'var(--blue)', 'today-loss':'var(--blue)', 'today-be':'var(--blue)', 'note-only':'var(--muted2)', weekend:'var(--muted2)'
   }
 
   // Month stats
@@ -215,7 +218,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                   {f2(pl)}
                 </span>
                 <span style={{ fontSize:'9px', color:numCol[cls], opacity:.8 }}>{cnt} trade{cnt>1?'s':''}</span>
-                <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background: cls.startsWith('today')?'var(--blue-dim)':cls==='win'?'var(--green-dim)':cls==='loss'?'var(--red-dim)':'var(--amber-dim)', color: cls.startsWith('today')?'var(--blue)':cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--amber)' }}>
+                <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background:'var(--blue-dim)', color:'var(--blue)' }}>
                   {pl>0?'WIN':pl<0?'LOSS':'BE'}
                 </span>
               </>}
