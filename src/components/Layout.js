@@ -22,6 +22,30 @@ export default function Layout({ page, onNav, trades, user, onSignOut, onExport,
   const cs = sym(ac?.currency)
   const up = s.totalPL >= 0
 
+  // Swipe navigation
+  const touchStartX = React.useRef(null)
+  const touchStartY = React.useRef(null)
+
+  function handleTouchStart(e) {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
+
+  function handleTouchEnd(e) {
+    if (touchStartX.current === null) return
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = e.changedTouches[0].clientY - touchStartY.current
+    // Only swipe if horizontal movement dominates and > 60px
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      const ids = NAV.map(n => n.id)
+      const cur = ids.indexOf(page)
+      if (dx < 0 && cur < ids.length - 1) onNav(ids[cur + 1]) // swipe left = next
+      if (dx > 0 && cur > 0) onNav(ids[cur - 1])              // swipe right = prev
+    }
+    touchStartX.current = null
+    touchStartY.current = null
+  }
+
     return (
     <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg)' }}>
 
@@ -70,7 +94,7 @@ export default function Layout({ page, onNav, trades, user, onSignOut, onExport,
       </aside>
 
       {/* MAIN */}
-      <div className="main" style={{ marginLeft:'var(--nav-w)', flex:1, minHeight:'100vh', display:'flex', flexDirection:'column' }}>
+      <div className="main" style={{ marginLeft:'var(--nav-w)', flex:1, minHeight:'100vh', display:'flex', flexDirection:'column' }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         <header style={{ background:'var(--surface)', borderBottom:'1px solid var(--border)', padding:'0 28px', height:'48px', display:'flex', alignItems:'center', justifyContent:'space-between', position:'sticky', top:0, zIndex:40 }}>
           <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text)' }}>{NAV.find(n => n.id === page)?.label}</span>
           <div style={{ display:'flex', gap:'5px', alignItems:'center' }}>
