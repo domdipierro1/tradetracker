@@ -31,7 +31,8 @@ export function currencyFlag(c) {
 
 export function formatFFTime(t) { return t || '' }
 
-export function useEconomicCalendar(weekOffset = 0) {
+export function useEconomicCalendar() {
+  const weekOffset = 0
   const [events,    setEvents]    = useState([])
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)

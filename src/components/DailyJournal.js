@@ -376,7 +376,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const losses = dayTrades.filter(t => t.outcome === 'Loss').length
 
   return (
-    <div style={{ padding:'24px', maxWidth:'860px', margin:'0 auto' }}>
+    <div style={{ padding:'24px', maxWidth:'860px', margin:'0 auto', display:'flex', flexDirection:'column' }}>
 
       {/* ── HEADER ── */}
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'24px', flexWrap:'wrap', gap:'12px' }}>
@@ -436,59 +436,63 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       <DayNews dateStr={dateStr} />
 
       {/* ── DAY PLAN CARD ── */}
-      <div style={{ background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
-        {/* Card header */}
+      <div style={{ order: isWeekly ? 3 : 1, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
         <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
             <div style={{ width:'32px', height:'32px', borderRadius:'10px', background: isWeekly ? '#F3E8FF' : '#EFF6FF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>
-              {isWeekly ? '🗓' : '📋'}
+              {isWeekly ? '📋' : '📋'}
             </div>
-            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>{isWeekly ? 'Weekly Plan & Reflection' : 'Day Plan'}</span>
+            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>{isWeekly ? 'Weekly Plan' : 'Day Plan'}</span>
           </div>
           {noteDirty && <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>Unsaved changes</span>}
         </div>
 
         <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
-          {/* Mood + Bias */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
-            <div>
-              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>
-                {isWeekly ? 'Mental State' : 'Feeling'}
-              </label>
-              <textarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }}
-                placeholder={isWeekly ? "How did you feel this week? Patient, disciplined, emotional?" : "How are you feeling going into today's session?"}
-                style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'12px 14px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'70px', lineHeight:'1.6', transition:'border-color .15s', boxSizing:'border-box' }}
-                onFocus={e => e.target.style.borderColor='#6366F1'}
-                onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+
+          {/* ── DAILY ONLY FIELDS ── */}
+          {!isWeekly && (<>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+              <div>
+                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Feeling</label>
+                <textarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }}
+                  placeholder="How are you feeling going into today's session?"
+                  style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'12px 14px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'70px', lineHeight:'1.6', transition:'border-color .15s', boxSizing:'border-box' }}
+                  onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+              </div>
+              <div>
+                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Bias Today</label>
+                <input value={bias} onChange={e => { setBias(e.target.value); markDirty() }}
+                  placeholder="e.g. Bearish NQ, Bullish GBP/USD..."
+                  style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'12px 14px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', transition:'border-color .15s', boxSizing:'border-box' }}
+                  onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+              </div>
             </div>
             <div>
-              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>
-                {isWeekly ? 'Bias Next Week' : 'Bias Today'}
-              </label>
-              <input value={bias} onChange={e => { setBias(e.target.value); markDirty() }}
-                placeholder={isWeekly ? "Directional bias heading into next week..." : "e.g. Bearish NQ, Bullish GBP/USD..."}
-                style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'12px 14px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', transition:'border-color .15s', boxSizing:'border-box' }}
-                onFocus={e => e.target.style.borderColor='#6366F1'}
-                onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Trading Plan</label>
+              <textarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }}
+                placeholder="What are you watching? Key levels, bias read, what needs to happen for you to take a trade..."
+                style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'14px 16px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'110px', lineHeight:'1.7', transition:'border-color .15s', boxSizing:'border-box' }}
+                onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
             </div>
-          </div>
+          </>)}
 
-          {/* Plan textarea */}
-          <div>
-            <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>
-              {isWeekly ? 'Week Summary' : 'Trading Plan'}
-            </label>
-            <textarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }}
-              placeholder={isWeekly ? "Overall week — key themes, market behaviour, notable setups, observations..." : "What are you watching? Key levels, bias read, what needs to happen for you to take a trade..."}
-              style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'14px 16px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'110px', lineHeight:'1.7', transition:'border-color .15s', boxSizing:'border-box' }}
-              onFocus={e => e.target.style.borderColor='#6366F1'}
-              onBlur={e => e.target.style.borderColor='#E2E8F0'} />
-          </div>
+          {/* ── WEEKLY ONLY FIELDS ── */}
+          {isWeekly && (<>
+            <div>
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Plan for the Week</label>
+              <textarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }}
+                placeholder="Macro backdrop, key themes, currencies to focus on, what you need to see to trade..."
+                style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'14px 16px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'120px', lineHeight:'1.7', transition:'border-color .15s', boxSizing:'border-box' }}
+                onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+            </div>
+          </>)}
 
-          {/* Chart images */}
+          {/* ── CHART IMAGES (both daily and weekly) ── */}
           <div>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
-              <label style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase' }}>Chart Images</label>
+              <label style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase' }}>
+                {isWeekly ? 'Charts to Watch' : 'Chart Images'}
+              </label>
               {[chart1,chart2,chart3,chart4].filter(v=>v&&v.trim()).length < 4 && (
                 <button type="button" onClick={() => {
                   if (!chart1) { setChart1(' '); markDirty() }
@@ -501,27 +505,31 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
                 </button>
               )}
             </div>
-            {[[chart1,setChart1,'HTF Context'],[chart2,setChart2,'Entry Chart'],[chart3,setChart3,'Chart 3'],[chart4,setChart4,'Chart 4']].map(([val,setter,label],idx) => val ? (
-              <div key={idx} style={{ marginBottom:'14px' }}>
+            {[[chart1,setChart1,chartNote1,setChartNote1],[chart2,setChart2,chartNote2,setChartNote2],[chart3,setChart3,chartNote3,setChartNote3],[chart4,setChart4,chartNote4,setChartNote4]].map(([val,setter,note,setNote],i) => val ? (
+              <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'12px', padding:'12px 14px', border:'1px solid #E2E8F0' }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'8px' }}>
-                  <span style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', textTransform:'uppercase', letterSpacing:'.05em' }}>{label}</span>
-                  <button type="button" onClick={() => { setter(''); markDirty() }}
-                    style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'13px', padding:'0', lineHeight:1, fontWeight:'700' }}>✕</button>
+                  <span style={{ fontSize:'10px', fontWeight:'600', color:'#94A3B8', textTransform:'uppercase', letterSpacing:'.06em' }}>Chart {i+1}</span>
+                  <button type="button" onClick={() => { setter(''); setNote(''); markDirty() }}
+                    style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'13px', padding:'0', lineHeight:1 }}>✕</button>
                 </div>
                 <input type="url" value={val.trim()} onChange={e => { setter(e.target.value); markDirty() }}
                   placeholder="Paste TradingView snapshot URL..."
-                  style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'10px', padding:'10px 14px', fontSize:'12px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', marginBottom:'10px', boxSizing:'border-box', transition:'border-color .15s' }}
-                  onFocus={e => e.target.style.borderColor='#6366F1'}
-                  onBlur={e => e.target.style.borderColor='#E2E8F0'} />
-                {val.trim() && <ChartImage url={val.trim()} label={label} large />}
+                  style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'9px 12px', fontSize:'12px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', marginBottom:'8px', transition:'border-color .15s' }}
+                  onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+                <textarea value={note} onChange={e => { setNote(e.target.value); markDirty() }}
+                  placeholder={isWeekly ? "What are you watching on this chart — key levels, setup, bias..." : "Chart analysis notes..."}
+                  style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'9px 12px', fontSize:'12px', color:'#0F172A', fontFamily:'inherit', outline:'none', resize:'vertical', minHeight:'60px', lineHeight:'1.6', boxSizing:'border-box', marginBottom: val.trim() ? '10px' : '0', transition:'border-color .15s' }}
+                  onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+                {val.trim() && <ChartImage url={val.trim()} label={`Chart ${i+1}`} large />}
               </div>
             ) : null)}
           </div>
+
         </div>
       </div>
 
       {/* ── TRADES ── */}
-      <div style={{ marginBottom:'16px' }}>
+      <div style={{ order: isWeekly ? 2 : 3, marginBottom:'16px' }}>
         {!isWeekly && (
           <>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
@@ -562,7 +570,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       </div>
 
       {/* ── END OF DAY / WEEK REVIEW ── */}
-      <div style={{ background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+      <div style={{ order: isWeekly ? 1 : 4, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
         <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
           <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#ECFDF5', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>
             {isWeekly ? '📊' : '✍️'}
