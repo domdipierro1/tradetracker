@@ -156,7 +156,7 @@ export function useEconomicCalendar() {
       setLoading(false)
     }
     load()
-  }, [weekOffset])
+  }, [])
 
   function eventsForDate(dateStr) {
     return events.filter(e => e.date === dateStr)
