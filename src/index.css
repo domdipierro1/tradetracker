@@ -18,11 +18,11 @@
   --muted2:    #A0A098;
 
   /* Accent — sophisticated forest green instead of blue */
-  --blue:      #2D6A4F;
-  --blue-bg:   #EAF2EE;
-  --blue-dim:  #B7D5C5;
-  --blue-dark: #1B4332;
-  --blue-mid:  #40916C;
+  --blue:      #3B82F6;
+  --blue-bg:   #EFF6FF;
+  --blue-dim:  #BFDBFE;
+  --blue-dark: #1D4ED8;
+  --blue-mid:  #2563EB;
 
   /* Semantic */
   --green:     #2D6A4F;
