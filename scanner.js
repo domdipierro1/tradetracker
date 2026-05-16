@@ -1,119 +1,78 @@
-// api/calendar.js — Fetches FF calendar with correct EST times
+// api/scanner.js
+// Fetches PDH, PDL and current price for all 24 instruments from Yahoo Finance
+// Called server-side to avoid CORS issues
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=1200')
+  res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=300') // 2 min cache
 
-  const TARGET = ['USD', 'GBP', 'EUR']
-
-  const URLS = [
-    'https://cdn-nfs.faireconomy.media/ff_calendar_thisweek.json',
-    'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
+  const SYMBOLS = [
+    { sym: 'AUD/USD', yf: 'AUDUSD=X', dp: 5 },
+    { sym: 'EUR/USD', yf: 'EURUSD=X', dp: 5 },
+    { sym: 'GBP/USD', yf: 'GBPUSD=X', dp: 5 },
+    { sym: 'NZD/USD', yf: 'NZDUSD=X', dp: 5 },
+    { sym: 'USD/CAD', yf: 'USDCAD=X', dp: 5 },
+    { sym: 'USD/CHF', yf: 'USDCHF=X', dp: 5 },
+    { sym: 'USD/JPY', yf: 'USDJPY=X', dp: 3 },
+    { sym: 'NQ',      yf: 'NQ=F',     dp: 2 },
+    { sym: 'ES',      yf: 'ES=F',     dp: 2 },
+    { sym: 'Gold',    yf: 'GC=F',     dp: 2 },
+    { sym: 'Silver',  yf: 'SI=F',     dp: 3 },
   ]
 
-  for (const url of URLS) {
+  async function fetchOne(symbol) {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol.yf}?interval=1d&range=5d`
     try {
-      const response = await fetch(url, {
+      const r = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Accept': 'application/json',
-          'Referer': 'https://www.forexfactory.com/',
         },
         signal: AbortSignal.timeout(8000),
       })
+      if (!r.ok) return { ...symbol, ok: false, error: `HTTP ${r.status}` }
+      const json = await r.json()
+      const result = json?.chart?.result?.[0]
+      if (!result) return { ...symbol, ok: false, error: 'No result' }
 
-      if (!response.ok) continue
-      const data = await response.json()
-      if (!Array.isArray(data) || data.length === 0) continue
+      const quotes = result.indicators?.quote?.[0]
+      const highs  = quotes?.high  || []
+      const lows   = quotes?.low   || []
+      const meta   = result.meta
 
-      // Log first event for debugging
-      console.log('FF sample:', JSON.stringify(data[0]))
+      const price = meta?.regularMarketPrice ?? meta?.previousClose ?? null
+      const prev  = meta?.previousClose ?? null
+      const n     = highs.length
 
-      const events = data
-        .filter(e => TARGET.includes(e.country) && (e.impact === 'High' || e.impact === 'Holiday'))
-        .map(e => {
-          const rawDate = e.date || ''
-          const rawTime = e.time || ''
-          const isHoliday = e.impact === 'Holiday' || (e.title || '').toLowerCase().includes('holiday')
+      // Previous completed day = second to last bar
+      const pdh = n >= 2 ? highs[n - 2] : (n === 1 ? highs[0] : null)
+      const pdl = n >= 2 ? lows[n - 2]  : (n === 1 ? lows[0]  : null)
 
-          let date = ''
-          let time = isHoliday ? 'All Day' : ''
-
-          if (rawDate.includes('T')) {
-            // ISO datetime like "2026-05-14T08:30:00-0400"
-            // Parse it and convert to EST (UTC-5) or EDT (UTC-4)
-            // Easiest: use Intl to format in America/New_York timezone
-            try {
-              const dt = new Date(rawDate)
-              if (!isNaN(dt)) {
-                // Get date in NY timezone
-                const nyDateStr = dt.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-                date = nyDateStr // already YYYY-MM-DD from en-CA locale
-
-                if (!isHoliday) {
-                  // Get time in NY timezone
-                  const nyTimeStr = dt.toLocaleTimeString('en-GB', {
-                    timeZone: 'America/New_York',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false
-                  })
-                  time = nyTimeStr // e.g. "08:30"
-                }
-              }
-            } catch (err) {
-              // Fallback: just split on T
-              date = rawDate.split('T')[0]
-              time = rawTime
-            }
-          } else if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
-            date = rawDate
-            time = isHoliday ? 'All Day' : rawTime
-          } else if (/^\d{2}-\d{2}-\d{4}$/.test(rawDate)) {
-            const [m, d, y] = rawDate.split('-')
-            date = `${y}-${m}-${d}`
-            time = isHoliday ? 'All Day' : rawTime
-          } else {
-            date = rawDate
-            time = isHoliday ? 'All Day' : rawTime
-          }
-
-          // Convert 12h time string to 24h if still needed
-          if (time && /\d(am|pm)/i.test(time)) {
-            const m = time.match(/(\d{1,2}):(\d{2})(am|pm)/i)
-            if (m) {
-              let h = parseInt(m[1])
-              const min = m[2], ap = m[3].toLowerCase()
-              if (ap === 'pm' && h !== 12) h += 12
-              if (ap === 'am' && h === 12) h = 0
-              time = `${String(h).padStart(2,'0')}:${min}`
-            }
-          }
-
-          return {
-            title:     e.title    || '',
-            country:   e.country  || '',
-            date,
-            time,
-            impact:    e.impact   || '',
-            forecast:  e.forecast || null,
-            previous:  e.previous || null,
-            actual:    e.actual   || null,
-            isHoliday,
-          }
-        })
-
-      return res.status(200).json({
-        ok: true,
-        events,
-        source: url,
-        fetched_at: new Date().toISOString(),
-        server_tz: Intl.DateTimeFormat().resolvedOptions().timeZone
-      })
+      return { ...symbol, ok: true, price, prev, pdh, pdl }
     } catch (err) {
-      console.error(`${url} failed:`, err.message)
-      continue
+      return { ...symbol, ok: false, error: err.message }
     }
   }
 
-  return res.status(200).json({ ok: false, events: [], error: 'All sources failed', fetched_at: new Date().toISOString() })
+  try {
+    // Fetch all in parallel
+    const results = await Promise.allSettled(SYMBOLS.map(s => fetchOne(s)))
+    const data = results.map((r, i) =>
+      r.status === 'fulfilled' ? r.value : { ...SYMBOLS[i], ok: false, error: 'Failed' }
+    )
+
+    return res.status(200).json({
+      ok: true,
+      data,
+      fetched_at: new Date().toISOString(),
+      count: data.filter(d => d.ok).length,
+    })
+  } catch (err) {
+    return res.status(200).json({
+      ok: false,
+      data: [],
+      error: err.message,
+      fetched_at: new Date().toISOString(),
+    })
+  }
 }

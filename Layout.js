@@ -1,208 +1,111 @@
-import { useState } from 'react'
-import { computeStats, f2, f1 } from '../lib/stats'
-import DailyJournal from './DailyJournal'
+import { computeStats } from '../lib/stats'
 
+import AccountManager from './AccountManager'
 
-// Get Mon-Sun week containing a given date string
-function getWeekRange(dateStr) {
-  const d = new Date(dateStr + 'T12:00:00')
-  const dow = d.getDay() // 0=Sun
-  const mon = new Date(d); mon.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1))
-  const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
-  const fmt = dt => dt.toISOString().split('T')[0]
-  return { mon: fmt(mon), sun: fmt(sun) }
+const NAV = [
+  { id: 'dashboard', label: 'Dashboard',         short: 'Dash' },
+  { id: 'journal',   label: 'Journal',            short: 'Jour' },
+  { id: 'calendar',  label: 'Calendar',           short: 'Cal'  },
+  { id: 'news',      label: 'Economic Calendar',  short: 'News' },
+  { id: 'analysis',  label: 'Analysis',           short: 'Anal' },
+  { id: 'macro',     label: 'Macro',              short: 'Mcro' },
+  { id: 'playbook',  label: 'Playbook',           short: 'Play' },
+]
+
+function sym(currency) {
+  return { USD:'$', GBP:'£', EUR:'€', AUD:'A$', CAD:'C$' }[currency] || '$'
 }
 
-function getWeekR(trades, sundayDateStr) {
-  const { mon, sun } = getWeekRange(sundayDateStr)
-  return trades
-    .filter(t => t.date >= mon && t.date <= sun)
-    .reduce((s, t) => s + (t.pl || t.r_multiple || 0), 0)
-}
-
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
-
-export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast }) {
-  const today      = new Date().toISOString().split('T')[0]
-  const [month, setMonth] = useState(new Date().getMonth())
-  const [selectedDate, setSelectedDate] = useState(null) // null = show grid, string = show journal
-  const year = new Date().getFullYear()
-
-  const moTrades = trades.filter(t => {
-    const d = new Date(t.date)
-    return d.getFullYear() === year && d.getMonth() === month
-  })
-
-  // Build day map
-  const dayMap = {}
-  moTrades.forEach(t => {
-    const d = t.date
-    if (!dayMap[d]) dayMap[d] = { trades:[], pl:0 }
-    dayMap[d].trades.push(t)
-    dayMap[d].pl += (t.pl||0)
-  })
-
-  const noteMap = {}
-  ;(dailyNotes||[]).forEach(n => { noteMap[n.date] = n })
-
-  const firstDow   = (new Date(year, month, 1).getDay() + 6) % 7
-  const daysInMonth = new Date(year, month+1, 0).getDate()
-  const totalCells = Math.ceil((firstDow + daysInMonth) / 7) * 7
-
-  function toDateStr(day) {
-    return `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
-  }
-
-  function dayClass(day) {
-    const dow = (firstDow + day - 1) % 7
-    const ds  = toDateStr(day)
-    const isToday = ds === today
-    if (dow >= 5 && !isToday) return 'weekend'
-    const d = dayMap[ds]
-    const hasNote = !!noteMap[ds]
-    if (!d?.trades.length) {
-      if (hasNote) return 'note-only'   // note but no trades = grey (even if today)
-      if (isToday) return 'today-empty' // today with no note and no trades = blue
-      return 'no-trade'
-    }
-    return d.pl > 0 ? 'win' : d.pl < 0 ? 'loss' : 'be'
-  }
-
-  const cellStyle = {
-    win:          { bg:'var(--green-bg)', border:'var(--green-dim)' },
-    loss:         { bg:'var(--red-bg)',   border:'var(--red-dim)'   },
-    be:           { bg:'var(--amber-bg)', border:'var(--amber-dim)' },
-    'no-trade':   { bg:'var(--surface)',  border:'var(--border)'    },
-    'today-empty':{ bg:'var(--blue-bg)',  border:'var(--blue)'      },
-    'note-only':  { bg:'#D8D8D4',         border:'#BEBEBB'          },
-    weekend:      { bg:'var(--surface2)', border:'var(--border)'    },
-  }
-  const numCol = {
-    win:'var(--green)', loss:'var(--red)', be:'var(--amber)',
-    'no-trade':'var(--muted)', 'today-empty':'var(--blue)', weekend:'var(--muted2)'
-  }
-
-  // Month stats
-  const ms = computeStats(moTrades)
-  const mPL = moTrades.reduce((s,t) => s + (t.pl||t.r_multiple||0), 0)
-
-  // If a date is selected, show the DailyJournal for that date
-  if (selectedDate) {
-    return (
-      <div>
-        {/* Back button */}
-        <div style={{ padding:'12px 28px 0', display:'flex', alignItems:'center', gap:'10px', background:'var(--surface)', borderBottom:'1px solid var(--border)', marginBottom:'0' }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => setSelectedDate(null)}
-            style={{ display:'flex', alignItems:'center', gap:'5px', color:'var(--muted)' }}>
-            ← Calendar
-          </button>
-          <span style={{ fontSize:'12px', color:'var(--muted)' }}>
-            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' })}
-          </span>
-        </div>
-        <DailyJournal
-          trades={trades}
-          dailyNotes={dailyNotes}
-          onSaveNote={onSaveNote}
-          onDeleteNote={onDeleteNote}
-          onAddTrade={onAddTrade}
-          onDeleteTrade={onDeleteTrade}
-          toast={toast}
-          dateStr={selectedDate}
-          isWeekly={new Date(selectedDate + 'T12:00:00').getDay() === 0}
-        />
-      </div>
-    )
-  }
+export default function Layout({ page, onNav, trades, user, onSignOut, onExport, onImport, darkMode, onToggleDark, accounts, activeAccountId, onSwitchAccount, onCreateAccount, onEditAccount, onDeleteAccount, startingBalance, children }) {
+  const s  = computeStats(trades, startingBalance || 100000)
+  const ac = accounts?.find(a => a.id === activeAccountId)
+  const cs = sym(ac?.currency)
+  const up = s.totalPL >= 0
 
   return (
-    <div className="page active">
-      {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'16px', flexWrap:'wrap' }}>
-        <div style={{ fontSize:'18px', fontWeight:'600', color:'var(--text)', flex:1, letterSpacing:'-.02em' }}>{MONTHS[month]} {year}</div>
-        <button onClick={() => setMonth(m => Math.max(0,m-1))} style={{ width:'32px', height:'32px', borderRadius:'var(--r-xs)', border:'1px solid var(--border)', background:'var(--surface)', cursor:'pointer', fontSize:'16px', display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
-        <button onClick={() => setMonth(m => Math.min(11,m+1))} style={{ width:'32px', height:'32px', borderRadius:'var(--r-xs)', border:'1px solid var(--border)', background:'var(--surface)', cursor:'pointer', fontSize:'16px', display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
-        <select value={month} onChange={e => setMonth(+e.target.value)} style={{ padding:'6px 10px', borderRadius:'var(--r-xs)', border:'1px solid var(--border)', background:'var(--surface)', fontSize:'12px', fontWeight:'500', color:'var(--text)', fontFamily:'inherit', outline:'none', cursor:'pointer' }}>
-          {MONTHS.map((m,i) => <option key={i} value={i}>{m}</option>)}
-        </select>
-      </div>
+    <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg)' }}>
 
-      {/* Month KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(100px,1fr))', gap:'8px', marginBottom:'16px' }}>
-        {[
-          { l:'Trades',   v:ms.n,                    c:'var(--text)' },
-          { l:'Total R',  v: f2(mPL), c: mPL>=0?'var(--green)':'var(--red)' },
-          { l:'Win Rate', v:`${(ms.winRate*100).toFixed(0)}%`, c: ms.winRate>=.5?'var(--green)':'var(--red)' },
-          { l:'Wins',     v:ms.wins,                 c:'var(--green)' },
-          { l:'Losses',   v:ms.losses,               c: ms.losses>0?'var(--red)':'var(--text)' },
-          
-        ].map((k,i) => (
-          <div key={i} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-sm)', padding:'10px 13px', boxShadow:'var(--shadow)' }}>
-            <div style={{ fontSize:'9px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'3px' }}>{k.l}</div>
-            <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'16px', fontWeight:'600', color:k.c }}>{k.v}</div>
+      {/* SIDEBAR */}
+      <aside className="sidebar" style={{ width:'var(--nav-w)', position:'fixed', top:0, left:0, height:'100vh', background:'var(--surface)', borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', zIndex:50 }}>
+        <div style={{ padding:'20px 18px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:'10px' }}>
+          <div style={{ width:'24px', height:'24px', borderRadius:'6px', background:'var(--blue)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <span style={{ color:'#fff', fontSize:'12px', fontWeight:'800', lineHeight:1 }}>T</span>
           </div>
-        ))}
-      </div>
+          <span style={{ fontSize:'13px', fontWeight:'600', color:'var(--text)', letterSpacing:'-.02em' }}>TradeTracker</span>
+        </div>
 
-      {/* DOW headers */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px', marginBottom:'4px' }}>
-        {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d,i) => (
-          <div key={d} style={{ textAlign:'center', fontSize:'10px', fontWeight:'600', color: i>=5?'var(--muted2)':'var(--muted)', padding:'4px 0', letterSpacing:'.04em' }}>{d}</div>
-        ))}
-      </div>
+        <nav style={{ flex:1, padding:'8px', overflowY:'auto' }}>
+          <div style={{ padding:'10px 10px 4px', fontSize:'9px', fontWeight:'600', color:'var(--muted2)', letterSpacing:'.1em', textTransform:'uppercase' }}>Navigation</div>
+          {NAV.map(item => {
+            const active = page === item.id
+            return (
+              <button key={item.id} onClick={() => onNav(item.id)}
+                style={{ display:'flex', alignItems:'center', gap:'8px', padding:'8px 10px', borderRadius:'6px', cursor:'pointer', fontSize:'12px', fontWeight: active ? '600' : '400', color: active ? 'var(--text)' : 'var(--muted)', background: active ? 'var(--surface2)' : 'transparent', border:'none', width:'100%', textAlign:'left', marginBottom:'1px', transition:'all .12s', fontFamily:'Inter,sans-serif' }}>
+                <div style={{ width:'4px', height:'4px', borderRadius:'50%', background: active ? 'var(--blue)' : 'var(--border2)', flexShrink:0, transition:'background .12s' }} />
+                {item.label}
+              </button>
+            )
+          })}
+        </nav>
 
-      {/* Grid */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px' }}>
-        {Array.from({ length: totalCells }, (_, i) => {
-          const day = i - firstDow + 1
-          if (day < 1 || day > daysInMonth) return <div key={i} style={{ minHeight:'78px' }} />
-          const ds  = toDateStr(day)
-          const cls = dayClass(day)
-          const cs  = cellStyle[cls]
-          const d   = dayMap[ds]
-          const isToday = ds === today
-          const dow2 = (firstDow + day - 1) % 7
-          const isSundayCell = dow2 === 6
-          const pl  = d ? (d.trades.reduce((s,t) => s+(t.pl||t.r_multiple||0), 0)) : 0
-          const cnt = d?.trades.length || 0
-
-          return (
-            <div key={i} onClick={() => setSelectedDate(ds)}
-              style={{ background: isSundayCell ? 'var(--purple-bg)' : cs.bg, border:`1.5px solid ${isSundayCell ? 'var(--purple-dim)' : cs.border}`, borderRadius:'var(--r-sm)', minHeight:'78px', padding:'7px', display:'flex', flexDirection:'column', gap:'2px', cursor:'pointer', transition:'all .15s', position:'relative', opacity: cls==='weekend'?.55:1 }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow='var(--shadow-md)'; e.currentTarget.style.transform='translateY(-1px)' }}
-              onMouseLeave={e => { e.currentTarget.style.boxShadow=''; e.currentTarget.style.transform='' }}>
-
-              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
-                <div>
-                  <span style={{ fontSize:'11px', fontWeight:'600', color:numCol[cls] }}>{day}</span>
-                  {isToday && <div style={{ fontSize:'8px', fontWeight:'700', color:'var(--blue)', letterSpacing:'.04em' }}>TODAY</div>}
-                </div>
-                
-              </div>
-
-              {cnt > 0 && <>
-                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'13px', fontWeight:'600', color:numCol[cls], marginTop:'auto', lineHeight:1.2 }}>
-                  {f2(pl)}
-                </span>
-                <span style={{ fontSize:'9px', color:numCol[cls], opacity:.8 }}>{cnt} trade{cnt>1?'s':''}</span>
-                <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background: cls==='win'?'var(--green-dim)':cls==='loss'?'var(--red-dim)':'var(--amber-dim)', color: cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--amber)' }}>
-                  {pl>0?'WIN':pl<0?'LOSS':'BE'}
-                </span>
-              </>}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Legend */}
-      <div style={{ display:'flex', gap:'10px', marginTop:'12px', flexWrap:'wrap', alignItems:'center' }}>
-        {[['var(--green-bg)','var(--green-dim)','Win'],['var(--red-bg)','var(--red-dim)','Loss'],['var(--surface)','var(--border)','No trades'],['var(--blue-bg)','var(--blue)','Today']].map(([bg,bc,l]) => (
-          <div key={l} style={{ display:'flex', alignItems:'center', gap:'5px', fontSize:'11px', color:'var(--muted)' }}>
-            <span style={{ width:'10px', height:'10px', borderRadius:'2px', background:bg, border:`1.5px solid ${bc}`, display:'inline-block' }} />{l}
+        <div style={{ padding:'8px', borderTop:'1px solid var(--border)', display:'flex', flexDirection:'column', gap:'6px' }}>
+          <AccountManager accounts={accounts||[]} activeAccountId={activeAccountId} onSwitch={onSwitchAccount} onCreate={onCreateAccount} onEdit={onEditAccount} onDelete={onDeleteAccount} />
+          <div style={{ background:'var(--surface2)', borderRadius:'var(--r-sm)', padding:'10px 12px', border:'1px solid var(--border)' }}>
+            <div style={{ fontSize:'9px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.08em', textTransform:'uppercase', marginBottom:'3px' }}>Account Equity</div>
+            <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'15px', fontWeight:'600', color:'var(--text)' }}>{(s.totalR||0).toFixed(2)}R</div>
+            <div style={{ fontSize:'10px', color: up ? 'var(--green)' : 'var(--red)', marginTop:'1px', fontWeight:'500' }}>{s.wins||0}W / {s.losses||0}L · {s.n||0} trades</div>
           </div>
-        ))}
-        <div style={{ marginLeft:'auto', fontSize:'10px', color:'var(--muted2)' }}>Click any day to open daily journal</div>
+          <div style={{ display:'flex', gap:'4px' }}>
+            <button className="btn btn-outline btn-sm" style={{ flex:1, justifyContent:'center', fontSize:'10px' }} onClick={onExport}>↑ Export</button>
+            <label className="btn btn-outline btn-sm" style={{ flex:1, justifyContent:'center', cursor:'pointer', fontSize:'10px' }}>
+              ↓ Import<input type="file" accept=".json" style={{ display:'none' }} onChange={onImport} />
+            </label>
+          </div>
+          <div style={{ display:'flex', gap:'4px' }}>
+            <button className="btn btn-ghost btn-sm" style={{ flex:1, justifyContent:'center', fontSize:'10px' }} onClick={onToggleDark}>{darkMode ? 'Light' : 'Dark'}</button>
+            <button className="btn btn-ghost btn-sm" style={{ flex:1, justifyContent:'center', fontSize:'10px', color:'var(--red)' }} onClick={onSignOut}>Sign out</button>
+          </div>
+          {user && <div style={{ fontSize:'9px', color:'var(--muted2)', textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.email}</div>}
+        </div>
+      </aside>
+
+      {/* MAIN */}
+      <div className="main" style={{ marginLeft:'var(--nav-w)', flex:1, minHeight:'100vh', display:'flex', flexDirection:'column' }}>
+        <header style={{ background:'var(--surface)', borderBottom:'1px solid var(--border)', padding:'0 28px', height:'48px', display:'flex', alignItems:'center', justifyContent:'space-between', position:'sticky', top:0, zIndex:40 }}>
+          <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text)' }}>{NAV.find(n => n.id === page)?.label}</span>
+          <div style={{ display:'flex', gap:'5px', alignItems:'center' }}>
+            <button className="btn btn-icon btn-ghost" onClick={onToggleDark} style={{ fontSize:'13px' }}>{darkMode ? '○' : '●'}</button>
+            <button className="btn btn-outline btn-sm" onClick={onExport}>Export</button>
+            <label className="btn btn-outline btn-sm" style={{ cursor:'pointer' }}>Import<input type="file" accept=".json" style={{ display:'none' }} onChange={onImport} /></label>
+          </div>
+        </header>
+        <div style={{ flex:1 }}>{children}</div>
       </div>
+
+      {/* BOTTOM NAV */}
+      <nav className="bot-nav" style={{ display:'none', position:'fixed', bottom:0, left:0, right:0, height:'var(--bot-h)', background:'var(--surface)', borderTop:'1px solid var(--border)', zIndex:100, paddingBottom:'env(safe-area-inset-bottom)' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', height:'100%' }}>
+          {NAV.map(item => {
+            const active = page === item.id
+            return (
+              <button key={item.id} onClick={() => onNav(item.id)}
+                style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'2px', cursor:'pointer', border:'none', background:'none', fontFamily:'Inter,sans-serif', transition:'all .12s', padding:'4px 2px', position:'relative' }}>
+                {active && <div style={{ position:'absolute', top:'4px', width:'14px', height:'2px', borderRadius:'1px', background:'var(--blue)' }} />}
+                <div style={{ width:'6px', height:'6px', borderRadius:'50%', background: active ? 'var(--blue)' : 'var(--border2)', margin:'4px 0 2px', transition:'background .12s' }} />
+                <span style={{ fontSize:'8px', fontWeight: active ? '600' : '400', color: active ? 'var(--blue)' : 'var(--muted)', letterSpacing:'.04em', textTransform:'uppercase' }}>{item.short || item.label.slice(0,4)}</span>
+              </button>
+            )
+          })}
+        </div>
+      </nav>
+
+      <style>{`
+        @media(max-width:768px){
+          .sidebar{display:none!important}
+          .main{margin-left:0!important;padding-bottom:calc(var(--bot-h)+8px)}
+          .bot-nav{display:block!important}
+        }
+      `}</style>
     </div>
   )
 }
