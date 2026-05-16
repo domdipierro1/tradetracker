@@ -1,8 +1,67 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 // ── CENTRAL BANK DATA ────────────────────────────────────────────
 // Rates updated as of May 2026 — update manually when central banks meet
 // Next meetings: Fed (Jun 18), ECB (Jun 5), BoE (Jun 19), BoJ (Jun 17)
+const ECONOMY_NOTES = {
+  USD: [
+    'Fed cutting cycle — 3 cuts delivered since Sep 2024, paused at 4.25%',
+    'Labour market resilient — unemployment ~4.2%, jobs growth slowing',
+    'GDP slowed sharply in Q1 2026 (+0.3%) — tariff uncertainty weighing',
+    'CPI at 2.4% — near target but services inflation sticky',
+    'Dollar dominant reserve currency — safe haven demand in risk-off',
+  ],
+  GBP: [
+    'BoE cutting gradually — 4.25% after series of cuts from 5.25% peak',
+    'CPI at 2.6% — above 2% target, wage growth keeping services inflation elevated',
+    'GDP stronger than expected in Q1 2026 (+0.5%) — economy resilient',
+    'Labour market loosening — unemployment rising toward 4.5%',
+    'Trade uncertainty from US tariffs — UK exposed as export-heavy economy',
+  ],
+  EUR: [
+    'ECB most aggressive cutter — rate at 2.25%, down from 4.5% peak',
+    'CPI at 2.2% — nearly at 2% target, disinflation well advanced',
+    'Growth improving — GDP +0.4% Q1 2026, Germany recovering slowly',
+    'EUR is defensive — tends to weaken in risk-off, strengthen in risk-on vs USD',
+    'US tariffs hit eurozone exports — headwind for growth outlook',
+  ],
+  JPY: [
+    'BoJ tightening — rate at 0.50%, first hikes in decades, very gradual',
+    'CPI at 3.4% — above target, driven by food and import costs',
+    'GDP contracted in Q1 2026 (-0.7%) — weak domestic demand',
+    'JPY is primary safe haven — strengthens sharply in risk-off',
+    'Yield curve control ended — BoJ allows JGBs to trade more freely',
+  ],
+  CHF: [
+    'SNB cut to 0.25% — near zero, limited room to cut further',
+    'CPI at 0.3% — well below target, deflation risk present',
+    'Strong franc persistent headache — SNB may intervene to weaken',
+    'CHF is safe haven — strengthens in risk-off alongside JPY',
+    'Small open economy — highly exposed to eurozone slowdown',
+  ],
+  AUD: [
+    'RBA cutting — 4.10%, down from 4.35% peak, cautious easing path',
+    'CPI at 2.4% — back in 2-3% target band, gives room to cut',
+    'Economy tied to China — Chinese stimulus crucial for AUD outlook',
+    'Commodity currency — Iron ore, copper prices drive AUD direction',
+    'Risk-sensitive — AUD sells off in global risk-off environments',
+  ],
+  NZD: [
+    'RBNZ cutting aggressively — 3.50%, one of fastest cutting cycles',
+    'CPI at 2.5% — inflation under control, allows continued easing',
+    'GDP recovering — two consecutive quarters of positive growth after recession',
+    'Smaller, more volatile than AUD — follows similar drivers (China, commodities)',
+    'Dairy and agricultural exports key — weather and China demand matter',
+  ],
+  CAD: [
+    'BoC cut to 2.75% — significant easing from 5% peak',
+    'CPI at 2.3% — well-contained, gives BoC flexibility to cut more',
+    'Oil-linked currency — WTI price direction major driver of CAD',
+    'US trade exposure — 75% of exports go to US, tariff risk significant',
+    'Housing market vulnerable — heavily indebted households at risk',
+  ],
+}
+
 const BANKS = [
   {
     id: 'fed',  name: 'Federal Reserve',  currency: 'USD', flag: '🇺🇸', color: '#1D4ED8',
@@ -114,6 +173,8 @@ function MetricBlock({ label, value, previous, date, displayValue, color, barMax
 }
 
 function BankCard({ bank }) {
+  const [open, setOpen] = useState(false)
+  const notes = ECONOMY_NOTES[bank.currency] || []
   const rateCol = bank.rate.value > bank.rate.previous ? '#EF4444' : bank.rate.value < bank.rate.previous ? '#10B981' : '#0F172A'
   const cpiCol  = parseFloat(bank.cpi.value) > 3 ? '#EF4444' : parseFloat(bank.cpi.value) > 2 ? '#F59E0B' : '#10B981'
   const gdpVal  = parseFloat(bank.gdp?.value)
@@ -135,6 +196,31 @@ function BankCard({ bank }) {
       <MetricBlock label="Interest Rate" value={bank.rate.value} previous={bank.rate.previous} date={bank.rate.date} color={rateCol} barMax={7} invert={false} />
       <MetricBlock label="CPI Inflation" value={bank.cpi.value}  previous={bank.cpi.previous}  date={bank.cpi.date}  color={cpiCol}  barMax={8} invert={true} />
       {bank.gdp && <MetricBlock label="GDP Growth (QoQ)" value={bank.gdp.value} previous={bank.gdp.previous} date={bank.gdp.date} displayValue={fmtGdp(bank.gdp.value)} color={gdpCol} barMax={3} invert={false} />}
+
+      {/* Expand button */}
+      {notes.length > 0 && (
+        <button onClick={() => setOpen(o => !o)}
+          style={{ width:'100%', background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:'10px', padding:'8px 14px', fontSize:'11px', fontWeight:'600', color:'#64748B', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'space-between', transition:'all .15s' }}
+          onMouseEnter={e => e.currentTarget.style.background='#F1F5F9'}
+          onMouseLeave={e => e.currentTarget.style.background='#F8FAFC'}>
+          <span>Economy Overview</span>
+          <span style={{ fontSize:'12px', transition:'transform .2s', display:'inline-block', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
+        </button>
+      )}
+
+      {/* Notes dropdown */}
+      {open && notes.length > 0 && (
+        <div style={{ background:'#F8FAFC', borderRadius:'10px', padding:'12px 14px', border:'1px solid #E2E8F0' }}>
+          <ul style={{ margin:0, padding:0, listStyle:'none', display:'flex', flexDirection:'column', gap:'7px' }}>
+            {notes.map((note, i) => (
+              <li key={i} style={{ display:'flex', gap:'8px', alignItems:'flex-start' }}>
+                <span style={{ color: bank.color, fontSize:'10px', marginTop:'3px', flexShrink:0 }}>●</span>
+                <span style={{ fontSize:'11px', color:'#475569', lineHeight:'1.6' }}>{note}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
@@ -183,6 +269,15 @@ export default function Macro() {
       <div style={{ marginBottom:'28px' }}>
         <h1 style={{ fontSize:'22px', fontWeight:'700', color:'#0F172A', letterSpacing:'-.03em', marginBottom:'3px' }}>Macro Overview</h1>
         <p style={{ fontSize:'13px', color:'#94A3B8' }}>Central bank rates · CPI inflation · GDP growth · Data updated manually each meeting</p>
+      </div>
+
+      {/* ── BANK CARDS ── */}
+      <div style={{ marginBottom:'12px' }}>
+        <h2 style={{ fontSize:'15px', fontWeight:'700', color:'#0F172A', marginBottom:'3px' }}>Central Bank Data</h2>
+        <p style={{ fontSize:'12px', color:'#94A3B8', marginBottom:'16px' }}>Data updated manually — rates only change at scheduled meetings</p>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:'14px', marginBottom:'20px' }}>
+        {BANKS.map(bank => <BankCard key={bank.id} bank={bank} />)}
       </div>
 
       {/* ── STRENGTH SCORECARD ── */}
@@ -237,15 +332,6 @@ export default function Macro() {
             )
           })}
         </div>
-      </div>
-
-      {/* ── BANK CARDS ── */}
-      <div style={{ marginBottom:'12px' }}>
-        <h2 style={{ fontSize:'15px', fontWeight:'700', color:'#0F172A', marginBottom:'3px' }}>Central Bank Data</h2>
-        <p style={{ fontSize:'12px', color:'#94A3B8', marginBottom:'16px' }}>Data updated manually — rates only change at scheduled meetings</p>
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:'14px', marginBottom:'20px' }}>
-        {BANKS.map(bank => <BankCard key={bank.id} bank={bank} />)}
       </div>
 
       <div style={{ height:'20px' }} />
