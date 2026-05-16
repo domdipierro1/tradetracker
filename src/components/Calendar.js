@@ -218,7 +218,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                   {f2(pl)}
                 </span>
                 <span style={{ fontSize:'9px', color:numCol[cls], opacity:.8 }}>{cnt} trade{cnt>1?'s':''}</span>
-                <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background:'var(--blue-dim)', color:'var(--blue)' }}>
+                <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background: cls==='win'?'var(--green-dim)':cls==='loss'?'var(--red-dim)':'var(--amber-dim)', color: cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--amber)' }}>
                   {pl>0?'WIN':pl<0?'LOSS':'BE'}
                 </span>
               </>}

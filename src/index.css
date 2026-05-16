@@ -93,13 +93,13 @@ html, body { height: 100%; font-family: 'Plus Jakarta Sans', -apple-system, sans
 
 /* ── BADGES ── */
 .badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; letter-spacing: .03em; }
-.badge-win   { background: var(--green-dim); color: var(--blue-dark); }
+.badge-win   { background: var(--green-dim); color: var(--green); }
 .badge-loss  { background: var(--red-dim);   color: #7F1D1D; }
 .badge-be    { background: var(--amber-dim); color: #78350F; }
-.badge-long  { background: var(--green-bg);  color: var(--blue-dark); }
+.badge-long  { background: var(--green-bg);  color: var(--green); }
 .badge-short { background: var(--red-bg);    color: #7F1D1D; }
 .badge-aplus { background: #E0F2FE; color: #0C4A6E; }
-.badge-a     { background: var(--green-dim); color: var(--blue-dark); }
+.badge-a     { background: var(--green-dim); color: var(--green); }
 .badge-b     { background: var(--amber-dim); color: #78350F; }
 .badge-c     { background: var(--red-dim);   color: #7F1D1D; }
 
