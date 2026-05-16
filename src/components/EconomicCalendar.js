@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useEconomicCalendar, currencyFlag, formatFFTime } from '../lib/useEconomicCalendar'
 
 const CCY_COLORS = {
@@ -28,6 +28,37 @@ function getWeekDays() {
   })
 }
 
+
+// ── MAG 7 EARNINGS HOOK ─────────────────────────────────────────
+function useMag7(weekDates) {
+  const [earnings, setEarnings] = useState([])
+  useEffect(() => {
+    const CACHE_KEY = 'tt_earnings_v2'
+    const CACHE_TTL = 12 * 60 * 60 * 1000
+    async function load() {
+      try {
+        const cached = sessionStorage.getItem(CACHE_KEY)
+        if (cached) {
+          const p = JSON.parse(cached)
+          if (Date.now() - p.ts < CACHE_TTL) { setEarnings(p.data); return }
+        }
+      } catch(e) {}
+      try {
+        const r = await fetch('/api/earnings', { signal: AbortSignal.timeout(10000) })
+        if (r.ok) {
+          const json = await r.json()
+          if (json.earnings?.length) {
+            setEarnings(json.earnings)
+            try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: json.earnings, ts: Date.now() })) } catch(e) {}
+          }
+        }
+      } catch(e) { console.error('Earnings fetch failed:', e.message) }
+    }
+    load()
+  }, [])
+  return earnings.filter(e => weekDates.includes(e.date))
+}
+
 export default function EconomicCalendar() {
   const [refreshKey, setRefreshKey] = React.useState(0)
   const [weekOffset, setWeekOffset] = React.useState(0)
@@ -37,7 +68,7 @@ export default function EconomicCalendar() {
   const weekLabel = weekOffset === 0 ? 'This Week' : weekOffset === 1 ? 'Next Week' : `Week +${weekOffset}`
   const today    = new Date().toISOString().split('T')[0]
   const weekDays = getWeekDays()
-  const weekDateStrings = weekDays.map(d => d.date)
+  const weekDateStrings = weekDays.map(d => d.dateStr || d.date)
   const mag7Week = useMag7(weekDateStrings)
   const usd = events.filter(e=>e.country==='USD').length
   const gbp = events.filter(e=>e.country==='GBP').length
