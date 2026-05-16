@@ -281,6 +281,7 @@ export default function App() {
         {page === 'news'      && <NewsTab />}
         {page === 'analysis'  && <Analysis  {...pageProps} />}
         {page === 'playbook'  && <Playbook />}
+        {page === 'macro'     && <Macro />}
       </Layout>
       <div className={`toast ${toastVisible ? 'show' : ''}`}>{toast}</div>
     </>
