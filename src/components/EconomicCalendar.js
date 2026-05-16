@@ -65,6 +65,7 @@ export default function EconomicCalendar() {
   const weekOffset = 0
   const { events, loading, error, fetchedAt, eventsForDate } = useEconomicCalendar()
   const weekDays = getWeekDays()
+  const today = new Date().toISOString().split('T')[0]
 
   return (
     <div className="page active">
