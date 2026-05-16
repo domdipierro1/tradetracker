@@ -61,10 +61,12 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
     const d = dayMap[ds]
     const hasNote = !!noteMap[ds]
     if (!d?.trades.length) {
-      if (hasNote) return 'note-only'   // note but no trades = grey (even if today)
-      if (isToday) return 'today-empty' // today with no note and no trades = blue
+      if (hasNote) return 'note-only'
+      if (isToday) return 'today-empty'
       return 'no-trade'
     }
+    // Today always returns a 'today-*' class so it stays blue
+    if (isToday) return d.pl > 0 ? 'today-win' : d.pl < 0 ? 'today-loss' : 'today-be'
     return d.pl > 0 ? 'win' : d.pl < 0 ? 'loss' : 'be'
   }
 
@@ -181,13 +183,13 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
 
           return (
             <div key={i} onClick={() => setSelectedDate(ds)}
-              style={{ background: isToday ? 'var(--blue-bg)' : isSundayCell ? 'var(--purple-bg)' : cs.bg, border:`1.5px solid ${isToday ? 'var(--blue)' : isSundayCell ? 'var(--purple-dim)' : cs.border}`, borderRadius:'var(--r-sm)', minHeight:'78px', padding:'7px', display:'flex', flexDirection:'column', gap:'2px', cursor:'pointer', transition:'all .15s', position:'relative', opacity: cls==='weekend'?.55:1 }}
+              style={{ background: isSundayCell ? 'var(--purple-bg)' : cs.bg, border:`1.5px solid ${isSundayCell ? 'var(--purple-dim)' : cs.border}`, borderRadius:'var(--r-sm)', minHeight:'78px', padding:'7px', display:'flex', flexDirection:'column', gap:'2px', cursor:'pointer', transition:'all .15s', position:'relative', opacity: cls==='weekend'?.55:1 }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow='var(--shadow-md)'; e.currentTarget.style.transform='translateY(-1px)' }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow=''; e.currentTarget.style.transform='' }}>
 
               <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
                 <div>
-                  <span style={{ fontSize:'11px', fontWeight:'600', color: isToday ? 'var(--blue)' : numCol[cls] }}>{day}</span>
+                  <span style={{ fontSize:'11px', fontWeight:'600', color: numCol[cls] }}>{day}</span>
                   {isToday && <div style={{ fontSize:'8px', fontWeight:'700', color:'var(--blue)', letterSpacing:'.04em' }}>TODAY</div>}
                 </div>
                 {(hasNote && !isSundayCell) && (
@@ -213,7 +215,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                   {f2(pl)}
                 </span>
                 <span style={{ fontSize:'9px', color:numCol[cls], opacity:.8 }}>{cnt} trade{cnt>1?'s':''}</span>
-                <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background: isToday?'var(--blue-dim)': cls==='win'?'var(--green-dim)':cls==='loss'?'var(--red-dim)':'var(--amber-dim)', color: isToday?'var(--blue)': cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--amber)' }}>
+                <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background: cls.startsWith('today')?'var(--blue-dim)':cls==='win'?'var(--green-dim)':cls==='loss'?'var(--red-dim)':'var(--amber-dim)', color: cls.startsWith('today')?'var(--blue)':cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--amber)' }}>
                   {pl>0?'WIN':pl<0?'LOSS':'BE'}
                 </span>
               </>}

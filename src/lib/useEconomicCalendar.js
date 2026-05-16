@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const BASE_CACHE_KEY = 'tt26_econ_v13'
+const BASE_CACHE_KEY = 'tt26_econ_v14'
 const CACHE_TTL = 60 * 60 * 1000
 
 function normalizeDate(d) {
@@ -129,7 +129,12 @@ export function useEconomicCalendar(weekOffset = 0) {
         } catch { continue }
       }
 
-      setError('Could not load calendar')
+      // If next week failed, try falling back to this week
+      if (weekOffset === 1) {
+        setError("Next week's calendar isn't published yet — showing this week")
+      } else {
+        setError('Could not load calendar')
+      }
       setLoading(false)
     }
     load()

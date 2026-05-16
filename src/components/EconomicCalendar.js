@@ -61,11 +61,21 @@ function useMag7(weekDates) {
 
 export default function EconomicCalendar() {
   const [refreshKey, setRefreshKey] = React.useState(0)
-  // Auto-show next week on Saturday & Sunday for weekly prep
-  const _day = new Date().getDay()
-  const weekOffset = (_day === 6 || _day === 0) ? 1 : 0
+  // Auto-show next week on Sunday for weekly prep, otherwise this week
+  const defaultOffset = new Date().getDay() === 0 ? 1 : 0
+  const [weekOffset, setWeekOffset] = React.useState(defaultOffset)
   const { events, loading, error, fetchedAt, eventsForDate } = useEconomicCalendar(weekOffset)
-  const weekLabel = weekOffset === 0 ? 'This Week' : 'Next Week'
+
+  // Week date range label
+  function getWeekLabel(offset) {
+    const now = new Date()
+    const dow = now.getDay()
+    const monday = new Date(now)
+    monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1) + offset * 7)
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6)
+    const fmt = d => d.toLocaleDateString('en-GB', { day:'numeric', month:'short' })
+    return `${fmt(monday)} – ${fmt(sunday)}`
+  }
   const today    = new Date().toISOString().split('T')[0]
   const weekDays = getWeekDays()
   const weekDateStrings = weekDays.map(d => d.dateStr || d.date)
@@ -82,9 +92,13 @@ export default function EconomicCalendar() {
           <h1 style={{ fontSize:'18px', fontWeight:'800', color:'var(--text)' }}>Economic Calendar</h1>
         </div>
         <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
-          {/* Week label - auto switches to next week on Saturday */}
-          <div style={{ padding:'5px 12px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'var(--r-xs)', fontSize:'11px', fontWeight:'600', color:'var(--text)' }}>
-            {weekLabel}
+          {/* Week navigation */}
+          <div style={{ display:'flex', alignItems:'center', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'var(--r-xs)', overflow:'hidden' }}>
+            <button onClick={() => setWeekOffset(w => w - 1)}
+              style={{ width:'28px', height:'30px', border:'none', background:'transparent', cursor:'pointer', fontSize:'14px', color:'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
+            <span style={{ padding:'0 10px', fontSize:'11px', fontWeight:'600', color:'var(--text)', whiteSpace:'nowrap' }}>{getWeekLabel(weekOffset)}</span>
+            <button onClick={() => setWeekOffset(w => w + 1)}
+              style={{ width:'28px', height:'30px', border:'none', background:'transparent', cursor:'pointer', fontSize:'14px', color:'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
           </div>
           {fetchedAt && <span style={{ fontSize:'10px', color:'var(--muted2)' }}>Updated {fetchedAt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>}
           <button className="btn btn-icon btn-ghost" onClick={() => { try { for(let i=1;i<=15;i++) { sessionStorage.removeItem('tt26_econ_v'+i); sessionStorage.removeItem('tt26_econ_v12_w0'); sessionStorage.removeItem('tt26_econ_v12_w1') } } catch(e){} window.location.reload() }} title="Refresh">↻</button>
