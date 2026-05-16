@@ -1,140 +1,157 @@
 import { useState, useEffect } from 'react'
 
-const BASE_CACHE_KEY = 'tt26_econ_v14'
+const BASE_CACHE_KEY = 'tt26_econ_v15'
 const CACHE_TTL = 60 * 60 * 1000
 
-function normalizeDate(d) {
-  if (!d) return ''
-  d = String(d).trim()
-  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d
-  if (/^\d{2}-\d{2}-\d{4}$/.test(d)) {
-    const [m, dy, y] = d.split('-')
-    return `${y}-${m}-${dy}`
-  }
-  if (d.includes('T')) return d.split('T')[0]
-  try { const dt = new Date(d); if (!isNaN(dt)) return dt.toISOString().split('T')[0] } catch {}
-  return d
+function getMonday(offset) {
+  const now = new Date()
+  const dow = now.getDay()
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1) + offset * 7)
+  monday.setHours(0, 0, 0, 0)
+  return monday
 }
 
-// Converts ANY time format FF sends → HH:MM
-// FF sends times like "8:30am", "10:00am", "2:30pm"
-export function formatFFTime(raw) {
-  if (!raw || !String(raw).trim()) return 'All Day'
-  const s = String(raw).trim().toLowerCase().replace(/\s/g, '')
-  if (!s || s === 'allday' || s === 'all day') return 'All Day'
-  if (s === 'tentative') return 'Tentative'
-  if (s === 'holiday') return 'All Day'
-
-  // Already HH:MM or HH:MM:SS
-  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(s)) {
-    const parts = s.split(':')
-    return `${String(parseInt(parts[0])).padStart(2,'0')}:${parts[1]}`
+function getWeekDates(offset) {
+  const monday = getMonday(offset)
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6)
+  const days = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday); d.setDate(monday.getDate() + i)
+    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+    days.push({ date: ds, dateStr: ds, label: dayNames[d.getDay()], dayName: dayNames[d.getDay()], isWeekend: d.getDay()===0||d.getDay()===6, dateObj: d })
   }
-
-  // 12-hour with am/pm — covers "8:30am", "10:00pm", "2:30am"
-  const m = s.match(/^(\d{1,2}):(\d{2})(am|pm)$/)
-  if (m) {
-    let h = parseInt(m[1], 10)
-    const min = m[2], ap = m[3]
-    if (ap === 'pm' && h !== 12) h += 12
-    if (ap === 'am' && h === 12) h = 0
-    return `${String(h).padStart(2,'0')}:${min}`
-  }
-
-  // Hour only e.g. "8am", "2pm"
-  const m2 = s.match(/^(\d{1,2})(am|pm)$/)
-  if (m2) {
-    let h = parseInt(m2[1], 10)
-    const ap = m2[2]
-    if (ap === 'pm' && h !== 12) h += 12
-    if (ap === 'am' && h === 12) h = 0
-    return `${String(h).padStart(2,'0')}:00`
-  }
-
-  // ISO datetime
-  if (s.includes('t')) {
-    const part = s.split('t')[1]
-    if (part) return part.slice(0, 5)
-  }
-
-  // Return raw if nothing matched — don't swallow unknown formats
-  return raw
+  return days
 }
 
 export function currencyFlag(c) {
-  return { USD: '🇺🇸', GBP: '🇬🇧', EUR: '🇪🇺' }[c] || ''
+  return { USD:'🇺🇸', GBP:'🇬🇧', EUR:'🇪🇺', JPY:'🇯🇵', CAD:'🇨🇦', AUD:'🇦🇺', NZD:'🇳🇿', CHF:'🇨🇭' }[c] || '🏳️'
 }
+
+export function formatFFTime(t) { return t || '' }
 
 export function useEconomicCalendar(weekOffset = 0) {
   const [events,    setEvents]    = useState([])
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)
   const [fetchedAt, setFetchedAt] = useState(null)
+  const CACHE_KEY = BASE_CACHE_KEY + '_w' + weekOffset
 
   useEffect(() => {
+    setLoading(true); setEvents([]); setError(null)
+
     async function load() {
-      // Check cache — but only use if cache key matches
+      // Check cache
       try {
-        const c = sessionStorage.getItem(BASE_CACHE_KEY + '_w' + weekOffset)
-        if (c) {
-          const p = JSON.parse(c)
+        const cached = sessionStorage.getItem(CACHE_KEY)
+        if (cached) {
+          const p = JSON.parse(cached)
           if (Date.now() - p.ts < CACHE_TTL) {
             setEvents(p.events); setFetchedAt(new Date(p.ts)); setLoading(false); return
           }
         }
-      } catch {}
+      } catch(e) {}
 
-      // Try our Vercel proxy first (best — full server-side fetch)
-      // Then CORS proxies as fallback
-      const ffFile = weekOffset === 0 ? 'ff_calendar_thisweek.json' : 'ff_calendar_nextweek.json'
+      const TARGET = ['USD', 'GBP', 'EUR']
+      const monday = getMonday(weekOffset)
+      const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+      const ffSlug  = weekOffset === 0 ? 'thisweek' : 'nextweek'
+      const ffParam = `${months[monday.getMonth()]}${monday.getDate()}.${monday.getFullYear()}`
+
+      function parseFFJson(data) {
+        if (!Array.isArray(data) || !data.length) return null
+        return data
+          .filter(e => TARGET.includes(e.country) && (e.impact === 'High' || e.impact === 'Holiday'))
+          .map(e => {
+            const raw = e.date || ''; let date = '', time = e.time || ''
+            const isHoliday = e.impact === 'Holiday'
+            if (raw.includes('T')) {
+              try {
+                const dt = new Date(raw)
+                date = dt.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+                if (!isHoliday) time = dt.toLocaleTimeString('en-GB', { timeZone: 'America/New_York', hour:'2-digit', minute:'2-digit', hour12:false })
+              } catch { date = raw.split('T')[0] }
+            } else if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) date = raw
+            else if (/^\d{2}-\d{2}-\d{4}$/.test(raw)) { const [m,d,y]=raw.split('-'); date=`${y}-${m}-${d}` }
+            if (time && /\d(am|pm)/i.test(time)) {
+              const m = time.match(/(\d{1,2}):(\d{2})(am|pm)/i)
+              if (m) { let h=parseInt(m[1]); if(m[3]==='pm'&&h!==12)h+=12; if(m[3]==='am'&&h===12)h=0; time=`${String(h).padStart(2,'0')}:${m[2]}` }
+            }
+            return { title:e.title||'', country:e.country||'', date, time, impact:e.impact||'High', forecast:e.forecast||null, previous:e.previous||null, actual:e.actual||null, isHoliday }
+          })
+      }
+
+      // Sources to try in order
       const SOURCES = [
+        // Our Vercel API (handles thisweek/nextweek JSON)
         { url: `/api/calendar?week=${weekOffset}&t=${Math.floor(Date.now()/600000)}`, isOurApi: true },
-        { url: `https://corsproxy.io/?url=${encodeURIComponent('https://cdn-nfs.faireconomy.media/' + ffFile)}`, isOurApi: false },
-        { url: `https://corsproxy.io/?url=${encodeURIComponent('https://nfs.faireconomy.media/' + ffFile)}`, isOurApi: false },
+        // Direct FF JSON via CORS proxies — works for thisweek/nextweek
+        { url: `https://corsproxy.io/?url=${encodeURIComponent(`https://cdn-nfs.faireconomy.media/ff_calendar_${ffSlug}.json`)}`, isOurApi: false },
+        { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://nfs.faireconomy.media/ff_calendar_${ffSlug}.json`)}`, isOurApi: false },
+        // FF calendar page via CORS proxy — works for ANY week
+        { url: `https://corsproxy.io/?url=${encodeURIComponent(`https://www.forexfactory.com/calendar?week=${ffParam}`)}`, isOurApi: false, isHtml: true },
       ]
 
       for (const source of SOURCES) {
         try {
-          const res = await fetch(source.url, { signal: AbortSignal.timeout(8000) })
+          const res = await fetch(source.url, { signal: AbortSignal.timeout(10000) })
           if (!res.ok) continue
-          const raw = await res.json()
+          let items = []
 
-          // Handle both {events:[]} from our API and raw [] from FF
-          let items = source.isOurApi ? (raw.events || []) : (Array.isArray(raw) ? raw : [])
+          if (source.isHtml) {
+            // Parse FF HTML calendar page
+            const html = await res.text()
+            if (!html.includes('calendar__row')) continue
+            const rows = html.split('<tr class="calendar__row')
+            let curDate = ''
+            for (const row of rows.slice(1)) {
+              const dm = row.match(/calendar__date[^>]*>([\s\S]*?)<\/td>/)
+              if (dm) { const raw = dm[1].replace(/<[^>]+>/g,'').trim(); if (raw) curDate = raw }
+              const cm = row.match(/calendar__currency[^>]*>\s*([A-Z]{3})\s*<\/td>/)
+              if (!cm || !TARGET.includes(cm[1])) continue
+              if (!row.includes('impact--high') && !row.includes('impact--holiday')) continue
+              const isHoliday = row.includes('impact--holiday')
+              const tm = row.match(/calendar__time[^>]*>([\s\S]*?)<\/td>/)
+              const time = tm ? tm[1].replace(/<[^>]+>/g,'').trim() : ''
+              const em = row.match(/calendar__event[^>]*>[\s\S]*?<span[^>]*>([\s\S]*?)<\/span>/)
+              const title = em ? em[1].replace(/<[^>]+>/g,'').trim() : ''
+              const fc = row.match(/calendar__forecast[^>]*>([\s\S]*?)<\/td>/)
+              const pr = row.match(/calendar__previous[^>]*>([\s\S]*?)<\/td>/)
+              const ac = row.match(/calendar__actual[^>]*>([\s\S]*?)<\/td>/)
+              let date = ''
+              if (curDate) {
+                try { const d = new Date(`${curDate} ${monday.getFullYear()}`); if (!isNaN(d)) date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` } catch {}
+              }
+              if (!title) continue
+              items.push({ title, country:cm[1], date, time, impact:isHoliday?'Holiday':'High', forecast:fc?fc[1].replace(/<[^>]+>/g,'').trim()||null:null, previous:pr?pr[1].replace(/<[^>]+>/g,'').trim()||null:null, actual:ac?ac[1].replace(/<[^>]+>/g,'').trim()||null:null, isHoliday })
+            }
+          } else {
+            const raw = await res.json()
+            const data = source.isOurApi ? (raw.events || []) : (Array.isArray(raw) ? raw : [])
+            items = source.isOurApi ? data : (parseFFJson(data) || [])
+            if (source.isOurApi) {
+              // Already filtered and parsed by our API
+              items = data
+            }
+          }
+
           if (!items.length) continue
 
-          const TARGET = ['USD', 'GBP', 'EUR']
-          const filtered = items
-            .filter(e => {
-              const ccy = e.country || ''
-              return TARGET.includes(ccy) && (e.impact === 'High' || e.impact === 'Holiday')
-            })
-            .map(e => ({
-              title:     e.title    || '',
-              country:   e.country  || '',
-              date:      normalizeDate(e.date || ''),
-              time:      e.time     || '',   // preserve raw time string
-              impact:    e.impact   || '',
-              forecast:  e.forecast || null,
-              previous:  e.previous || null,
-              actual:    e.actual   || null,
-              isHoliday: e.isHoliday || e.impact === 'Holiday' || (e.title || '').toLowerCase().includes('holiday'),
-            }))
+          // Filter to target currencies if not already done
+          const filtered = source.isOurApi ? items : items.filter(e => TARGET.includes(e.country||''))
+
+          if (!filtered.length) continue
 
           setEvents(filtered)
           setFetchedAt(new Date())
-          sessionStorage.setItem(BASE_CACHE_KEY + '_w' + weekOffset, JSON.stringify({ events: filtered, ts: Date.now() }))
+          try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ events: filtered, ts: Date.now() })) } catch(e) {}
           setLoading(false)
           return
-        } catch { continue }
+        } catch(e) { continue }
       }
 
-      // If next week failed, try falling back to this week
-      if (weekOffset === 1) {
-        setError("Next week's calendar isn't published yet — showing this week")
-      } else {
-        setError('Could not load calendar')
-      }
+      setError('Could not load calendar')
       setLoading(false)
     }
     load()
@@ -144,5 +161,5 @@ export function useEconomicCalendar(weekOffset = 0) {
     return events.filter(e => e.date === dateStr)
   }
 
-  return { events, loading, error, fetchedAt, eventsForDate }
+  return { events, loading, error, fetchedAt, eventsForDate, getWeekDays: () => getWeekDates(weekOffset) }
 }
