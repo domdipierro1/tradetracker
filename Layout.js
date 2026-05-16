@@ -7,8 +7,8 @@ const NAV = [
   { id: 'journal',   label: 'Journal',            short: 'Jour' },
   { id: 'calendar',  label: 'Calendar',           short: 'Cal'  },
   { id: 'news',      label: 'Economic Calendar',  short: 'News' },
-  { id: 'analysis',  label: 'Analysis',           short: 'Anal' },
   { id: 'macro',     label: 'Macro',              short: 'Mcro' },
+  { id: 'analysis',  label: 'Analysis',           short: 'Anal' },
   { id: 'playbook',  label: 'Playbook',           short: 'Play' },
 ]
 
@@ -22,7 +22,7 @@ export default function Layout({ page, onNav, trades, user, onSignOut, onExport,
   const cs = sym(ac?.currency)
   const up = s.totalPL >= 0
 
-  return (
+    return (
     <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg)' }}>
 
       {/* SIDEBAR */}
