@@ -74,7 +74,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
     be:           { bg:'var(--amber-bg)', border:'var(--amber-dim)' },
     'no-trade':   { bg:'var(--surface)',  border:'var(--border)'    },
     'today-empty':{ bg:'var(--blue-bg)',  border:'var(--blue)'      },
-    'note-only':  { bg:'#D8D8D4',         border:'#BEBEBB'          },
+    'note-only':  { bg:'var(--surface)',   border:'var(--border)'    },
     weekend:      { bg:'var(--surface2)', border:'var(--border)'    },
   }
   const numCol = {
@@ -181,7 +181,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
 
           return (
             <div key={i} onClick={() => setSelectedDate(ds)}
-              style={{ background: isSundayCell ? 'var(--purple-bg)' : cs.bg, border:`1.5px solid ${isSundayCell ? 'var(--purple-dim)' : cs.border}`, borderRadius:'var(--r-sm)', minHeight:'78px', padding:'7px', display:'flex', flexDirection:'column', gap:'2px', cursor:'pointer', transition:'all .15s', position:'relative', opacity: cls==='weekend'?.55:1 }}
+              style={{ background: isToday ? 'var(--blue-bg)' : isSundayCell ? 'var(--purple-bg)' : cs.bg, border:`1.5px solid ${isToday ? 'var(--blue)' : isSundayCell ? 'var(--purple-dim)' : cs.border}`, borderRadius:'var(--r-sm)', minHeight:'78px', padding:'7px', display:'flex', flexDirection:'column', gap:'2px', cursor:'pointer', transition:'all .15s', position:'relative', opacity: cls==='weekend'?.55:1 }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow='var(--shadow-md)'; e.currentTarget.style.transform='translateY(-1px)' }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow=''; e.currentTarget.style.transform='' }}>
 
@@ -191,18 +191,18 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                   {isToday && <div style={{ fontSize:'8px', fontWeight:'700', color:'var(--blue)', letterSpacing:'.04em' }}>TODAY</div>}
                 </div>
                 {(hasNote && !isSundayCell) && (
-                  <div style={{ width:'16px', height:'16px', borderRadius:'5px', background:'rgba(99,102,241,.12)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                    <svg width="9" height="9" viewBox="0 0 9 9" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M6.5 1L8 2.5L3 7.5H1.5V6L6.5 1Z" stroke="#6366F1" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M5.5 2L7 3.5" stroke="#6366F1" strokeWidth="1.1" strokeLinecap="round"/>
+                  <div style={{ width:'20px', height:'20px', borderRadius:'6px', background:'#6366F1', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 1px 4px rgba(99,102,241,.35)' }}>
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8.5 1.5L10.5 3.5L4 10H2V8L8.5 1.5Z" fill="white" fillOpacity="0.9"/>
+                      <path d="M7 3L9 5" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.6"/>
                     </svg>
                   </div>
                 )}
                 {hasWeeklyNote && (
-                  <div style={{ width:'16px', height:'16px', borderRadius:'5px', background:'rgba(99,102,241,.12)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                    <svg width="9" height="9" viewBox="0 0 9 9" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M6.5 1L8 2.5L3 7.5H1.5V6L6.5 1Z" stroke="#6366F1" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M5.5 2L7 3.5" stroke="#6366F1" strokeWidth="1.1" strokeLinecap="round"/>
+                  <div style={{ width:'20px', height:'20px', borderRadius:'6px', background:'#6366F1', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 1px 4px rgba(99,102,241,.35)' }}>
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8.5 1.5L10.5 3.5L4 10H2V8L8.5 1.5Z" fill="white" fillOpacity="0.9"/>
+                      <path d="M7 3L9 5" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.6"/>
                     </svg>
                   </div>
                 )}

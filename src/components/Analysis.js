@@ -41,7 +41,7 @@ function BreakdownTable({ title, k, items, trades, accent = '#6366F1' }) {
       </div>
 
       {/* Table */}
-      <div style={{ overflowX:'auto' }}>
+      <div>
         <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'12px' }}>
           <thead>
             <tr style={{ background:'#F8FAFC' }}>
@@ -58,22 +58,20 @@ function BreakdownTable({ title, k, items, trades, accent = '#6366F1' }) {
                 <tr key={r.label} style={{ borderBottom: i < rows.length-1 ? '1px solid #F8FAFC' : 'none', transition:'background .1s' }}
                   onMouseEnter={e => e.currentTarget.style.background='#F8FAFC'}
                   onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                  <td style={{ padding:'11px 14px', fontWeight:'600', color:'#334155', fontSize:'12px', whiteSpace:'nowrap', maxWidth:'180px', overflow:'hidden', textOverflow:'ellipsis' }}>{r.label}</td>
-                  <td style={{ padding:'11px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", color:'#475569', fontSize:'12px' }}>{r.n}</td>
-                  <td style={{ padding:'11px 14px', textAlign:'right' }}>
+                  <td style={{ padding:'10px 12px', fontWeight:'600', color:'#334155', fontSize:'12px', maxWidth:'140px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.label}</td>
+                  <td style={{ padding:'10px 12px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", color:'#475569', fontSize:'12px' }}>{r.n}</td>
+                  <td style={{ padding:'10px 12px', textAlign:'right' }}>
                     <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'600', color: r.winRate >= .5 ? '#10B981' : '#EF4444' }}>{fP(r.winRate)}</span>
                   </td>
-                  <td style={{ padding:'11px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#10B981', fontWeight:'500' }}>{r.avgWin ? f2(r.avgWin) : '—'}</td>
-                  <td style={{ padding:'11px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#EF4444', fontWeight:'500' }}>{r.avgLoss ? f2(r.avgLoss) : '—'}</td>
-                  <td style={{ padding:'11px 14px', textAlign:'right', minWidth:'90px' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:'6px', justifyContent:'flex-end' }}>
-                      <div style={{ width:'48px', height:'4px', background:'#F1F5F9', borderRadius:'2px', overflow:'hidden' }}>
+                  <td style={{ padding:'10px 12px', textAlign:'right' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:'5px', justifyContent:'flex-end' }}>
+                      <div style={{ width:'36px', height:'4px', background:'#F1F5F9', borderRadius:'2px', overflow:'hidden' }}>
                         <div style={{ width: barPct+'%', height:'100%', background: barCol, borderRadius:'2px' }} />
                       </div>
-                      <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color: barCol, minWidth:'36px', textAlign:'right' }}>{f1(r.totalR || 0)}</span>
+                      <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color: barCol, minWidth:'34px', textAlign:'right' }}>{f1(r.totalR || 0)}</span>
                     </div>
                   </td>
-                  <td style={{ padding:'11px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'600', color: (r.expectancy||0) > 0 ? '#10B981' : '#EF4444' }}>{r.expectancy ? f2(r.expectancy) : '—'}</td>
+                  <td style={{ padding:'10px 12px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'600', color: (r.expectancy||0) > 0 ? '#10B981' : '#EF4444' }}>{r.expectancy ? f2(r.expectancy) : '—'}</td>
                 </tr>
               )
             })}
@@ -141,7 +139,7 @@ export default function Analysis({ trades }) {
                   Need trades with Level + Session + Direction filled in (min. 2 per combination)
                 </div>
               ) : (
-                <div style={{ overflowX:'auto' }}>
+                <div>
                   <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'12px' }}>
                     <thead>
                       <tr style={{ background:'#F8FAFC' }}>

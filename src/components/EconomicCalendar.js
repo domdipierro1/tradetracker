@@ -82,15 +82,9 @@ export default function EconomicCalendar() {
           <h1 style={{ fontSize:'18px', fontWeight:'800', color:'var(--text)' }}>Economic Calendar</h1>
         </div>
         <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
-          {/* Week navigation */}
-          <div style={{ display:'flex', alignItems:'center', gap:'0', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'var(--r-xs)', overflow:'hidden' }}>
-            <button onClick={() => setWeekOffset(w => Math.max(0, w-1))}
-              style={{ width:'28px', height:'28px', border:'none', background:'transparent', cursor: weekOffset===0?'default':'pointer', fontSize:'13px', color: weekOffset===0?'var(--muted2)':'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center' }}
-              disabled={weekOffset === 0}>‹</button>
-            <span style={{ padding:'0 10px', fontSize:'11px', fontWeight:'600', color:'var(--text)', minWidth:'70px', textAlign:'center', userSelect:'none' }}>{weekLabel}</span>
-            <button onClick={() => setWeekOffset(w => Math.min(1, w+1))}
-              style={{ width:'28px', height:'28px', border:'none', background:'transparent', cursor: weekOffset>=1?'default':'pointer', fontSize:'13px', color: weekOffset>=1?'var(--muted2)':'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center' }}
-              disabled={weekOffset >= 1}>›</button>
+          {/* Week label - auto switches to next week on Saturday */}
+          <div style={{ padding:'5px 12px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'var(--r-xs)', fontSize:'11px', fontWeight:'600', color:'var(--text)' }}>
+            {weekLabel}
           </div>
           {fetchedAt && <span style={{ fontSize:'10px', color:'var(--muted2)' }}>Updated {fetchedAt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>}
           <button className="btn btn-icon btn-ghost" onClick={() => { try { for(let i=1;i<=15;i++) { sessionStorage.removeItem('tt26_econ_v'+i); sessionStorage.removeItem('tt26_econ_v12_w0'); sessionStorage.removeItem('tt26_econ_v12_w1') } } catch(e){} window.location.reload() }} title="Refresh">↻</button>
