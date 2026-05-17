@@ -67,42 +67,51 @@ function ChartImage({ url, label, large }) {
 // ── NEWS STRIP ───────────────────────────────────────────────────
 function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
   const { eventsForDate, loading } = useEconomicCalendar()
-  // Use live events if available, otherwise fall back to saved snapshot
   const liveEvents = eventsForDate(dateStr)
   const events = liveEvents.length > 0 ? liveEvents : (savedEvents || [])
 
-  // Snapshot events when first loaded so they get saved with the note
+  // Snapshot as soon as loading finishes — even if empty (saves "no news" permanently)
   const notified = React.useRef(false)
   React.useEffect(() => {
-    if (!loading && liveEvents.length > 0 && !notified.current) {
+    if (!loading && !notified.current) {
       notified.current = true
+      // Save whatever we have (live events, or empty array meaning no news)
       onEventsLoaded && onEventsLoaded(liveEvents)
     }
-  }, [loading, liveEvents.length])
+  }, [loading])
 
-  if (events.length === 0) return null
   const CCY = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
+  const CCY_BG = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5' }
+
+  // Always show the block — even if no events (show "no news")
+  if (loading) return null
+
   return (
     <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)', marginBottom:'14px' }}>
-      <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--border)', background:'var(--red-bg)', display:'flex', alignItems:'center', gap:'8px' }}>
-        <span style={{ fontSize:'12px' }}>🔴</span>
-        <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--red)', letterSpacing:'.04em', textTransform:'uppercase' }}>High Impact News</span>
-        <span style={{ fontSize:'11px', color:'var(--muted)', marginLeft:'auto' }}>{events.length} event{events.length > 1 ? 's' : ''}</span>
+      <div style={{ padding:'10px 16px', borderBottom: events.length > 0 ? '1px solid var(--border)' : 'none', background:'var(--red-bg)', display:'flex', alignItems:'center', gap:'8px' }}>
+        <span style={{ fontSize:'12px' }}>{events.length > 0 ? '🔴' : '✅'}</span>
+        <span style={{ fontSize:'11px', fontWeight:'600', color: events.length > 0 ? 'var(--red)' : 'var(--green)', letterSpacing:'.04em', textTransform:'uppercase' }}>
+          {events.length > 0 ? 'High Impact News' : 'No High-Impact Events Today'}
+        </span>
+        {events.length > 0 && <span style={{ fontSize:'11px', color:'var(--muted)', marginLeft:'auto' }}>{events.length} event{events.length > 1 ? 's' : ''}</span>}
       </div>
-      <div style={{ display:'flex', flexDirection:'column' }}>
-        {events.map((e, i) => (
-          <div key={i} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 16px', borderBottom: i < events.length-1 ? '1px solid var(--border)' : 'none' }}>
-            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--muted)', minWidth:'48px' }}>{e.isHoliday ? "All Day" : (formatFFTime(e.time) !== "All Day" ? formatFFTime(e.time) : e.time || "All Day")}</span>
-            <span style={{ fontSize:'11px', fontWeight:'700', color: CCY[e.country] || 'var(--muted)', background: e.country==='USD'?'#DBEAFE':e.country==='GBP'?'#EDE9FE':'#D1FAE5', padding:'2px 7px', borderRadius:'4px' }}>{e.country}</span>
-            <span style={{ fontSize:'12px', color:'var(--text)', flex:1 }}>{e.title}</span>
-            {e.forecast && <span style={{ fontSize:'11px', color:'var(--muted)', fontFamily:"'JetBrains Mono',monospace" }}>F: {e.forecast}</span>}
-            {e.actual && <span style={{ fontSize:'11px', color:'var(--green)', fontFamily:"'JetBrains Mono',monospace", fontWeight:'600' }}>A: {e.actual}</span>}
-          </div>
-        ))}
-      </div>
+      {events.length > 0 && (
+        <div style={{ display:'flex', flexDirection:'column' }}>
+          {events.map((e, i) => (
+            <div key={i} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 16px', borderBottom: i < events.length-1 ? '1px solid var(--border)' : 'none' }}>
+              <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--muted)', minWidth:'48px' }}>{e.time || '—'}</span>
+              <span style={{ fontSize:'11px', fontWeight:'700', color: CCY[e.country] || 'var(--muted)', background: CCY_BG[e.country] || 'var(--surface2)', padding:'2px 7px', borderRadius:'4px' }}>{e.country}</span>
+              <span style={{ fontSize:'12px', color:'var(--text)', flex:1 }}>{e.title}</span>
+              {e.forecast && !e.actual && <span style={{ fontSize:'11px', color:'var(--muted)', fontFamily:"'JetBrains Mono',monospace" }}>F: {e.forecast}</span>}
+              {e.actual && <span style={{ fontSize:'11px', color:'var(--green)', fontFamily:"'JetBrains Mono',monospace", fontWeight:'600' }}>A: {e.actual}</span>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
+
 
 // ── TRADE FORM ───────────────────────────────────────────────────
 function TradeForm({ onSave, onCancel }) {
@@ -368,20 +377,18 @@ function AutoTextarea({ value, onChange, placeholder, style, minHeight = 80 }) {
 // ── WEEKLY ECON SNAPSHOT ─────────────────────────────────────────
 // Shows Mon-Fri high-impact events for the week being reviewed
 function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents }) {
-  const { events: allEvents, eventsForDate, loading } = useEconomicCalendar()
+  const { eventsForDate, loading } = useEconomicCalendar()
 
   const weekdays = React.useMemo(() => {
     const days = []
     let start
     if (useNextWeek) {
-      // For Sunday forecast: next Mon is tomorrow
       const now = new Date()
-      const dow = now.getDay() // 0=Sun
+      const dow = now.getDay()
       start = new Date(now)
-      start.setDate(now.getDate() + (dow === 0 ? 1 : 8 - dow)) // next Monday
+      start.setDate(now.getDate() + (dow === 0 ? 1 : 8 - dow))
       start.setHours(0,0,0,0)
     } else {
-      // For Saturday review: this week's Mon (5 days ago)
       if (!weekRange) return []
       start = new Date(weekRange.mon + 'T12:00:00')
     }
@@ -396,40 +403,49 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents })
   const liveEvents = weekdays.flatMap(ds => eventsForDate(ds))
   const events = liveEvents.length > 0 ? liveEvents : (savedEvents || [])
 
+  // Always snapshot once loading is done
   const notified = React.useRef(false)
   React.useEffect(() => {
-    if (!loading && liveEvents.length > 0 && !notified.current) {
+    if (!loading && weekdays.length > 0 && !notified.current) {
       notified.current = true
       onEventsLoaded && onEventsLoaded(liveEvents)
     }
-  }, [loading, liveEvents.length])
-
-  if (events.length === 0) return null
+  }, [loading, weekdays.length])
 
   const CCY_COL = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
   const CCY_BG  = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5' }
 
-  // Group by date
+  if (loading) return null
+
+  // Group events by date
   const grouped = {}
   events.forEach(e => { if (!grouped[e.date]) grouped[e.date] = []; grouped[e.date].push(e) })
 
   return (
-    <div style={{ background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden', order:0 }}>
+    <div style={{ background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
       <div style={{ padding:'14px 20px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
         <div style={{ width:'3px', height:'16px', borderRadius:'2px', background:'#EF4444', flexShrink:0 }} />
-        <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>Week's High-Impact Events</span>
-        <span style={{ marginLeft:'auto', fontSize:'11px', color:'#94A3B8' }}>{useNextWeek ? 'Coming week' : 'Past week'} · Mon–Fri · USD · GBP · EUR</span>
+        <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>
+          {useNextWeek ? "Coming Week's Events" : "Past Week's Events"}
+        </span>
+        <span style={{ marginLeft:'auto', fontSize:'11px', color:'#94A3B8' }}>
+          {events.length > 0 ? `${events.length} high-impact` : 'No high-impact events'} · USD · GBP · EUR
+        </span>
       </div>
-      <div style={{ padding:'0' }}>
-        {Object.keys(grouped).sort().map(dateStr => {
-          const d = new Date(dateStr + 'T12:00:00')
+      <div>
+        {weekdays.map(ds => {
+          const dayEvs = grouped[ds] || []
+          const d = new Date(ds + 'T12:00:00')
           const dayLabel = d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' })
           return (
-            <div key={dateStr} style={{ borderBottom:'1px solid #F8FAFC' }}>
-              <div style={{ padding:'8px 20px 4px', fontSize:'10px', fontWeight:'700', color:'#94A3B8', letterSpacing:'.06em', textTransform:'uppercase' }}>{dayLabel}</div>
-              {grouped[dateStr].map((e, i) => (
-                <div key={i} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'6px 20px', borderTop: i>0?'1px solid #F8FAFC':'none' }}>
-                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#64748B', minWidth:'40px' }}>{e.time||'—'}</span>
+            <div key={ds} style={{ borderBottom:'1px solid #F8FAFC' }}>
+              <div style={{ padding:'8px 20px 4px', display:'flex', alignItems:'center', gap:'8px' }}>
+                <span style={{ fontSize:'10px', fontWeight:'700', color:'#94A3B8', letterSpacing:'.06em', textTransform:'uppercase' }}>{dayLabel}</span>
+                {dayEvs.length === 0 && <span style={{ fontSize:'10px', color:'#94A3B8', fontStyle:'italic' }}>No high-impact events</span>}
+              </div>
+              {dayEvs.map((e, i) => (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'6px 20px', borderTop: i > 0 ? '1px solid #F8FAFC' : 'none' }}>
+                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#64748B', minWidth:'40px' }}>{e.time || '—'}</span>
                   <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'1px 6px', borderRadius:'4px', background:CCY_BG[e.country]||'#F1F5F9', fontSize:'10px', fontWeight:'700', color:CCY_COL[e.country]||'#64748B', flexShrink:0 }}>
                     {e.country}
                   </span>
@@ -446,6 +462,7 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents })
     </div>
   )
 }
+
 
 // ── MAIN COMPONENT ───────────────────────────────────────────────
 export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast, dateStr: propDateStr, isWeekly: propIsWeekly }) {
@@ -656,8 +673,16 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         </div>
       )}
 
-      {/* ── TODAY'S NEWS ── */}
-      <DayNews dateStr={dateStr} />
+      {/* ── ECONOMIC EVENTS ── */}
+      {!isWeekly && !isForecast && (
+        <DayNews dateStr={dateStr} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} />
+      )}
+      {isWeekly && weekRange && (
+        <WeeklyEconNews weekRange={weekRange} useNextWeek={false} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} />
+      )}
+      {isForecast && weekRange && (
+        <WeeklyEconNews weekRange={weekRange} useNextWeek={true} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} />
+      )}
 
       {/* ── DAY PLAN CARD ── */}
       {/* Only show for daily and forecast modes */}
