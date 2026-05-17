@@ -61,10 +61,22 @@ function ChartImage({ url, label, large }) {
 }
 
 // ── NEWS STRIP ───────────────────────────────────────────────────
-function DayNews({ dateStr }) {
+function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
   const { eventsForDate, loading } = useEconomicCalendar()
-  const events = eventsForDate(dateStr)
-  if (loading || events.length === 0) return null
+  // Use live events if available, otherwise fall back to saved snapshot
+  const liveEvents = eventsForDate(dateStr)
+  const events = liveEvents.length > 0 ? liveEvents : (savedEvents || [])
+
+  // Snapshot events when first loaded so they get saved with the note
+  const notified = React.useRef(false)
+  React.useEffect(() => {
+    if (!loading && liveEvents.length > 0 && !notified.current) {
+      notified.current = true
+      onEventsLoaded && onEventsLoaded(liveEvents)
+    }
+  }, [loading, liveEvents.length])
+
+  if (events.length === 0) return null
   const CCY = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
   return (
     <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)', marginBottom:'14px' }}>
@@ -396,6 +408,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [noteOpen2,  setNoteOpen2]  = useState(false)
   const [noteOpen3,  setNoteOpen3]  = useState(false)
   const [noteOpen4,  setNoteOpen4]  = useState(false)
+  const [econSnapshot, setEconSnapshot] = useState([])
   const [eodReview,  setEodReview]  = useState('')
   const [followedPlan, setFollowedPlan] = useState('')
   const [wentWell,   setWentWell]   = useState('')
@@ -429,6 +442,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setChart4(existingNote.top_mistake || '')
       try { const notes = JSON.parse(existingNote.improvements||'[]'); setChartNote1(notes[0]||''); setChartNote2(notes[1]||''); setChartNote3(notes[2]||''); setChartNote4(notes[3]||'') } catch(e) {}
       try { const tfs = JSON.parse(existingNote.trading_errors||'[]'); setChartTf1(tfs[0]||''); setChartTf2(tfs[1]||''); setChartTf3(tfs[2]||''); setChartTf4(tfs[3]||'') } catch(e) {}
+      try { setEconSnapshot(JSON.parse(existingNote.econ_snapshot||'[]')) } catch(e) {}
       setEodReview(existingNote.trading_errors || '')
       setFollowedPlan(existingNote.consistency || '')
       setWentWell(existingNote.what_worked || '')
@@ -461,12 +475,13 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         execution_review: chart2,
         week_summary:     chart3,
         top_mistake:      chart4,
-        improvements:     JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
-        trading_errors:   JSON.stringify([chartTf1,chartTf2,chartTf3,chartTf4]),
-        trading_errors:   eodReview,
-        consistency:      followedPlan,
-        what_worked:      wentWell,
         improvements:     improve,
+        what_worked:      wentWell,
+        consistency:      followedPlan,
+        trading_errors:   eodReview,
+        market_conditions: JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
+        htf_bias:         JSON.stringify([chartTf1,chartTf2,chartTf3,chartTf4]),
+        econ_snapshot:    JSON.stringify(econSnapshot),
       })
       setNoteDirty(false)
       toast('Day saved ✓')
