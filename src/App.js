@@ -24,6 +24,8 @@ export default function App() {
   const [accounts, setAccounts]       = useState([])
   const [activeAccountId, setActiveAccountId] = useState(null)
   const [page, setPage]               = useState('dashboard')
+  const [journalDate,     setJournalDate]     = useState(null)
+  const [journalIsWeekly, setJournalIsWeekly] = useState(false)
   const [darkMode, setDark]           = useState(() => localStorage.getItem('tt26_dark') === 'true')
   const [toast, setToastMsg]          = useState('')
   const [toastVisible, setToastVisible] = useState(false)
@@ -246,6 +248,7 @@ export default function App() {
   }
 
   function handleNav(id) {
+    if (id !== 'journal') { setJournalDate(null); setJournalIsWeekly(false) }
     setPage(id); window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -276,8 +279,8 @@ export default function App() {
         onDeleteAccount={handleDeleteAccount}
       >
         {page === 'dashboard' && <Dashboard {...pageProps} />}
-        {page === 'journal'   && <DailyJournal trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onDeleteTrade={handleDelete} toast={showToast} />}
-        {page === 'calendar'  && <Calendar  trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onDeleteTrade={handleDelete} toast={showToast} />}
+        {page === 'journal'   && <DailyJournal trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onDeleteTrade={handleDelete} toast={showToast} dateStr={journalDate} isWeekly={journalIsWeekly} />}
+        {page === 'calendar'  && <Calendar  trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onDeleteTrade={handleDelete} toast={showToast} onOpenJournal={(date, weekly) => { setJournalDate(date); setJournalIsWeekly(weekly); setPage('journal'); window.scrollTo({top:0}) }} />}
         {page === 'news'      && <NewsTab />}
         {page === 'analysis'  && <Analysis  {...pageProps} />}
         {page === 'playbook'  && <Playbook />}

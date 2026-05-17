@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { computeStats, f2, f1 } from '../lib/stats'
-import DailyJournal from './DailyJournal'
 
 
 // Get Mon-Sun week containing a given date string
@@ -22,7 +21,7 @@ function getWeekR(trades, sundayDateStr) {
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
-export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast }) {
+export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast, onOpenJournal }) {
   const today      = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
   const [month, setMonth] = useState(new Date().getMonth())
   const [year,  setYear]  = useState(Math.max(2026, new Date().getFullYear()))
@@ -91,33 +90,14 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
   const ms = computeStats(moTrades)
   const mPL = moTrades.reduce((s,t) => s + (t.pl||t.r_multiple||0), 0)
 
-  // If a date is selected, show the DailyJournal for that date
+  // If a date is selected, navigate to the journal page
   if (selectedDate) {
-    return (
-      <div>
-        {/* Back button */}
-        <div style={{ padding:'12px 28px 0', display:'flex', alignItems:'center', gap:'10px', background:'var(--surface)', borderBottom:'1px solid var(--border)', marginBottom:'0' }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => setSelectedDate(null)}
-            style={{ display:'flex', alignItems:'center', gap:'5px', color:'var(--muted)' }}>
-            ← Calendar
-          </button>
-          <span style={{ fontSize:'12px', color:'var(--muted)' }}>
-            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' })}
-          </span>
-        </div>
-        <DailyJournal
-          trades={trades}
-          dailyNotes={dailyNotes}
-          onSaveNote={onSaveNote}
-          onDeleteNote={onDeleteNote}
-          onAddTrade={onAddTrade}
-          onDeleteTrade={onDeleteTrade}
-          toast={toast}
-          dateStr={selectedDate}
-          isWeekly={new Date(selectedDate + 'T12:00:00').getDay() === 0}
-        />
-      </div>
-    )
+    const dow = new Date(selectedDate + 'T12:00:00').getDay()
+    const isWeekly = dow === 6 // Saturday = weekly review
+    if (onOpenJournal) {
+      onOpenJournal(selectedDate, isWeekly)
+      setSelectedDate(null)
+    }
   }
 
   return (

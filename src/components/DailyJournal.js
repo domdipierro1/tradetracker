@@ -17,10 +17,14 @@ const FORM_OPEN   = 'tt26_form_open'
 function getWeekRange(dateStr) {
   const d = new Date(dateStr + 'T12:00:00')
   const dow = d.getDay()
-  const mon = new Date(d); mon.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1))
-  const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+  // Trading week: Mon-Sat. If on Saturday, Mon = d-5
+  const mon = new Date(d)
+  if (dow === 6) mon.setDate(d.getDate() - 5)       // Saturday → go back to Monday
+  else if (dow === 0) mon.setDate(d.getDate() - 6)  // Sunday → go back to Monday
+  else mon.setDate(d.getDate() - (dow - 1))          // Mon-Fri → go back to Monday
+  const sat = new Date(mon); sat.setDate(mon.getDate() + 5)
   const fmt = dt => dt.toISOString().split('T')[0]
-  return { mon: fmt(mon), sun: fmt(sun) }
+  return { mon: fmt(mon), sun: fmt(sat) }  // sun field = Sat for trading week
 }
 
 // ── HELPERS ──────────────────────────────────────────────────────
@@ -357,6 +361,77 @@ function AutoTextarea({ value, onChange, placeholder, style, minHeight = 80 }) {
       onFocus={e => e.target.style.borderColor = '#6366F1'}
       onBlur={e => e.target.style.borderColor = '#E2E8F0'}
     />
+  )
+}
+
+
+// ── WEEKLY ECON SNAPSHOT ─────────────────────────────────────────
+// Shows Mon-Fri high-impact events for the week being reviewed
+function WeeklyEconNews({ weekRange, onEventsLoaded, savedEvents }) {
+  const { eventsForDate, loading } = useEconomicCalendar()
+
+  const weekdays = React.useMemo(() => {
+    if (!weekRange) return []
+    const days = []; const start = new Date(weekRange.mon + 'T12:00:00')
+    for (let i = 0; i < 5; i++) { // Mon-Fri only
+      const d = new Date(start); d.setDate(start.getDate() + i)
+      const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0')
+      days.push(`${y}-${m}-${dd}`)
+    }
+    return days
+  }, [weekRange?.mon])
+
+  const liveEvents = weekdays.flatMap(ds => eventsForDate(ds))
+  const events = liveEvents.length > 0 ? liveEvents : (savedEvents || [])
+
+  const notified = React.useRef(false)
+  React.useEffect(() => {
+    if (!loading && liveEvents.length > 0 && !notified.current) {
+      notified.current = true
+      onEventsLoaded && onEventsLoaded(liveEvents)
+    }
+  }, [loading, liveEvents.length])
+
+  if (events.length === 0) return null
+
+  const CCY_COL = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
+  const CCY_BG  = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5' }
+
+  // Group by date
+  const grouped = {}
+  events.forEach(e => { if (!grouped[e.date]) grouped[e.date] = []; grouped[e.date].push(e) })
+
+  return (
+    <div style={{ background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden', order:0 }}>
+      <div style={{ padding:'14px 20px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+        <div style={{ width:'3px', height:'16px', borderRadius:'2px', background:'#EF4444', flexShrink:0 }} />
+        <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>Week's High-Impact Events</span>
+        <span style={{ marginLeft:'auto', fontSize:'11px', color:'#94A3B8' }}>Mon–Fri · USD · GBP · EUR</span>
+      </div>
+      <div style={{ padding:'0' }}>
+        {Object.keys(grouped).sort().map(dateStr => {
+          const d = new Date(dateStr + 'T12:00:00')
+          const dayLabel = d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' })
+          return (
+            <div key={dateStr} style={{ borderBottom:'1px solid #F8FAFC' }}>
+              <div style={{ padding:'8px 20px 4px', fontSize:'10px', fontWeight:'700', color:'#94A3B8', letterSpacing:'.06em', textTransform:'uppercase' }}>{dayLabel}</div>
+              {grouped[dateStr].map((e, i) => (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'6px 20px', borderTop: i>0?'1px solid #F8FAFC':'none' }}>
+                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#64748B', minWidth:'40px' }}>{e.time||'—'}</span>
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'1px 6px', borderRadius:'4px', background:CCY_BG[e.country]||'#F1F5F9', fontSize:'10px', fontWeight:'700', color:CCY_COL[e.country]||'#64748B', flexShrink:0 }}>
+                    {e.country}
+                  </span>
+                  <div style={{ width:'8px', height:'8px', borderRadius:'2px', background:'#EF4444', flexShrink:0 }} />
+                  <span style={{ fontSize:'12px', fontWeight:'600', color:'#334155', flex:1 }}>{e.title}</span>
+                  {e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'700', color:'#10B981' }}>{e.actual}</span>}
+                  {e.forecast && !e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#64748B' }}>{e.forecast}</span>}
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
