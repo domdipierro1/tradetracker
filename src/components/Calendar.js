@@ -93,9 +93,9 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
   // If a date is selected, navigate to the journal page
   if (selectedDate) {
     const dow = new Date(selectedDate + 'T12:00:00').getDay()
-    const isWeekly = dow === 6 // Saturday = weekly review
+    const mode = dow === 6 ? true : dow === 0 ? 'forecast' : false
     if (onOpenJournal) {
-      onOpenJournal(selectedDate, isWeekly)
+      onOpenJournal(selectedDate, mode)
       setSelectedDate(null)
     }
   }
@@ -166,7 +166,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
 
           return (
             <div key={i} onClick={() => setSelectedDate(ds)}
-              style={{ background: isSundayCell ? 'var(--purple-bg)' : cs.bg, border:`1.5px solid ${isSundayCell ? 'var(--purple-dim)' : cs.border}`, borderRadius:'var(--r-sm)', minHeight:'78px', padding:'7px', display:'flex', flexDirection:'column', gap:'2px', cursor:'pointer', transition:'all .15s', position:'relative', opacity: cls==='weekend'?.55:1 }}
+              style={{ background: isSaturdayCell ? 'var(--green-bg)' : isSundayCell ? 'var(--purple-bg)' : cs.bg, border:`1.5px solid ${isSaturdayCell ? 'var(--green-dim)' : isSundayCell ? 'var(--purple-dim)' : cs.border}`, borderRadius:'var(--r-sm)', minHeight:'78px', padding:'7px', display:'flex', flexDirection:'column', gap:'2px', cursor:'pointer', transition:'all .15s', position:'relative', opacity: cls==='weekend'?.55:1 }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow='var(--shadow-md)'; e.currentTarget.style.transform='translateY(-1px)' }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow=''; e.currentTarget.style.transform='' }}>
 
@@ -197,7 +197,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                 <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'13px', fontWeight:'600', color:numCol[cls], marginTop:'auto', lineHeight:1.2 }}>
                   {f2(pl)}
                 </span>
-                <span style={{ fontSize:'9px', color:numCol[cls], opacity:.8 }}>{cnt} trade{cnt>1?'s':''}</span>
+                {isSaturdayCell ? <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--green)', opacity:.9 }}>Weekly Review</span> : isSundayCell ? <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--purple)', opacity:.9 }}>Weekly Forecast</span> : <span style={{ fontSize:'9px', color:numCol[cls], opacity:.8 }}>{cnt} trade{cnt>1?'s':''}</span>}
                 <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background: cls==='win'?'var(--green-dim)':cls==='loss'?'var(--red-dim)':'var(--amber-dim)', color: cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--amber)' }}>
                   {pl>0?'WIN':pl<0?'LOSS':'BE'}
                 </span>
