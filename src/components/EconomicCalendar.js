@@ -1,10 +1,7 @@
 import { useEconomicCalendar, currencyFlag, getFFWeekDays } from '../lib/useEconomicCalendar'
 
-const CCY = {
-  USD: { bg:'#DBEAFE', text:'#1D4ED8' },
-  GBP: { bg:'#EDE9FE', text:'#6D28D9' },
-  EUR: { bg:'#D1FAE5', text:'#065F46' },
-}
+const CCY_COL = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
+const CCY_BG  = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5' }
 
 export default function EconomicCalendar() {
   const { events, loading, error, fetchedAt, eventsForDate } = useEconomicCalendar()
@@ -14,7 +11,6 @@ export default function EconomicCalendar() {
   const usd = events.filter(e=>e.country==='USD').length
   const gbp = events.filter(e=>e.country==='GBP').length
   const eur = events.filter(e=>e.country==='EUR').length
-
   const weekLabel = `${weekDays[0].month} ${weekDays[0].dayNum} – ${weekDays[6].month} ${weekDays[6].dayNum}`
 
   function refresh() {
@@ -28,21 +24,20 @@ export default function EconomicCalendar() {
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'16px', flexWrap:'wrap', gap:'10px' }}>
         <div>
           <h1 style={{ fontSize:'20px', fontWeight:'800', color:'var(--text)', marginBottom:'4px' }}>Economic Calendar</h1>
-          <div style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>
-            🔴 High impact · USD · GBP · EUR · {weekLabel}
-          </div>
+          <div style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>🔴 High impact · USD · GBP · EUR · {weekLabel}</div>
         </div>
         <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
-          {[['🇺🇸','USD',usd,'#1D4ED8'],['🇬🇧','GBP',gbp,'#6D28D9'],['🇪🇺','EUR',eur,'#065F46']].map(([flag,cur,n,col]) => (
+          {[['🇺🇸','USD',usd],['🇬🇧','GBP',gbp],['🇪🇺','EUR',eur]].map(([flag,cur,n]) => (
             <div key={cur} style={{ display:'flex', alignItems:'center', gap:'4px', padding:'4px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'6px', fontSize:'11px', fontWeight:'700' }}>
-              <span>{flag}</span><span style={{color:col}}>{cur}</span><span style={{color:'var(--muted)'}}>{n}</span>
+              <span>{flag}</span>
+              <span style={{ color:CCY_COL[cur] }}>{cur}</span>
+              <span style={{ color:'var(--muted)' }}>{n}</span>
             </div>
           ))}
           {fetchedAt && <span style={{ fontSize:'10px', color:'var(--muted2)' }}>Updated {fetchedAt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>}
           <button onClick={refresh} style={{ background:'none', border:'1px solid var(--border)', borderRadius:'6px', padding:'4px 10px', cursor:'pointer', fontSize:'13px', color:'var(--muted)', fontFamily:'inherit' }}>↻</button>
         </div>
       </div>
-
 
       {loading && (
         <div style={{ textAlign:'center', padding:'60px', color:'var(--muted)' }}>
@@ -59,67 +54,45 @@ export default function EconomicCalendar() {
 
       {!loading && (
         <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
-          {/* Column headers */}
-          <div style={{ display:'grid', gridTemplateColumns:'110px 80px 80px 28px 1fr 90px 90px 90px', background:'var(--surface2)', borderBottom:'2px solid var(--border2)' }}>
-            {['Date','Time (EST)','Currency','','Event','Actual','Forecast','Previous'].map((h,i) => (
-              <div key={i} style={{ padding:'8px 10px', fontSize:'10px', fontWeight:'700', color:'var(--muted)', letterSpacing:'.06em', textTransform:'uppercase', textAlign: i>=5?'center':'left' }}>{h}</div>
-            ))}
-          </div>
-
           {weekDays.map((day, di) => {
             const dayEvs  = eventsForDate(day.dateStr)
             const isToday = day.dateStr === today
-            const bg      = isToday ? 'rgba(251,191,36,.06)' : day.isWeekend ? 'var(--surface2)' : 'var(--surface)'
+            const bg      = isToday ? 'rgba(251,191,36,.05)' : day.isWeekend ? 'var(--surface2)' : 'var(--surface)'
 
             return (
               <div key={day.dateStr} style={{ borderLeft: isToday ? '3px solid var(--amber)' : '3px solid transparent', borderBottom: di < 6 ? '1px solid var(--border)' : 'none' }}>
-                {dayEvs.length === 0 ? (
-                  <div style={{ display:'grid', gridTemplateColumns:'110px 80px 80px 28px 1fr 90px 90px 90px', alignItems:'center', minHeight:'38px', background:bg, opacity:day.isWeekend?.55:1 }}>
-                    <div style={{ padding:'8px 10px' }}>
-                      <div style={{ fontSize:'12px', fontWeight:'800', color: isToday?'var(--amber)':day.isWeekend?'var(--muted2)':'var(--text2)' }}>{day.dayName}</div>
-                      <div style={{ fontSize:'10px', color:'var(--muted2)' }}>{day.month} {day.dayNum}</div>
-                      {isToday && <div style={{ fontSize:'9px', fontWeight:'800', color:'var(--amber)' }}>TODAY</div>}
-                    </div>
-                    <div style={{ gridColumn:'2/-1', padding:'8px 10px', fontSize:'12px', color:'var(--muted2)', fontStyle:'italic' }}>
-                      {!day.isWeekend && 'No high-impact events'}
-                    </div>
+                {/* Day header */}
+                <div style={{ padding:'8px 16px 4px', display:'flex', alignItems:'center', gap:'8px', background: isToday ? 'rgba(251,191,36,.08)' : day.isWeekend ? 'var(--surface2)' : 'transparent', opacity: day.isWeekend ? .6 : 1 }}>
+                  <span style={{ fontSize:'12px', fontWeight:'800', color: isToday ? 'var(--amber)' : 'var(--text2)' }}>{day.dayName}</span>
+                  <span style={{ fontSize:'11px', color:'var(--muted)' }}>{day.month} {day.dayNum}</span>
+                  {isToday && <span style={{ padding:'1px 7px', borderRadius:'20px', background:'var(--amber)', color:'#fff', fontSize:'9px', fontWeight:'800' }}>TODAY</span>}
+                  {!day.isWeekend && dayEvs.length === 0 && (
+                    <span style={{ fontSize:'11px', color:'var(--muted2)', fontStyle:'italic', marginLeft:'4px' }}>No high-impact events</span>
+                  )}
+                  {dayEvs.length > 0 && <span style={{ marginLeft:'auto', fontSize:'10px', fontWeight:'700', color:'var(--red)' }}>🔴 {dayEvs.length}</span>}
+                </div>
+                {/* Events */}
+                {dayEvs.map((e, ei) => (
+                  <div key={ei} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 16px', borderTop:'1px solid var(--border)', background: bg, transition:'background .1s' }}
+                    onMouseEnter={ev=>ev.currentTarget.style.background='var(--surface2)'}
+                    onMouseLeave={ev=>ev.currentTarget.style.background=bg}>
+                    {/* Time */}
+                    <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'600', color:'var(--muted)', minWidth:'44px' }}>{e.time||'—'}</span>
+                    {/* Currency badge */}
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'2px 7px', borderRadius:'4px', background:CCY_BG[e.country]||'var(--surface2)', fontSize:'10px', fontWeight:'800', color:CCY_COL[e.country]||'var(--muted)', flexShrink:0 }}>
+                      <span>{currencyFlag(e.country)}</span>
+                      <span>{e.country}</span>
+                    </span>
+                    {/* Red square */}
+                    <div style={{ width:'9px', height:'9px', background:'var(--red)', borderRadius:'2px', flexShrink:0 }} />
+                    {/* Event name */}
+                    <span style={{ fontSize:'13px', fontWeight:'600', color:'var(--text)', flex:1 }}>{e.title}</span>
+                    {/* Values */}
+                    {e.actual   && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'700', color:'var(--green)' }}>{e.actual}</span>}
+                    {e.forecast && !e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'var(--text2)' }}>F: {e.forecast}</span>}
+                    {e.previous && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'var(--muted)' }}>P: {e.previous}</span>}
                   </div>
-                ) : dayEvs.map((e, ei) => {
-                  const c = CCY[e.country] || { bg:'var(--surface2)', text:'var(--muted)' }
-                  return (
-                    <div key={ei} style={{ display:'grid', gridTemplateColumns:'110px 80px 80px 28px 1fr 90px 90px 90px', alignItems:'center', minHeight:'44px', background:isToday?'rgba(251,191,36,.04)':bg, borderTop:ei>0?'1px solid var(--border)':'none', transition:'background .1s' }}
-                      onMouseEnter={ev=>ev.currentTarget.style.background='var(--surface2)'}
-                      onMouseLeave={ev=>ev.currentTarget.style.background=isToday?'rgba(251,191,36,.04)':bg}>
-                      <div style={{ padding:'8px 10px' }}>
-                        {ei===0 ? <>
-                          <div style={{ fontSize:'12px', fontWeight:'800', color:isToday?'var(--amber)':'var(--text2)' }}>{day.dayName}</div>
-                          <div style={{ fontSize:'10px', color:'var(--muted)' }}>{day.month} {day.dayNum}</div>
-                          {isToday && <div style={{ fontSize:'9px', fontWeight:'800', color:'var(--amber)' }}>TODAY</div>}
-                        </> : <div style={{ borderLeft:'2px solid var(--border)', height:'20px', marginLeft:'18px' }} />}
-                      </div>
-                      <div style={{ padding:'8px 10px', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'600', color:'var(--muted)' }}>{e.time||'—'}</div>
-                      <div style={{ padding:'8px 10px' }}>
-                        <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'2px 7px', borderRadius:'4px', background:c.bg }}>
-                          <span style={{ fontSize:'11px' }}>{currencyFlag(e.country)}</span>
-                          <span style={{ fontSize:'10px', fontWeight:'800', color:c.text }}>{e.country}</span>
-                        </span>
-                      </div>
-                      <div style={{ display:'flex', justifyContent:'center' }}>
-                        <div style={{ width:'10px', height:'10px', background:'var(--red)', borderRadius:'2px' }} />
-                      </div>
-                      <div style={{ padding:'8px 10px', fontSize:'13px', fontWeight:'600', color:'var(--text)' }}>{e.title}</div>
-                      <div style={{ padding:'8px 10px', textAlign:'center', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color:'var(--green)' }}>
-                        {e.actual || <span style={{color:'var(--muted2)'}}>—</span>}
-                      </div>
-                      <div style={{ padding:'8px 10px', textAlign:'center', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--text2)' }}>
-                        {e.forecast || <span style={{color:'var(--muted2)'}}>—</span>}
-                      </div>
-                      <div style={{ padding:'8px 10px', textAlign:'center', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--muted)' }}>
-                        {e.previous || <span style={{color:'var(--muted2)'}}>—</span>}
-                      </div>
-                    </div>
-                  )
-                })}
+                ))}
               </div>
             )
           })}

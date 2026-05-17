@@ -191,7 +191,7 @@ function TradeForm({ onSave, onCancel }) {
             <select className="form-input" style={{ flex:'0 0 auto', width:'90px', padding:'4px 8px', fontSize:'11px' }}
               value={form.screenshot_tf||''} onChange={e => setForm(f=>({...f, screenshot_tf:e.target.value}))}>
               <option value="">Timeframe</option>
-              {['Daily','4H','1H','30M','15M','5M'].map(t=><option key={t}>{t}</option>)}
+              {['W','D','4H','1H','30M','15M','5M'].map(t=><option key={t}>{t}</option>)}
             </select>
             <span style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>Chart 1</span>
           </div>
@@ -202,7 +202,7 @@ function TradeForm({ onSave, onCancel }) {
             <select className="form-input" style={{ flex:'0 0 auto', width:'90px', padding:'4px 8px', fontSize:'11px' }}
               value={form.screenshot2_tf||''} onChange={e => setForm(f=>({...f, screenshot2_tf:e.target.value}))}>
               <option value="">Timeframe</option>
-              {['Daily','4H','1H','30M','15M','5M'].map(t=><option key={t}>{t}</option>)}
+              {['W','D','4H','1H','30M','15M','5M'].map(t=><option key={t}>{t}</option>)}
             </select>
             <span style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>Chart 2</span>
           </div>
@@ -539,19 +539,19 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   useEffect(() => {
     if (existingNote) {
       setMood(existingNote.mood || '')
-      setBias(existingNote.htf_bias || '')
-      setPlan(existingNote.market_conditions || '')
+      // htf_bias stores TF JSON, so only use it for TFs not for bias text
+      setPlan(existingNote.market_conditions && !existingNote.market_conditions.startsWith('[') ? existingNote.market_conditions : '')
       setChart1(existingNote.observations || '')
       setChart2(existingNote.execution_review || '')
       setChart3(existingNote.week_summary || '')
-      setChart4(existingNote.top_mistake || '')
-      try { const notes = JSON.parse(existingNote.improvements||'[]'); setChartNote1(notes[0]||''); setChartNote2(notes[1]||''); setChartNote3(notes[2]||''); setChartNote4(notes[3]||'') } catch(e) {}
-      try { const tfs = JSON.parse(existingNote.trading_errors||'[]'); setChartTf1(tfs[0]||''); setChartTf2(tfs[1]||''); setChartTf3(tfs[2]||''); setChartTf4(tfs[3]||'') } catch(e) {}
-      try { setEconSnapshot(JSON.parse(existingNote.econ_snapshot||'[]')) } catch(e) {}
-      setEodReview(existingNote.trading_errors || '')
+      try { const notes = JSON.parse(existingNote.top_mistake||'[]'); setChartNote1(notes[0]||''); setChartNote2(notes[1]||''); setChartNote3(notes[2]||''); setChartNote4(notes[3]||'') } catch(e) { setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('') }
+      try { const tfs = JSON.parse(existingNote.htf_bias||'[]'); setChartTf1(tfs[0]||''); setChartTf2(tfs[1]||''); setChartTf3(tfs[2]||''); setChartTf4(tfs[3]||'') } catch(e) { setChartTf1(''); setChartTf2(''); setChartTf3(''); setChartTf4('') }
+      try { setEconSnapshot(JSON.parse(existingNote.econ_snapshot||'[]')) } catch(e) { setEconSnapshot([]) }
+      setEodReview(existingNote.trading_errors && !existingNote.trading_errors.startsWith('[') ? existingNote.trading_errors : '')
       setFollowedPlan(existingNote.consistency || '')
       setWentWell(existingNote.what_worked || '')
-      setImprove(existingNote.improvements || '')
+      setImprove(existingNote.improvements && !existingNote.improvements.startsWith('[') ? existingNote.improvements : '')
+      setBias('')  // bias field separate from TF JSON
     } else {
       setMood(''); setBias(''); setPlan(''); setChart1(''); setChart2('')
       setEodReview(''); setFollowedPlan(''); setWentWell(''); setImprove('')
@@ -584,8 +584,8 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         what_worked:      wentWell,
         consistency:      followedPlan,
         trading_errors:   eodReview,
-        market_conditions: JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
         htf_bias:         JSON.stringify([chartTf1,chartTf2,chartTf3,chartTf4]),
+        top_mistake:      JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
         econ_snapshot:    JSON.stringify(econSnapshot),
       })
       setNoteDirty(false)
@@ -750,7 +750,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
                   <select value={tf} onChange={e => { setTf(e.target.value); markDirty() }}
                     style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'5px 10px', fontSize:'12px', fontWeight:'600', color: tf ? '#0F172A' : '#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer', flex:1, maxWidth:'120px' }}>
                     <option value="">Timeframe</option>
-                    {['Daily','4H','1H','30M','15M','5M'].map(t => <option key={t} value={t}>{t}</option>)}
+                    {['W','D','4H','1H','30M','15M','5M'].map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                   <span style={{ fontSize:'10px', color:'#94A3B8', flex:1 }}>Chart {i+1}</span>
                   <button type="button" onClick={() => { setter(''); setNote(''); setTf(''); setNoteOpen(false); markDirty() }}
@@ -881,7 +881,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
                     <select value={tf} onChange={e => { setTf(e.target.value); markDirty() }}
                       style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'5px 10px', fontSize:'12px', fontWeight:'600', color: tf ? '#0F172A' : '#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer', flex:1, maxWidth:'120px' }}>
                       <option value="">Timeframe</option>
-                      {['Daily','4H','1H','30M','15M','5M'].map(t => <option key={t} value={t}>{t}</option>)}
+                      {['W','D','4H','1H','30M','15M','5M'].map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                     <span style={{ fontSize:'10px', color:'#94A3B8', flex:1 }}>Chart {i+1}</span>
                     <button type="button" onClick={() => { setter(''); setNote(''); setTf(''); setNoteOpen(false); markDirty() }}
