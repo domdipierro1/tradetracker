@@ -71,7 +71,7 @@ function TradeForm({ initial, onSave, onCancel, title }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: '12px', marginBottom: '12px' }}>
         {inp('date', 'Date', 'date')}
         {sel('time', 'Time (NY)', TIMES)}
-        {sel('symbol', 'Symbol', ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CHF','USD/CAD','USD/JPY','NQ','ES','YM','DAX','UK100','Gold','Silver','EUR/AUD','EUR/CAD','EUR/JPY','EUR/NZD','EUR/GBP','GBP/AUD','GBP/CAD','GBP/JPY','GBP/NZD','AUD/NZD'])}
+        {sel('symbol', 'Symbol', ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','Gold','Silver'])}
         {sel('direction', 'Direction', ['Long','Short'])}
         {sel('bias', 'Bias', ['Bullish','Bearish'])}
         {sel('session', 'Session', ['London (02:00–05:00)','New York AM (06:00–10:00)'])}
@@ -195,7 +195,7 @@ export default function TradeLog({ trades, onAdd, onEdit, onDelete, toast, start
       {/* Filters */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '12px' }}>
         <input className="form-input" placeholder="🔍 Search..." value={search} onChange={e => setSearch(e.target.value)} style={{ width: '160px', padding: '7px 11px', fontSize: '12px' }} />
-        {[['filterSym', ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CHF','USD/CAD','USD/JPY','YM1!','NQ1!','ES1!','GER30','UK100','GC1!','SI1!','EUR/AUD','EUR/CAD','EUR/JPY','EUR/NZD','EUR/GBP','GBP/AUD','GBP/CAD','GBP/JPY','GBP/NZD','AUD/NZD'], 'All Symbols', setFilterSym, filterSym],
+        {[['filterSym', ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','Gold','Silver'], 'All Symbols', setFilterSym, filterSym],
           ['filterOut', ['Win','Loss','Break Even'], 'All Outcomes', setFilterOut, filterOut],
           ['filterGr',  ['A+','A','B','C'],          'All Grades',   setFilterGr,  filterGr]].map(([key, opts, placeholder, setter, val]) => (
           <select key={key} value={val} onChange={e => setter(e.target.value)}

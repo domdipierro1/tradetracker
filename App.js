@@ -1,288 +1,305 @@
-import { useState, useEffect, useMemo } from 'react'
-import './index.css'
-import {
-  supabase, fetchTrades, insertTrade, updateTrade, deleteTrade, signOut,
-  fetchDailyNotes, upsertDailyNote, deleteDailyNote,
-  fetchAccounts, createAccount, updateAccount, deleteAccount
-} from './lib/supabase'
-import AuthPage from './components/AuthPage'
-import Layout from './components/Layout'
-import Dashboard from './components/Dashboard'
-import TradeLog from './components/TradeLog'
-import Calendar from './components/Calendar'
-import NewsTab from './components/NewsTab'
-import DailyJournal from './components/DailyJournal'
-import Analysis from './components/Analysis'
-import Macro from './components/Macro'
-import Playbook from './components/Playbook'
+import { useMemo } from 'react'
+import { computeStats, f2, f1, fP, fR } from '../lib/stats'
 
-export default function App() {
-  const [user, setUser]               = useState(null)
-  const [loading, setLoading]         = useState(true)
-  const [trades, setTrades]           = useState([])
-  const [dailyNotes, setDailyNotes]   = useState([])
-  const [accounts, setAccounts]       = useState([])
-  const [activeAccountId, setActiveAccountId] = useState(null)
-  const [page, setPage]               = useState('dashboard')
-  const [darkMode, setDark]           = useState(() => localStorage.getItem('tt26_dark') === 'true')
-  const [toast, setToastMsg]          = useState('')
-  const [toastVisible, setToastVisible] = useState(false)
+const HOURS = ['2:00','3:00','4:00','5:00','6:00','7:00','8:00','9:00','10:00']
+const DOW   = ['Monday','Tuesday','Wednesday','Thursday','Friday']
 
-  useEffect(() => {
-    document.body.classList.toggle('dark', darkMode)
-    localStorage.setItem('tt26_dark', darkMode)
-  }, [darkMode])
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) loadAll(session.user.id)
-      else setLoading(false)
-    })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) loadAll(session.user.id)
-      else { setTrades([]); setDailyNotes([]); setAccounts([]); setLoading(false) }
-    })
-    return () => subscription.unsubscribe()
-  }, [])
-
-  async function loadAll(userId) {
-    try {
-      setLoading(true)
-      const [t, n, accts] = await Promise.all([
-        fetchTrades(userId),
-        fetchDailyNotes(userId),
-        fetchAccounts(userId),
-      ])
-
-      // If no accounts exist yet, create a default one
-      let accountList = accts || []
-      if (accountList.length === 0) {
-        const defaultAccount = await createAccount({
-          user_id: userId,
-          name: 'Main Account',
-          starting_balance: 100000,
-          currency: 'USD',
-          account_type: 'Live',
-          color: '#2563EB',
-          is_default: true,
-        })
-        accountList = [defaultAccount]
-      }
-
-      setAccounts(accountList)
-      setTrades(t || [])
-      setDailyNotes(n || [])
-
-      // Restore last active account or use first
-      const savedId = localStorage.getItem('tt26_active_account')
-      const validId = accountList.find(a => a.id === savedId)?.id || accountList[0]?.id
-      setActiveAccountId(validId)
-
-    } catch (err) {
-      console.error('Load error:', err)
-      showToast('Error loading data')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Trades filtered to active account
-  const accountTrades = useMemo(() =>
-    trades.filter(t => t.account_id === activeAccountId || (!t.account_id && accounts.length <= 1)),
-    [trades, activeAccountId, accounts]
-  )
-
-  // Notes filtered to active account
-  const accountNotes = useMemo(() =>
-    dailyNotes.filter(n => n.account_id === activeAccountId || (!n.account_id && accounts.length <= 1)),
-    [dailyNotes, activeAccountId, accounts]
-  )
-
-  // Active account object
-  const activeAccount = useMemo(() =>
-    accounts.find(a => a.id === activeAccountId),
-    [accounts, activeAccountId]
-  )
-
-  const startingBalance = activeAccount?.starting_balance || 100000
-
-  function showToast(msg) {
-    setToastMsg(msg); setToastVisible(true)
-    setTimeout(() => setToastVisible(false), 2500)
-  }
-
-  // ── Account handlers ──────────────────────────────────────────
-  function handleSwitchAccount(id) {
-    setActiveAccountId(id)
-    localStorage.setItem('tt26_active_account', id)
-    showToast(`Switched to ${accounts.find(a => a.id === id)?.name}`)
-  }
-
-  async function handleCreateAccount(data) {
-    if (!user) return
-    try {
-      const acc = await createAccount({ ...data, user_id: user.id })
-      setAccounts(prev => [...prev, acc])
-      setActiveAccountId(acc.id)
-      localStorage.setItem('tt26_active_account', acc.id)
-      showToast(`Account "${acc.name}" created ✓`)
-    } catch (err) { showToast('Error creating account: ' + err.message) }
-  }
-
-  async function handleEditAccount(id, updates) {
-    try {
-      const acc = await updateAccount(id, updates)
-      setAccounts(prev => prev.map(a => a.id === id ? acc : a))
-      showToast('Account updated ✓')
-    } catch (err) { showToast('Error updating account: ' + err.message) }
-  }
-
-  async function handleDeleteAccount(id) {
-    try {
-      await deleteAccount(id)
-      setAccounts(prev => prev.filter(a => a.id !== id))
-      setTrades(prev => prev.filter(t => t.account_id !== id))
-      setDailyNotes(prev => prev.filter(n => n.account_id !== id))
-      const remaining = accounts.filter(a => a.id !== id)
-      if (remaining.length > 0) {
-        setActiveAccountId(remaining[0].id)
-        localStorage.setItem('tt26_active_account', remaining[0].id)
-      }
-      showToast('Account deleted')
-    } catch (err) { showToast('Error deleting account: ' + err.message) }
-  }
-
-  // ── Trade handlers ────────────────────────────────────────────
-  async function handleAdd(tradeData) {
-    if (!user) return
-    try {
-      const t = await insertTrade({ ...tradeData, user_id: user.id, account_id: activeAccountId })
-      setTrades(prev => [...prev, t].sort((a,b) => a.date.localeCompare(b.date)))
-    } catch (err) { showToast('Error saving: ' + err.message) }
-  }
-
-  async function handleEdit(id, updates) {
-    try {
-      const t = await updateTrade(id, updates)
-      setTrades(prev => prev.map(x => x.id === id ? t : x).sort((a,b) => a.date.localeCompare(b.date)))
-    } catch (err) { showToast('Error updating: ' + err.message) }
-  }
-
-  async function handleDelete(id) {
-    try {
-      await deleteTrade(id)
-      setTrades(prev => prev.filter(t => t.id !== id))
-    } catch (err) { showToast('Error deleting: ' + err.message) }
-  }
-
-  // ── Note handlers ─────────────────────────────────────────────
-  async function handleSaveNote(noteData) {
-    if (!user) return
-    try {
-      const n = await upsertDailyNote({ ...noteData, user_id: user.id, account_id: activeAccountId })
-      setDailyNotes(prev => {
-        const filtered = prev.filter(x => !(x.date === n.date && x.account_id === n.account_id))
-        return [...filtered, n].sort((a,b) => b.date.localeCompare(a.date))
-      })
-      return n
-    } catch (err) { showToast('Error saving note: ' + err.message); throw err }
-  }
-
-  async function handleDeleteNote(id) {
-    try {
-      await deleteDailyNote(id)
-      setDailyNotes(prev => prev.filter(n => n.id !== id))
-    } catch (err) { showToast('Error deleting note: ' + err.message) }
-  }
-
-  // ── Export / Import ───────────────────────────────────────────
-  function handleExport() {
-    const blob = new Blob([JSON.stringify({
-      trades: accountTrades, dailyNotes: accountNotes,
-      account: activeAccount,
-      exportedAt: new Date().toISOString(), v: '4.0'
-    }, null, 2)], { type: 'application/json' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `tradetracker_${activeAccount?.name?.replace(/\s+/g,'_') || 'export'}_${new Date().toISOString().split('T')[0]}.json`
-    a.click()
-    showToast('Exported ✓')
-  }
-
-  function handleImport(e) {
-    const file = e.target.files[0]; if (!file) return
-    const reader = new FileReader()
-    reader.onload = async ev => {
-      try {
-        const data = JSON.parse(ev.target.result)
-        if (data.trades && Array.isArray(data.trades)) {
-          if (window.confirm(`Import ${data.trades.length} trades into "${activeAccount?.name}"?`)) {
-            const existing = new Set(trades.map(t => t.id))
-            let added = 0
-            for (const t of data.trades) {
-              if (!existing.has(t.id)) {
-                const { id, user_id, created_at, account_id, ...clean } = t
-                await handleAdd(clean); added++
-              }
-            }
-            if (data.dailyNotes) {
-              for (const n of data.dailyNotes) {
-                const { id, user_id, created_at, updated_at, account_id, ...clean } = n
-                await handleSaveNote(clean)
-              }
-            }
-            showToast(`${added} trades imported ✓`)
-          }
-        } else showToast('Invalid file format')
-      } catch { showToast('Could not read file') }
-    }
-    reader.readAsText(file); e.target.value = ''
-  }
-
-  async function handleSignOut() {
-    await signOut(); setUser(null); setTrades([]); setDailyNotes([]); setAccounts([])
-  }
-
-  function handleNav(id) {
-    setPage(id); window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  // ── Loading screen ────────────────────────────────────────────
-  if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text)' }}>Trade<span style={{ color: 'var(--blue)' }}>Tracker</span></div>
-      <div style={{ width: '32px', height: '32px', border: '3px solid var(--border)', borderTop: '3px solid var(--blue)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+// ── SECTION HEADER ───────────────────────────────────────────────
+function SectionHeader({ title, sub }) {
+  return (
+    <div style={{ marginBottom:'16px' }}>
+      <h2 style={{ fontSize:'17px', fontWeight:'700', color:'#0F172A', letterSpacing:'-.02em', marginBottom:'2px' }}>{title}</h2>
+      {sub && <p style={{ fontSize:'12px', color:'#94A3B8', margin:0 }}>{sub}</p>}
     </div>
   )
+}
 
-  if (!user) return <AuthPage onAuth={u => { setUser(u); loadAll(u.id) }} />
+// ── BREAKDOWN TABLE ───────────────────────────────────────────────
+function BreakdownTable({ title, k, items, trades, accent = '#6366F1' }) {
+  const withDow = trades.map(t => ({
+    ...t,
+    dow: t.date ? ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(t.date).getDay()] : null
+  }))
 
-  const pageProps = { trades: accountTrades, toast: showToast, startingBalance, currency: activeAccount?.currency || 'USD' }
+  const rows = items.map(item => {
+    const group = withDow.filter(t => t[k] === item)
+    const s = computeStats(group)
+    return { label: item, ...s }
+  }).filter(r => r.n > 0)
+
+  const maxR = Math.max(...rows.map(r => Math.abs(r.totalR || 0)), 0.01)
+  if (rows.length === 0) return null
+
+  const G = '1fr 36px 50px 36px 76px 50px'
 
   return (
-    <>
-      <Layout
-        page={page} onNav={handleNav}
-        trades={accountTrades} user={user}
-        onSignOut={handleSignOut}
-        onExport={handleExport} onImport={handleImport}
-        darkMode={darkMode} onToggleDark={() => setDark(d => !d)}
-        accounts={accounts} activeAccountId={activeAccountId} startingBalance={startingBalance}
-        onSwitchAccount={handleSwitchAccount}
-        onCreateAccount={handleCreateAccount}
-        onEditAccount={handleEditAccount}
-        onDeleteAccount={handleDeleteAccount}
-      >
-        {page === 'dashboard' && <Dashboard {...pageProps} />}
-        {page === 'journal'   && <DailyJournal trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onDeleteTrade={handleDelete} toast={showToast} />}
-        {page === 'calendar'  && <Calendar  trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onDeleteTrade={handleDelete} toast={showToast} />}
-        {page === 'news'      && <NewsTab />}
-        {page === 'analysis'  && <Analysis  {...pageProps} />}
-        {page === 'playbook'  && <Playbook />}
-      </Layout>
-      <div className={`toast ${toastVisible ? 'show' : ''}`}>{toast}</div>
-    </>
+    <div style={{ background:'#FFFFFF', borderRadius:'20px', overflow:'hidden', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)' }}>
+      <div style={{ padding:'14px 18px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+        <div style={{ width:'3px', height:'16px', borderRadius:'2px', background: accent, flexShrink:0 }} />
+        <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>{title}</span>
+        <span style={{ marginLeft:'auto', fontSize:'11px', color:'#94A3B8' }}>{rows.length} categor{rows.length===1?'y':'ies'}</span>
+      </div>
+      <div style={{ padding:'0 18px' }}>
+        <div style={{ display:'grid', gridTemplateColumns:G, padding:'8px 0 6px', borderBottom:'1px solid #F1F5F9' }}>
+          {['','Tr','Win%','W','Total R','Exp'].map((h,i) => (
+            <div key={i} style={{ fontSize:'9px', fontWeight:'700', color:'#94A3B8', letterSpacing:'.06em', textTransform:'uppercase', textAlign:i===0?'left':'right' }}>{h}</div>
+          ))}
+        </div>
+        {rows.map((r, i) => {
+          const barPct = Math.min(100, Math.abs(r.totalR||0) / maxR * 100)
+          const rCol = (r.totalR||0) >= 0 ? '#10B981' : '#EF4444'
+          return (
+            <div key={r.label} style={{ display:'grid', gridTemplateColumns:G, padding:'9px 0', borderBottom: i<rows.length-1?'1px solid #F8FAFC':'none', transition:'background .1s', margin:'0 -18px', padding:'9px 18px' }}
+              onMouseEnter={e=>e.currentTarget.style.background='#F8FAFC'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <div style={{ fontWeight:'600', color:'#334155', fontSize:'12px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', paddingRight:'6px' }} title={r.label}>{r.label}</div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", color:'#64748B', fontSize:'11px' }}>{r.n}</div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color: r.winRate>=.5?'#10B981':'#EF4444' }}>{fP(r.winRate)}</div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#10B981', fontWeight:'500' }}>{r.wins||0}</div>
+              <div style={{ display:'flex', alignItems:'center', gap:'4px', justifyContent:'flex-end' }}>
+                <div style={{ width:'28px', height:'3px', background:'#F1F5F9', borderRadius:'2px', overflow:'hidden', flexShrink:0 }}>
+                  <div style={{ width:barPct+'%', height:'100%', background:rCol, borderRadius:'2px' }} />
+                </div>
+                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'700', color:rCol, minWidth:'30px', textAlign:'right' }}>{f1(r.totalR||0)}</span>
+              </div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color:(r.expectancy||0)>0?'#10B981':'#EF4444' }}>{r.expectancy?f2(r.expectancy):'—'}</div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+
+export default function Analysis({ trades }) {
+  // Best combos
+  const combos = useMemo(() => {
+    const map = {}
+    trades.forEach(t => {
+      if (!t.level && !t.setup) return
+      const lvl  = t.level || t.setup || ''
+      const sess = (t.session||'').replace(' (02:00–05:00)','').replace(' (06:00–10:00)','')
+      const dir  = t.direction || ''
+      if (!dir) return
+      const key = [lvl, sess, dir].filter(Boolean).join(' · ')
+      if (!map[key]) map[key] = []
+      map[key].push(t)
+    })
+    return Object.entries(map)
+      .map(([key, ts]) => ({ key, ...computeStats(ts) }))
+      .filter(c => c.n >= 2)
+      .sort((a, b) => (b.expectancy||0) - (a.expectancy||0))
+      .slice(0, 8)
+  }, [trades])
+
+  // Time of day
+  const maxTimePL = useMemo(() =>
+    Math.max(...HOURS.map(h => Math.abs(trades.filter(t => t.time === h).reduce((s,t) => s+(t.pl||t.r_multiple||0),0))), 0.01),
+    [trades]
+  )
+
+  const isEmpty = trades.length === 0
+
+  return (
+    <div style={{ padding:'24px', maxWidth:'1100px', margin:'0 auto' }}>
+
+      {/* Page title */}
+      <div style={{ marginBottom:'28px' }}>
+        <h1 style={{ fontSize:'22px', fontWeight:'700', color:'#0F172A', letterSpacing:'-.03em', marginBottom:'3px' }}>Analysis</h1>
+        <p style={{ fontSize:'13px', color:'#94A3B8' }}>
+          {isEmpty ? 'Log trades to see performance breakdowns' : `${trades.length} trade${trades.length>1?'s':''} analysed`}
+        </p>
+      </div>
+
+      {isEmpty && (
+        <div style={{ padding:'48px', textAlign:'center', background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', color:'#94A3B8', fontSize:'14px' }}>
+          No trades logged yet. Start journalling to see your analysis.
+        </div>
+      )}
+
+      {!isEmpty && (
+        <>
+          {/* ── COMBO TABLE ── */}
+          <div style={{ marginBottom:'32px' }}>
+            <SectionHeader title="Best Setup Combinations" sub="Level · Session · Direction — sorted by expectancy · min 2 trades" />
+            <div style={{ background:'#FFFFFF', borderRadius:'20px', overflow:'hidden', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)' }}>
+              {combos.length === 0 ? (
+                <div style={{ padding:'32px', textAlign:'center', color:'#94A3B8', fontSize:'13px' }}>
+                  Need trades with Level + Session + Direction filled in (min. 2 per combination)
+                </div>
+              ) : (
+                <div>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'12px' }}>
+                    <thead>
+                      <tr style={{ background:'#F8FAFC' }}>
+                        {['#','Combination','Trades','Win %','Avg Win','Avg Loss','Exp/R','Total R'].map((h,i) => (
+                          <th key={i} style={{ padding:'10px 14px', textAlign: i<=1?'left':'right', fontSize:'10px', fontWeight:'600', color:'#94A3B8', letterSpacing:'.07em', textTransform:'uppercase', borderBottom:'1px solid #F1F5F9', whiteSpace:'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {combos.map((c,i) => (
+                        <tr key={c.key} style={{ borderBottom: i<combos.length-1?'1px solid #F8FAFC':'none', transition:'background .1s' }}
+                          onMouseEnter={e => e.currentTarget.style.background='#F8FAFC'}
+                          onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                          <td style={{ padding:'12px 14px', width:'36px' }}>
+                            {i === 0
+                              ? <span style={{ background:'#FEF9C3', color:'#854D0E', fontSize:'10px', fontWeight:'700', padding:'2px 7px', borderRadius:'6px' }}>🏆 #1</span>
+                              : <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#CBD5E1' }}>#{i+1}</span>
+                            }
+                          </td>
+                          <td style={{ padding:'12px 14px' }}>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color:'#334155' }}>{c.key}</span>
+                          </td>
+                          <td style={{ padding:'12px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", color:'#475569', fontSize:'12px' }}>{c.n}</td>
+                          <td style={{ padding:'12px 14px', textAlign:'right' }}>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'600', color: c.winRate>=.5?'#10B981':'#EF4444' }}>{fP(c.winRate)}</span>
+                          </td>
+                          <td style={{ padding:'12px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#10B981', fontWeight:'500' }}>{c.avgWin ? f2(c.avgWin) : '—'}</td>
+                          <td style={{ padding:'12px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#EF4444', fontWeight:'500' }}>{c.avgLoss ? f2(c.avgLoss) : '—'}</td>
+                          <td style={{ padding:'12px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color: (c.expectancy||0)>0?'#10B981':'#EF4444' }}>{c.expectancy ? f2(c.expectancy) : '—'}</td>
+                          <td style={{ padding:'12px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color: (c.totalR||0)>=0?'#10B981':'#EF4444' }}>{f2(c.totalR||0)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── BREAKDOWNS ── */}
+          <div style={{ marginBottom:'32px' }}>
+            <SectionHeader title="Breakdown by Category" sub="Only categories with at least one trade are shown" />
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))', gap:'14px' }}>
+              <BreakdownTable title="By Symbol"    k="symbol"    items={['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','Gold','Silver']} trades={trades} accent="#6366F1" />
+              <BreakdownTable title="By Key Level" k="level"     items={['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']} trades={trades} accent="#8B5CF6" />
+              <BreakdownTable title="By Direction" k="direction" items={['Long','Short']} trades={trades} accent="#10B981" />
+              <BreakdownTable title="By Session"   k="session"   items={['London (02:00–05:00)','New York AM (06:00–10:00)']} trades={trades} accent="#0EA5E9" />
+              <BreakdownTable title="By Day"       k="dow"       items={DOW} trades={trades} accent="#F59E0B" />
+              <BreakdownTable title="By Bias"      k="bias"      items={['Bullish','Bearish']} trades={trades} accent="#EF4444" />
+              <BreakdownTable title="By P/D Array" k="pd_array"  items={['Premium','Discount']} trades={trades} accent="#6366F1" />
+              <BreakdownTable title="By Entry TF"  k="entry_tf"  items={['5m','15m','30m']} trades={trades} accent="#10B981" />
+            </div>
+          </div>
+
+          {/* ── MAE / MFE ── */}
+          {trades.some(t => t.mae != null || t.mfe != null) && (
+            <div style={{ marginBottom:'32px' }}>
+              <SectionHeader title="MAE / MFE Analysis" sub="Most Adverse & Favourable Excursion in R — how far trades moved against/for you" />
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))', gap:'14px' }}>
+
+                {/* MAE summary */}
+                <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'16px' }}>
+                    <div style={{ width:'3px', height:'18px', borderRadius:'2px', background:'#EF4444' }} />
+                    <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>MAE — Max Against You</span>
+                  </div>
+                  {(() => {
+                    const wins = trades.filter(t => t.outcome==='Win' && t.mae!=null)
+                    const loss = trades.filter(t => t.outcome==='Loss' && t.mae!=null)
+                    const avgWinMAE = wins.length ? (wins.reduce((s,t)=>s+parseFloat(t.mae),0)/wins.length).toFixed(2) : null
+                    const avgLossMAE = loss.length ? (loss.reduce((s,t)=>s+parseFloat(t.mae),0)/loss.length).toFixed(2) : null
+                    return (
+                      <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                        {avgWinMAE && (
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'#F0FDF4', borderRadius:'10px', border:'1px solid #BBF7D0' }}>
+                            <span style={{ fontSize:'12px', color:'#065F46', fontWeight:'500' }}>Avg MAE on Winners</span>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#10B981' }}>{avgWinMAE}R</span>
+                          </div>
+                        )}
+                        {avgLossMAE && (
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'#FEF2F2', borderRadius:'10px', border:'1px solid #FECACA' }}>
+                            <span style={{ fontSize:'12px', color:'#7F1D1D', fontWeight:'500' }}>Avg MAE on Losers</span>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#EF4444' }}>{avgLossMAE}R</span>
+                          </div>
+                        )}
+                        <div style={{ fontSize:'11px', color:'#94A3B8', padding:'8px 12px', background:'#F8FAFC', borderRadius:'8px', lineHeight:'1.6' }}>
+                          {avgWinMAE && parseFloat(avgWinMAE) < 0.5 ? '✓ Winners barely move against you — stop placement is good' :
+                           avgWinMAE && parseFloat(avgWinMAE) > 1 ? '⚠ Winners going deep before turning — consider tighter stops' :
+                           'Keep tracking to build a meaningful sample'}
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* MFE summary */}
+                <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'16px' }}>
+                    <div style={{ width:'3px', height:'18px', borderRadius:'2px', background:'#10B981' }} />
+                    <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>MFE — Max In Your Favour</span>
+                  </div>
+                  {(() => {
+                    const wins = trades.filter(t => t.outcome==='Win' && t.mfe!=null)
+                    const loss = trades.filter(t => t.outcome==='Loss' && t.mfe!=null)
+                    const avgWinMFE = wins.length ? (wins.reduce((s,t)=>s+parseFloat(t.mfe),0)/wins.length).toFixed(2) : null
+                    const avgLossMFE = loss.length ? (loss.reduce((s,t)=>s+parseFloat(t.mfe),0)/loss.length).toFixed(2) : null
+                    const targetR = 2
+                    const earlyExits = wins.filter(t => t.mfe!=null && parseFloat(t.mfe) > targetR + 0.3)
+                    return (
+                      <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                        {avgWinMFE && (
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'#F0FDF4', borderRadius:'10px', border:'1px solid #BBF7D0' }}>
+                            <span style={{ fontSize:'12px', color:'#065F46', fontWeight:'500' }}>Avg MFE on Winners</span>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#10B981' }}>{avgWinMFE}R</span>
+                          </div>
+                        )}
+                        {avgLossMFE && (
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'#FEF2F2', borderRadius:'10px', border:'1px solid #FECACA' }}>
+                            <span style={{ fontSize:'12px', color:'#7F1D1D', fontWeight:'500' }}>Avg MFE on Losers</span>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#EF4444' }}>{avgLossMFE}R</span>
+                          </div>
+                        )}
+                        {earlyExits.length > 0 && (
+                          <div style={{ fontSize:'11px', color:'#92400E', padding:'8px 12px', background:'#FFFBEB', borderRadius:'8px', border:'1px solid #FDE68A', lineHeight:'1.6' }}>
+                            ⚠ {earlyExits.length} winner{earlyExits.length>1?'s':''} reached beyond 2.3R — consider trailing your stop
+                          </div>
+                        )}
+                        {!earlyExits.length && avgWinMFE && (
+                          <div style={{ fontSize:'11px', color:'#94A3B8', padding:'8px 12px', background:'#F8FAFC', borderRadius:'8px', lineHeight:'1.6' }}>
+                            {parseFloat(avgWinMFE) <= 2.3 ? '✓ Trades reaching target without much overshoot — 2R target is well calibrated' : 'Keep tracking to build a meaningful sample'}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── TIME HEATMAP ── */}
+          <div style={{ marginBottom:'20px' }}>
+            <SectionHeader title="Time of Day" sub="R performance by NY session hour · 02:00–10:00" />
+            <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)' }}>
+              <div style={{ display:'flex', gap:'10px', flexWrap:'wrap' }}>
+                {HOURS.map(h => {
+                  const ht  = trades.filter(t => t.time === h)
+                  const pl  = ht.reduce((s,t) => s+(t.pl||t.r_multiple||0), 0)
+                  const has = ht.length > 0
+                  const intensity = has ? Math.min(1, Math.abs(pl) / maxTimePL) : 0
+                  const bg  = !has ? '#F8FAFC' : pl > 0 ? `rgba(16,185,129,${.1+intensity*.5})` : `rgba(239,68,68,${.1+intensity*.5})`
+                  const tc  = !has ? '#CBD5E1' : pl > 0 ? (intensity>.5?'#FFFFFF':'#065F46') : (intensity>.5?'#FFFFFF':'#7F1D1D')
+                  const border = !has ? '#F1F5F9' : pl > 0 ? '#BBF7D0' : '#FECACA'
+                  return (
+                    <div key={h} style={{ background:bg, borderRadius:'14px', padding:'12px 14px', minWidth:'72px', textAlign:'center', border:`1.5px solid ${border}`, transition:'transform .15s', cursor:'default', flex:'1' }}
+                      onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'}
+                      onMouseLeave={e => e.currentTarget.style.transform=''}>
+                      <div style={{ fontSize:'10px', fontWeight:'600', color:'#94A3B8', marginBottom:'5px', letterSpacing:'.05em' }}>{h}</div>
+                      <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:tc, lineHeight:1, marginBottom:'4px' }}>{has ? f1(pl) : '—'}</div>
+                      <div style={{ fontSize:'10px', color:'#94A3B8' }}>{ht.length}t</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      <div style={{ height:'20px' }} />
+    </div>
   )
 }

@@ -1,80 +1,62 @@
-// api/news.js - Fetches top headlines from RSS feeds, returns ~5 per source
+// api/rates.js — Central bank interest rates via multiple free sources
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=1800')
+  res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=7200') // cache 1hr
 
-  const FEEDS = [
-    { name: 'ForexLive',       url: 'https://www.forexlive.com/feed/news',          icon: '📡', color: '#0EA5E9' },
-    { name: 'FXStreet',        url: 'https://www.fxstreet.com/rss/news',            icon: '📰', color: '#7C3AED' },
-    { name: 'Reuters Markets', url: 'https://feeds.reuters.com/reuters/businessNews',icon: '📊', color: '#DC2626' },
-    { name: 'ZeroHedge',       url: 'https://feeds.feedburner.com/zerohedge/feed',  icon: '⚡', color: '#D97706' },
-    { name: 'Investing.com',   url: 'https://www.investing.com/rss/news.rss',       icon: '💹', color: '#059669' },
+  const BANKS = [
+    { id: 'fed',   name: 'Federal Reserve',  currency: 'USD', flag: '🇺🇸', color: '#1D4ED8' },
+    { id: 'boe',   name: 'Bank of England',  currency: 'GBP', flag: '🇬🇧', color: '#7C3AED' },
+    { id: 'ecb',   name: 'European CB',      currency: 'EUR', flag: '🇪🇺', color: '#065F46' },
+    { id: 'boj',   name: 'Bank of Japan',    currency: 'JPY', flag: '🇯🇵', color: '#B45309' },
+    { id: 'snb',   name: 'Swiss Natl Bank',  currency: 'CHF', flag: '🇨🇭', color: '#DC2626' },
+    { id: 'rba',   name: 'Reserve Bank AU',  currency: 'AUD', flag: '🇦🇺', color: '#D97706' },
+    { id: 'rbnz',  name: 'Reserve Bank NZ',  currency: 'NZD', flag: '🇳🇿', color: '#059669' },
+    { id: 'boc',   name: 'Bank of Canada',   currency: 'CAD', flag: '🇨🇦', color: '#DC2626' },
   ]
 
-  const results = await Promise.allSettled(FEEDS.map(f => fetchFeed(f)))
-  let all = []
-  results.forEach(r => { if (r.status === 'fulfilled') all = all.concat(r.value) })
-  all.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-
-  // Return top 15 overall — just the key headlines
-  return res.status(200).json({
-    ok: true,
-    articles: all.slice(0, 15),
-    fetched_at: new Date().toISOString(),
-    sources: FEEDS.map((f, i) => ({
-      name: f.name,
-      ok: results[i].status === 'fulfilled',
-      count: results[i].status === 'fulfilled' ? results[i].value.length : 0,
-    }))
-  })
-}
-
-async function fetchFeed(feed) {
-  try {
-    const r = await fetch(feed.url, {
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/rss+xml,*/*' },
-      signal: AbortSignal.timeout(6000),
-    })
-    if (!r.ok) return []
-    const xml = await r.text()
-    return parseRSS(xml, feed).slice(0, 3) // max 3 per source
-  } catch { return [] }
-}
-
-function parseRSS(xml, feed) {
-  const items = []
-  const re = /<item[^>]*>([\s\S]*?)<\/item>/gi
-  let m
-  while ((m = re.exec(xml)) !== null) {
-    const item = m[1]
-    const title   = clean(extract(item, 'title'))
-    const link    = clean(extract(item, 'link'))
-    const pubDate = extract(item, 'pubDate') || extract(item, 'dc:date')
-    const desc    = clean(extract(item, 'description') || extract(item, 'summary'))
-    if (!title || !link) continue
-    items.push({
-      id:      `${feed.name}-${Buffer.from(link).toString('base64').slice(0,12)}`,
-      title,
-      link:    link.replace(/<!\[CDATA\[|\]\]>/g, '').trim(),
-      pubDate: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
-      desc:    desc ? desc.slice(0, 200) : '',
-      source:  feed.name,
-      icon:    feed.icon,
-      color:   feed.color,
-    })
+  // Trading Economics countries for each bank
+  const TE_COUNTRIES = {
+    fed:  'united-states',
+    boe:  'united-kingdom',
+    ecb:  'euro-area',
+    boj:  'japan',
+    snb:  'switzerland',
+    rba:  'australia',
+    rbnz: 'new-zealand',
+    boc:  'canada',
   }
-  return items
-}
 
-function extract(xml, tag) {
-  const patterns = [
-    new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>`, 'i'),
-    new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'),
-  ]
-  for (const p of patterns) { const m = xml.match(p); if (m && m[1].trim()) return m[1].trim() }
-  return ''
-}
+  async function fetchRate(bankId) {
+    const country = TE_COUNTRIES[bankId]
+    const url = `https://api.tradingeconomics.com/country/indicator/${country}/interest-rate?c=guest:guest`
+    try {
+      const r = await fetch(url, {
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(8000)
+      })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const data = await r.json()
+      if (!Array.isArray(data) || !data[0]) throw new Error('No data')
+      const d = data[0]
+      return {
+        rate:     d.Value ?? d.LastValue ?? null,
+        previous: d.PreviousValue ?? null,
+        date:     d.LastUpdate ?? d.DateTime ?? null,
+        unit:     d.Unit ?? '%',
+      }
+    } catch(e) {
+      return { rate: null, previous: null, date: null, error: e.message }
+    }
+  }
 
-function clean(s) {
-  return s.replace(/<[^>]+>/g, '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&nbsp;/g,' ').replace(/<!\[CDATA\[|\]\]>/g,'').trim()
+  try {
+    const results = await Promise.allSettled(BANKS.map(b => fetchRate(b.id)))
+    const rates = BANKS.map((bank, i) => ({
+      ...bank,
+      ...(results[i].status === 'fulfilled' ? results[i].value : { rate: null, error: 'Failed' })
+    }))
+    return res.status(200).json({ ok: true, rates, fetched_at: new Date().toISOString() })
+  } catch(e) {
+    return res.status(200).json({ ok: false, rates: [], error: e.message })
+  }
 }

@@ -1,175 +1,243 @@
-import React from 'react'
-import { useEconomicCalendar, currencyFlag, formatFFTime } from '../lib/useEconomicCalendar'
+import { useState } from 'react'
+import { computeStats, f2, f1 } from '../lib/stats'
+import DailyJournal from './DailyJournal'
 
-const CCY_COLORS = {
-  USD: { text:'#1D4ED8', bg:'#DBEAFE' },
-  GBP: { text:'#6D28D9', bg:'#EDE9FE' },
-  EUR: { text:'#065F46', bg:'#D1FAE5' },
+
+// Get Mon-Sun week containing a given date string
+function getWeekRange(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00')
+  const dow = d.getDay() // 0=Sun
+  const mon = new Date(d); mon.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1))
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+  const fmt = dt => dt.toISOString().split('T')[0]
+  return { mon: fmt(mon), sun: fmt(sun) }
 }
 
-function getWeekDays() {
-  const now = new Date()
-  const dow = now.getDay()
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1))
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    const y = d.getFullYear()
-    const m = String(d.getMonth()+1).padStart(2,'0')
-    const dd = String(d.getDate()).padStart(2,'0')
-    return {
-      dateStr:   `${y}-${m}-${dd}`,
-      dayName:   d.toLocaleDateString('en-US', { weekday:'short' }),
-      dayNum:    d.getDate(),
-      month:     d.toLocaleDateString('en-US', { month:'short' }),
-      isWeekend: d.getDay()===0 || d.getDay()===6,
-    }
+function getWeekR(trades, sundayDateStr) {
+  const { mon, sun } = getWeekRange(sundayDateStr)
+  return trades
+    .filter(t => t.date >= mon && t.date <= sun)
+    .reduce((s, t) => s + (t.pl || t.r_multiple || 0), 0)
+}
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+
+export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast }) {
+  const today      = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
+  const [month, setMonth] = useState(new Date().getMonth())
+  const [year,  setYear]  = useState(Math.max(2026, new Date().getFullYear()))
+  const [selectedDate, setSelectedDate] = useState(null)
+
+  const moTrades = trades.filter(t => {
+    const d = new Date(t.date)
+    return d.getFullYear() === year && d.getMonth() === month
   })
-}
 
-export default function EconomicCalendar() {
-  const [refreshKey, setRefreshKey] = React.useState(0)
-  const { events, loading, error, fetchedAt, eventsForDate } = useEconomicCalendar()
-  const today    = new Date().toISOString().split('T')[0]
-  const weekDays = getWeekDays()
-  const usd = events.filter(e=>e.country==='USD').length
-  const gbp = events.filter(e=>e.country==='GBP').length
-  const eur = events.filter(e=>e.country==='EUR').length
+  // Build day map
+  const dayMap = {}
+  moTrades.forEach(t => {
+    const d = t.date
+    if (!dayMap[d]) dayMap[d] = { trades:[], pl:0 }
+    dayMap[d].trades.push(t)
+    dayMap[d].pl += (t.pl||0)
+  })
+
+  const noteMap = {}
+  ;(dailyNotes||[]).forEach(n => { noteMap[n.date] = n })
+
+  const firstDow   = (new Date(year, month, 1).getDay() + 6) % 7
+  const daysInMonth = new Date(year, month+1, 0).getDate()
+  const totalCells = Math.ceil((firstDow + daysInMonth) / 7) * 7
+
+  function toDateStr(day) {
+    return `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+  }
+
+  function dayClass(day) {
+    const dow = (firstDow + day - 1) % 7
+    const ds  = toDateStr(day)
+    const isToday = ds === today
+    if (dow >= 5 && !isToday) return 'weekend'
+    const d = dayMap[ds]
+    const hasNote = !!noteMap[ds]
+    if (!d?.trades.length) {
+      if (hasNote) return 'note-only'
+      if (isToday) return 'today-empty'
+      return 'no-trade'
+    }
+    // Today always returns a 'today-*' class so it stays blue
+    if (isToday) return d.pl > 0 ? 'today-win' : d.pl < 0 ? 'today-loss' : 'today-be'
+    return d.pl > 0 ? 'win' : d.pl < 0 ? 'loss' : 'be'
+  }
+
+  const cellStyle = {
+    win:          { bg:'var(--green-bg)', border:'var(--green-dim)' },
+    loss:         { bg:'var(--red-bg)',   border:'var(--red-dim)'   },
+    be:           { bg:'var(--amber-bg)', border:'var(--amber-dim)' },
+    'no-trade':   { bg:'var(--surface)',  border:'var(--border)'    },
+    'today-empty':{ bg:'var(--blue-bg)',  border:'var(--blue)'      },
+    'today-win':  { bg:'var(--blue-bg)',  border:'var(--blue)'      },
+    'today-loss': { bg:'var(--blue-bg)',  border:'var(--blue)'      },
+    'today-be':   { bg:'var(--blue-bg)',  border:'var(--blue)'      },
+    'note-only':  { bg:'var(--surface)',   border:'var(--border)'    },
+    weekend:      { bg:'var(--surface2)', border:'var(--border)'    },
+  }
+  const numCol = {
+    win:'var(--green)', loss:'var(--red)', be:'var(--amber)',
+    'no-trade':'var(--muted)', 'today-empty':'var(--blue)', 'today-win':'var(--blue)', 'today-loss':'var(--blue)', 'today-be':'var(--blue)', 'note-only':'var(--muted2)', weekend:'var(--muted2)'
+  }
+
+  // Month stats
+  const ms = computeStats(moTrades)
+  const mPL = moTrades.reduce((s,t) => s + (t.pl||t.r_multiple||0), 0)
+
+  // If a date is selected, show the DailyJournal for that date
+  if (selectedDate) {
+    return (
+      <div>
+        {/* Back button */}
+        <div style={{ padding:'12px 28px 0', display:'flex', alignItems:'center', gap:'10px', background:'var(--surface)', borderBottom:'1px solid var(--border)', marginBottom:'0' }}>
+          <button className="btn btn-ghost btn-sm" onClick={() => setSelectedDate(null)}
+            style={{ display:'flex', alignItems:'center', gap:'5px', color:'var(--muted)' }}>
+            ← Calendar
+          </button>
+          <span style={{ fontSize:'12px', color:'var(--muted)' }}>
+            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' })}
+          </span>
+        </div>
+        <DailyJournal
+          trades={trades}
+          dailyNotes={dailyNotes}
+          onSaveNote={onSaveNote}
+          onDeleteNote={onDeleteNote}
+          onAddTrade={onAddTrade}
+          onDeleteTrade={onDeleteTrade}
+          toast={toast}
+          dateStr={selectedDate}
+          isWeekly={new Date(selectedDate + 'T12:00:00').getDay() === 0}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="page active">
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'14px', flexWrap:'wrap', gap:'10px' }}>
-        <div>
-          <h1 style={{ fontSize:'18px', fontWeight:'800', color:'var(--text)' }}>Economic Calendar</h1>
-        </div>
-        <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
-          {fetchedAt && <span style={{ fontSize:'10px', color:'var(--muted2)' }}>Updated {fetchedAt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>}
-          <button className="btn btn-icon btn-ghost" onClick={() => { try { for(let i=1;i<=15;i++) sessionStorage.removeItem('tt26_econ_v'+i) } catch(e){} window.location.reload() }} title="Refresh">↻</button>
+      <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'16px', flexWrap:'wrap' }}>
+        <div style={{ fontSize:'18px', fontWeight:'600', color:'var(--text)', flex:1, letterSpacing:'-.02em' }}>{MONTHS[month]} {year}</div>
+        <button onClick={() => { if(month===0){setMonth(11);setYear(y=>y-1)}else setMonth(m=>m-1) }} style={{ width:'32px', height:'32px', borderRadius:'var(--r-xs)', border:'1px solid var(--border)', background:'var(--surface)', cursor:'pointer', fontSize:'16px', display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
+        <button onClick={() => { if(month===11){setMonth(0);setYear(y=>y+1)}else setMonth(m=>m+1) }} style={{ width:'32px', height:'32px', borderRadius:'var(--r-xs)', border:'1px solid var(--border)', background:'var(--surface)', cursor:'pointer', fontSize:'16px', display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
+        <select value={month} onChange={e => setMonth(+e.target.value)} style={{ padding:'6px 10px', borderRadius:'var(--r-xs)', border:'1px solid var(--border)', background:'var(--surface)', fontSize:'12px', fontWeight:'500', color:'var(--text)', fontFamily:'inherit', outline:'none', cursor:'pointer' }}>
+          {MONTHS.map((m,i) => <option key={i} value={i}>{m}</option>)}
+        </select>
+        <div style={{ display:'flex', alignItems:'center', gap:'0', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-xs)', overflow:'hidden' }}>
+          <button onClick={() => setYear(y => y - 1)}
+            style={{ width:'28px', height:'32px', border:'none', background:'transparent', cursor:'pointer', fontSize:'14px', color:'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center', transition:'background .1s' }}
+            onMouseEnter={e => e.currentTarget.style.background='var(--surface2)'}
+            onMouseLeave={e => e.currentTarget.style.background='transparent'}>‹</button>
+          <span style={{ padding:'0 10px', fontSize:'12px', fontWeight:'600', color:'var(--text)', minWidth:'36px', textAlign:'center', userSelect:'none' }}>{year}</span>
+          <button onClick={() => setYear(y => y + 1)}
+            style={{ width:'28px', height:'32px', border:'none', background:'transparent', cursor:'pointer', fontSize:'14px', color:'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center', transition:'background .1s' }}
+            onMouseEnter={e => e.currentTarget.style.background='var(--surface2)'}
+            onMouseLeave={e => e.currentTarget.style.background='transparent'}>›</button>
         </div>
       </div>
 
-      {/* ICT rule */}
-
-
-      {loading && (
-        <div style={{ textAlign:'center', padding:'48px', color:'var(--muted)' }}>
-          <div style={{ width:'28px', height:'28px', border:'3px solid var(--border)', borderTop:'3px solid var(--blue)', borderRadius:'50%', animation:'spin 1s linear infinite', margin:'0 auto 12px' }} />
-          <div style={{ fontSize:'13px', fontWeight:'600' }}>Loading calendar...</div>
-        </div>
-      )}
-
-      {!loading && error && (
-        <div style={{ padding:'12px 14px', background:'var(--red-bg)', border:'1px solid var(--red-dim)', borderRadius:'var(--r)', color:'var(--red)', fontSize:'13px', fontWeight:'600' }}>
-          ⚠️ {error} — <button onClick={()=>{ sessionStorage.removeItem('tt26_econ_v11'); window.location.reload() }} style={{ color:'var(--blue)', background:'none', border:'none', cursor:'pointer', fontWeight:'700', fontFamily:'inherit', fontSize:'13px' }}>Retry</button>
-        </div>
-      )}
-
-      {!loading && (
-        <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
-          {/* Column headers */}
-          <div style={{ display:'grid', gridTemplateColumns:'100px 75px 75px 28px 1fr 85px 85px 85px', background:'var(--surface2)', borderBottom:'2px solid var(--border2)' }}>
-            {['Date','Time (EST)','Currency','','Event','Actual','Forecast','Previous'].map((h,i)=>(
-              <div key={i} style={{ padding:'8px 10px', fontSize:'10px', fontWeight:'800', color:'var(--muted)', letterSpacing:'.07em', textTransform:'uppercase', textAlign:i>=5?'center':'left' }}>{h}</div>
-            ))}
+      {/* Month KPIs */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(100px,1fr))', gap:'8px', marginBottom:'16px' }}>
+        {[
+          { l:'Trades',   v:ms.n,                    c:'var(--text)' },
+          { l:'Total R',  v: f2(mPL), c: mPL>=0?'var(--green)':'var(--red)' },
+          { l:'Win Rate', v:`${(ms.winRate*100).toFixed(0)}%`, c: ms.winRate>=.5?'var(--green)':'var(--red)' },
+          { l:'Wins',     v:ms.wins,                 c:'var(--green)' },
+          { l:'Losses',   v:ms.losses,               c: ms.losses>0?'var(--red)':'var(--text)' },
+          
+        ].map((k,i) => (
+          <div key={i} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r-sm)', padding:'10px 13px', boxShadow:'var(--shadow)' }}>
+            <div style={{ fontSize:'9px', fontWeight:'600', color:'var(--muted)', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'3px' }}>{k.l}</div>
+            <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'16px', fontWeight:'600', color:k.c }}>{k.v}</div>
           </div>
+        ))}
+      </div>
 
-          {weekDays.map((day, di) => {
-            const dayEvents  = eventsForDate(day.dateStr)
-            const isToday    = day.dateStr === today
-            const rowBg      = isToday ? 'rgba(251,191,36,.05)' : day.isWeekend ? 'var(--surface2)' : 'var(--surface)'
-            const accentBdr  = isToday ? '3px solid var(--amber)' : 'none'
+      {/* DOW headers */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px', marginBottom:'4px' }}>
+        {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d,i) => (
+          <div key={d} style={{ textAlign:'center', fontSize:'10px', fontWeight:'600', color: i>=5?'var(--muted2)':'var(--muted)', padding:'4px 0', letterSpacing:'.04em' }}>{d}</div>
+        ))}
+      </div>
 
-            return (
-              <div key={day.dateStr} style={{ borderLeft: accentBdr, borderBottom: di<6 ? '1px solid var(--border)' : 'none' }}>
-                {dayEvents.length === 0 ? (
-                  <div style={{ display:'grid', gridTemplateColumns:'100px 75px 75px 28px 1fr 85px 85px 85px', alignItems:'center', minHeight:'40px', background:rowBg, opacity:day.isWeekend?.6:1 }}>
-                    <div style={{ padding:'8px 10px' }}>
-                      <div style={{ fontSize:'12px', fontWeight:'800', color:isToday?'var(--amber)':day.isWeekend?'var(--muted2)':'var(--text2)' }}>{day.dayName}</div>
-                      <div style={{ fontSize:'10px', color:'var(--muted2)', fontWeight:'600' }}>{day.month} {day.dayNum}</div>
-                      {isToday && <div style={{ fontSize:'9px', fontWeight:'800', color:'var(--amber)', letterSpacing:'.04em' }}>TODAY</div>}
-                    </div>
-                    <div style={{ padding:'8px 10px', gridColumn:'2/-1', fontSize:'12px', color:'var(--muted2)', fontStyle:'italic' }}>
-                      {!day.isWeekend && 'No high-impact events'}
-                    </div>
+      {/* Grid */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px' }}>
+        {Array.from({ length: totalCells }, (_, i) => {
+          const day = i - firstDow + 1
+          if (day < 1 || day > daysInMonth) return <div key={i} style={{ minHeight:'78px' }} />
+          const ds  = toDateStr(day)
+          const cls = dayClass(day)
+          const cs  = cellStyle[cls]
+          const d   = dayMap[ds]
+          const isToday = ds === today
+          const dow2 = (firstDow + day - 1) % 7
+          const isSundayCell = dow2 === 6
+          const hasWeeklyNote = isSundayCell && !!noteMap[ds]
+          const hasNote = !!noteMap[ds]
+          const pl  = d ? (d.trades.reduce((s,t) => s+(t.pl||t.r_multiple||0), 0)) : 0
+          const cnt = d?.trades.length || 0
+
+          return (
+            <div key={i} onClick={() => setSelectedDate(ds)}
+              style={{ background: isSundayCell ? 'var(--purple-bg)' : cs.bg, border:`1.5px solid ${isSundayCell ? 'var(--purple-dim)' : cs.border}`, borderRadius:'var(--r-sm)', minHeight:'78px', padding:'7px', display:'flex', flexDirection:'column', gap:'2px', cursor:'pointer', transition:'all .15s', position:'relative', opacity: cls==='weekend'?.55:1 }}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow='var(--shadow-md)'; e.currentTarget.style.transform='translateY(-1px)' }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow=''; e.currentTarget.style.transform='' }}>
+
+              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
+                <div>
+                  <span style={{ fontSize:'11px', fontWeight:'600', color: numCol[cls] }}>{day}</span>
+                  {isToday && <div style={{ fontSize:'8px', fontWeight:'700', color:'var(--blue)', letterSpacing:'.04em' }}>TODAY</div>}
+                </div>
+                {(hasNote && !isSundayCell) && (
+                  <div style={{ width:'20px', height:'20px', borderRadius:'6px', background:'#6366F1', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 1px 4px rgba(99,102,241,.35)' }}>
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8.5 1.5L10.5 3.5L4 10H2V8L8.5 1.5Z" fill="white" fillOpacity="0.9"/>
+                      <path d="M7 3L9 5" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.6"/>
+                    </svg>
                   </div>
-                ) : (
-                  dayEvents.map((e, ei) => {
-                    const colors   = CCY_COLORS[e.country] || { text:'var(--muted)', bg:'var(--surface2)' }
-                    const hasActual = e.actual && e.actual.trim() !== ''
-                    const time     = formatFFTime(e.time)
-                    const isHoliday = e.isHoliday
-
-                    return (
-                      <div key={ei}
-                        style={{ display:'grid', gridTemplateColumns:'100px 75px 75px 28px 1fr 85px 85px 85px', alignItems:'center', minHeight:'44px', background:isToday?'rgba(251,191,36,.04)':ei%2===0?rowBg:'var(--surface2)', borderTop:ei>0?'1px solid var(--border)':'none', transition:'background .1s', cursor:'default' }}
-                        onMouseEnter={e2=>e2.currentTarget.style.background='var(--blue-bg)'}
-                        onMouseLeave={e2=>e2.currentTarget.style.background=isToday?'rgba(251,191,36,.04)':ei%2===0?rowBg:'var(--surface2)'}>
-
-                        {/* Date */}
-                        <div style={{ padding:'8px 10px' }}>
-                          {ei===0 ? (
-                            <div>
-                              <div style={{ fontSize:'12px', fontWeight:'800', color:isToday?'var(--amber)':'var(--text2)' }}>{day.dayName}</div>
-                              <div style={{ fontSize:'10px', color:'var(--muted)', fontWeight:'600' }}>{day.month} {day.dayNum}</div>
-                              {isToday && <div style={{ fontSize:'9px', fontWeight:'800', color:'var(--amber)', letterSpacing:'.04em', marginTop:'1px' }}>TODAY</div>}
-                            </div>
-                          ) : <div style={{ borderLeft:'2px solid var(--border)', height:'22px', marginLeft:'16px' }} />}
-                        </div>
-
-                        {/* Time */}
-                        <div style={{ padding:'8px 10px', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color:isHoliday?'var(--muted2)':'var(--muted)' }}>
-                          {isHoliday ? 'All Day' : time}
-                        </div>
-
-                        {/* Currency */}
-                        <div style={{ padding:'8px 10px' }}>
-                          <div style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'2px 6px', borderRadius:'4px', background:colors.bg }}>
-                            <span style={{ fontSize:'10px' }}>{currencyFlag(e.country)}</span>
-                            <span style={{ fontSize:'10px', fontWeight:'800', color:colors.text }}>{e.country}</span>
-                          </div>
-                        </div>
-
-                        {/* Impact icon */}
-                        <div style={{ padding:'0 6px', display:'flex', justifyContent:'center' }}>
-                          {isHoliday
-                            ? <span style={{ fontSize:'13px' }} title="Bank Holiday">🏦</span>
-                            : <div style={{ width:'11px', height:'11px', background:'var(--red)', borderRadius:'2px' }} title="High impact" />}
-                        </div>
-
-                        {/* Event */}
-                        <div style={{ padding:'8px 10px', display:'flex', alignItems:'center', gap:'6px' }}>
-                          <span style={{ fontSize:'13px', fontWeight:'600', color:isHoliday?'var(--muted)':'var(--text)', fontStyle:isHoliday?'italic':'normal' }}>{e.title}</span>
-                        </div>
-
-                        {/* Actual */}
-                        <div style={{ padding:'8px 10px', textAlign:'center' }}>
-                          {hasActual ? <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color:'var(--green)' }}>{e.actual}</span>
-                            : <span style={{ color:'var(--muted2)', fontSize:'12px' }}>—</span>}
-                        </div>
-
-                        {/* Forecast */}
-                        <div style={{ padding:'8px 10px', textAlign:'center' }}>
-                          <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--text2)' }}>{e.forecast||'—'}</span>
-                        </div>
-
-                        {/* Previous */}
-                        <div style={{ padding:'8px 10px', textAlign:'center' }}>
-                          <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--muted)' }}>{e.previous||'—'}</span>
-                        </div>
-                      </div>
-                    )
-                  })
+                )}
+                {hasWeeklyNote && (
+                  <div style={{ width:'20px', height:'20px', borderRadius:'6px', background:'#6366F1', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 1px 4px rgba(99,102,241,.35)' }}>
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8.5 1.5L10.5 3.5L4 10H2V8L8.5 1.5Z" fill="white" fillOpacity="0.9"/>
+                      <path d="M7 3L9 5" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.6"/>
+                    </svg>
+                  </div>
                 )}
               </div>
-            )
-          })}
-        </div>
-      )}
 
-      <div style={{ textAlign:'center', marginTop:'10px', fontSize:'10px', color:'var(--muted2)' }}>
-        Data from <a href="https://www.forexfactory.com/calendar" target="_blank" rel="noopener noreferrer" style={{ color:'var(--blue)', textDecoration:'none', fontWeight:'600' }}>ForexFactory.com</a> · Updates hourly · Scroll right on mobile
+              {cnt > 0 && <>
+                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'13px', fontWeight:'600', color:numCol[cls], marginTop:'auto', lineHeight:1.2 }}>
+                  {f2(pl)}
+                </span>
+                <span style={{ fontSize:'9px', color:numCol[cls], opacity:.8 }}>{cnt} trade{cnt>1?'s':''}</span>
+                <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background: cls==='win'?'var(--green-dim)':cls==='loss'?'var(--red-dim)':'var(--amber-dim)', color: cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--amber)' }}>
+                  {pl>0?'WIN':pl<0?'LOSS':'BE'}
+                </span>
+              </>}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Legend */}
+      <div style={{ display:'flex', gap:'10px', marginTop:'12px', flexWrap:'wrap', alignItems:'center' }}>
+        {[['var(--green-bg)','var(--green-dim)','Win'],['var(--red-bg)','var(--red-dim)','Loss'],['var(--surface)','var(--border)','No trades'],['var(--blue-bg)','var(--blue)','Today']].map(([bg,bc,l]) => (
+          <div key={l} style={{ display:'flex', alignItems:'center', gap:'5px', fontSize:'11px', color:'var(--muted)' }}>
+            <span style={{ width:'10px', height:'10px', borderRadius:'2px', background:bg, border:`1.5px solid ${bc}`, display:'inline-block' }} />{l}
+          </div>
+        ))}
+        <div style={{ display:'flex', alignItems:'center', gap:'5px', fontSize:'11px', color:'var(--muted)' }}>
+          <span style={{ width:'7px', height:'7px', borderRadius:'50%', background:'var(--purple)', display:'inline-block' }} />Weekly review saved
+        </div>
+        <div style={{ marginLeft:'auto', fontSize:'10px', color:'var(--muted2)' }}>Click any day to open</div>
       </div>
     </div>
   )

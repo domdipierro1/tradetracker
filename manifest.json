@@ -1,15 +1,20 @@
-{
-  "short_name": "TradeTracker",
-  "name": "TradeTracker",
-  "icons": [
-    { "src": "favicon.ico",           "sizes": "64x64 32x32 16x16", "type": "image/x-icon" },
-    { "src": "apple-touch-icon.png",  "sizes": "192x192",           "type": "image/png"    },
-    { "src": "logo512.png",           "sizes": "512x512",           "type": "image/png", "purpose": "any maskable" }
-  ],
-  "start_url": "/",
-  "display": "standalone",
-  "theme_color": "#2563EB",
-  "background_color": "#F1F4F9",
-  "orientation": "portrait-primary",
-  "description": "Professional ICT/SMC trading journal"
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#2563EB" />
+<meta name="description" content="TradeTracker — Professional ICT/SMC Trading Journal" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="TradeTracker" />
+<link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+<link rel="icon" type="image/x-icon" href="%PUBLIC_URL%/favicon.ico" />
+<link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png" />
+<title>TradeTracker</title>
+</head>
+<body>
+<noscript>You need to enable JavaScript to run this app.</noscript>
+<div id="root"></div>
+</body>
+</html>

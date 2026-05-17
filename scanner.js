@@ -1,78 +1,60 @@
-// api/scanner.js
-// Fetches PDH, PDL and current price for all 24 instruments from Yahoo Finance
-// Called server-side to avoid CORS issues
-
+// api/macro.js — Central bank rates + CPI inflation via Trading Economics free guest API
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=300') // 2 min cache
+  res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=7200')
 
-  const SYMBOLS = [
-    { sym: 'AUD/USD', yf: 'AUDUSD=X', dp: 5 },
-    { sym: 'EUR/USD', yf: 'EURUSD=X', dp: 5 },
-    { sym: 'GBP/USD', yf: 'GBPUSD=X', dp: 5 },
-    { sym: 'NZD/USD', yf: 'NZDUSD=X', dp: 5 },
-    { sym: 'USD/CAD', yf: 'USDCAD=X', dp: 5 },
-    { sym: 'USD/CHF', yf: 'USDCHF=X', dp: 5 },
-    { sym: 'USD/JPY', yf: 'USDJPY=X', dp: 3 },
-    { sym: 'NQ',      yf: 'NQ=F',     dp: 2 },
-    { sym: 'ES',      yf: 'ES=F',     dp: 2 },
-    { sym: 'Gold',    yf: 'GC=F',     dp: 2 },
-    { sym: 'Silver',  yf: 'SI=F',     dp: 3 },
+  const BANKS = [
+    { id: 'fed',  name: 'Federal Reserve',  currency: 'USD', flag: '🇺🇸', country: 'united-states',  color: '#1D4ED8' },
+    { id: 'boe',  name: 'Bank of England',  currency: 'GBP', flag: '🇬🇧', country: 'united-kingdom', color: '#7C3AED' },
+    { id: 'ecb',  name: 'European CB',      currency: 'EUR', flag: '🇪🇺', country: 'euro-area',       color: '#065F46' },
+    { id: 'boj',  name: 'Bank of Japan',    currency: 'JPY', flag: '🇯🇵', country: 'japan',           color: '#B45309' },
+    { id: 'snb',  name: 'Swiss Natl Bank',  currency: 'CHF', flag: '🇨🇭', country: 'switzerland',    color: '#DC2626' },
+    { id: 'rba',  name: 'Reserve Bank AU',  currency: 'AUD', flag: '🇦🇺', country: 'australia',      color: '#D97706' },
+    { id: 'rbnz', name: 'Reserve Bank NZ',  currency: 'NZD', flag: '🇳🇿', country: 'new-zealand',    color: '#059669' },
+    { id: 'boc',  name: 'Bank of Canada',   currency: 'CAD', flag: '🇨🇦', country: 'canada',         color: '#EF4444' },
   ]
 
-  async function fetchOne(symbol) {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol.yf}?interval=1d&range=5d`
-    try {
-      const r = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'application/json',
-        },
-        signal: AbortSignal.timeout(8000),
-      })
-      if (!r.ok) return { ...symbol, ok: false, error: `HTTP ${r.status}` }
-      const json = await r.json()
-      const result = json?.chart?.result?.[0]
-      if (!result) return { ...symbol, ok: false, error: 'No result' }
+  const GK = 'guest:guest'
 
-      const quotes = result.indicators?.quote?.[0]
-      const highs  = quotes?.high  || []
-      const lows   = quotes?.low   || []
-      const meta   = result.meta
+  async function fetchIndicator(country, indicator) {
+    const url = `https://api.tradingeconomics.com/country/indicator/${country}/${indicator}?c=${GK}`
+    const r = await fetch(url, {
+      headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    const data = await r.json()
+    if (!Array.isArray(data) || !data[0]) throw new Error('Empty')
+    const d = data[0]
+    return {
+      value:    d.Value     ?? d.LastValue    ?? null,
+      previous: d.PreviousValue               ?? null,
+      date:     d.LastUpdate ?? d.DateTime    ?? null,
+      unit:     d.Unit                        ?? '%',
+    }
+  }
 
-      const price = meta?.regularMarketPrice ?? meta?.previousClose ?? null
-      const prev  = meta?.previousClose ?? null
-      const n     = highs.length
-
-      // Previous completed day = second to last bar
-      const pdh = n >= 2 ? highs[n - 2] : (n === 1 ? highs[0] : null)
-      const pdl = n >= 2 ? lows[n - 2]  : (n === 1 ? lows[0]  : null)
-
-      return { ...symbol, ok: true, price, prev, pdh, pdl }
-    } catch (err) {
-      return { ...symbol, ok: false, error: err.message }
+  async function fetchBank(bank) {
+    const [rate, cpi, gdp] = await Promise.allSettled([
+      fetchIndicator(bank.country, 'interest-rate'),
+      fetchIndicator(bank.country, 'inflation-cpi'),
+      fetchIndicator(bank.country, 'gdp-growth-rate'),
+    ])
+    return {
+      ...bank,
+      rate: rate.status === 'fulfilled' ? rate.value : { value: null, error: rate.reason?.message },
+      cpi:  cpi.status  === 'fulfilled' ? cpi.value  : { value: null, error: cpi.reason?.message  },
+      gdp:  gdp.status  === 'fulfilled' ? gdp.value  : { value: null, error: gdp.reason?.message  },
     }
   }
 
   try {
-    // Fetch all in parallel
-    const results = await Promise.allSettled(SYMBOLS.map(s => fetchOne(s)))
+    const results = await Promise.allSettled(BANKS.map(b => fetchBank(b)))
     const data = results.map((r, i) =>
-      r.status === 'fulfilled' ? r.value : { ...SYMBOLS[i], ok: false, error: 'Failed' }
+      r.status === 'fulfilled' ? r.value : { ...BANKS[i], rate: { value: null }, cpi: { value: null } }
     )
-
-    return res.status(200).json({
-      ok: true,
-      data,
-      fetched_at: new Date().toISOString(),
-      count: data.filter(d => d.ok).length,
-    })
-  } catch (err) {
-    return res.status(200).json({
-      ok: false,
-      data: [],
-      error: err.message,
-      fetched_at: new Date().toISOString(),
-    })
+    return res.status(200).json({ ok: true, data, fetched_at: new Date().toISOString() })
+  } catch (e) {
+    return res.status(200).json({ ok: false, data: [], error: e.message })
   }
 }

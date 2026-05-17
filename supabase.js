@@ -13,6 +13,7 @@ import Calendar from './components/Calendar'
 import NewsTab from './components/NewsTab'
 import DailyJournal from './components/DailyJournal'
 import Analysis from './components/Analysis'
+import Macro from './components/Macro'
 import Playbook from './components/Playbook'
 
 export default function App() {
@@ -280,6 +281,7 @@ export default function App() {
         {page === 'news'      && <NewsTab />}
         {page === 'analysis'  && <Analysis  {...pageProps} />}
         {page === 'playbook'  && <Playbook />}
+        {page === 'macro'     && <Macro />}
       </Layout>
       <div className={`toast ${toastVisible ? 'show' : ''}`}>{toast}</div>
     </>
