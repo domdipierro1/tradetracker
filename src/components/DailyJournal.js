@@ -442,7 +442,8 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents })
 export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast, dateStr: propDateStr, isWeekly: propIsWeekly }) {
   const today = toDateStr(new Date())
   const [dateStr, setDateStr] = useState(propDateStr || today)
-  const isWeekly = propIsWeekly || false
+  const isWeekly   = propIsWeekly === true
+  const isForecast  = propIsWeekly === 'forecast'
   const [showTradeForm, setShowTradeForm] = useState(() => {
     try { return sessionStorage.getItem(FORM_OPEN) === 'true' } catch { return false }
   })
