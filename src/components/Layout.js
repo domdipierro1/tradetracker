@@ -83,16 +83,17 @@ export default function Layout({ page, onNav, trades, user, onSignOut, onExport,
       </div>
 
       {/* BOTTOM NAV */}
-      <nav className="bot-nav" style={{ display:'none', position:'fixed', bottom:0, left:0, right:0, height:'var(--bot-h)', background:'var(--surface)', borderTop:'1px solid var(--border)', zIndex:100, paddingBottom:'env(safe-area-inset-bottom)' }}>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', height:'100%' }}>
+      <nav className="bot-nav" style={{ display:'none', position:'fixed', bottom:0, left:0, right:0, background:'var(--surface)', borderTop:'1px solid var(--border)', zIndex:1000, paddingBottom:'env(safe-area-inset-bottom, 0px)' }}>
+        <div style={{ display:'flex', height:'52px', overflowX:'auto', scrollbarWidth:'none' }}>
           {NAV.map(item => {
             const active = page === item.id
+            const icons = { dashboard:'⊞', journal:'✎', calendar:'◫', news:'◷', macro:'◈', analysis:'◉', playbook:'☰' }
             return (
               <button key={item.id} onClick={() => onNav(item.id)}
-                style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'2px', cursor:'pointer', border:'none', background:'none', fontFamily:'Inter,sans-serif', transition:'all .12s', padding:'4px 2px', position:'relative' }}>
-                {active && <div style={{ position:'absolute', top:'4px', width:'14px', height:'2px', borderRadius:'1px', background:'var(--blue)' }} />}
-                <div style={{ width:'6px', height:'6px', borderRadius:'50%', background: active ? 'var(--blue)' : 'var(--border2)', margin:'4px 0 2px', transition:'background .12s' }} />
-                <span style={{ fontSize:'8px', fontWeight: active ? '600' : '400', color: active ? 'var(--blue)' : 'var(--muted)', letterSpacing:'.04em', textTransform:'uppercase' }}>{item.short || item.label.slice(0,4)}</span>
+                style={{ flex:'1 0 0', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'2px', border:'none', background:'transparent', cursor:'pointer', padding:'4px 2px', position:'relative', WebkitTapHighlightColor:'transparent', minWidth:'46px' }}>
+                {active && <div style={{ position:'absolute', top:0, left:'50%', transform:'translateX(-50%)', width:'20px', height:'2px', borderRadius:'0 0 2px 2px', background:'var(--blue)' }} />}
+                <span style={{ fontSize:'15px', lineHeight:1, opacity: active ? 1 : 0.4 }}>{icons[item.id]||'•'}</span>
+                <span style={{ fontSize:'8px', fontWeight: active ? '700' : '500', color: active ? 'var(--blue)' : 'var(--muted2)', letterSpacing:'.02em', textTransform:'uppercase', lineHeight:1, whiteSpace:'nowrap' }}>{item.short||item.label.slice(0,4)}</span>
               </button>
             )
           })}
