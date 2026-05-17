@@ -27,9 +27,8 @@ export default function EconomicCalendar() {
           <div style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>🔴 High impact · USD · GBP · EUR · {weekLabel}</div>
         </div>
         <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
-          {[['🇺🇸','USD',usd],['🇬🇧','GBP',gbp],['🇪🇺','EUR',eur]].map(([flag,cur,n]) => (
+          {[['USD',usd],['GBP',gbp],['EUR',eur]].map(([cur,n]) => (
             <div key={cur} style={{ display:'flex', alignItems:'center', gap:'4px', padding:'4px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'6px', fontSize:'11px', fontWeight:'700' }}>
-              <span>{flag}</span>
               <span style={{ color:CCY_COL[cur] }}>{cur}</span>
               <span style={{ color:'var(--muted)' }}>{n}</span>
             </div>
@@ -53,49 +52,53 @@ export default function EconomicCalendar() {
       )}
 
       {!loading && (
-        <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
-          {weekDays.map((day, di) => {
-            const dayEvs  = eventsForDate(day.dateStr)
-            const isToday = day.dateStr === today
-            const bg      = isToday ? 'rgba(251,191,36,.05)' : day.isWeekend ? 'var(--surface2)' : 'var(--surface)'
+        <div style={{ background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', overflow:'hidden' }}>
+          {/* Title bar */}
+          <div style={{ padding:'14px 20px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+            <div style={{ width:'3px', height:'16px', borderRadius:'2px', background:'#EF4444', flexShrink:0 }} />
+            <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>This Week's Events</span>
+            <span style={{ marginLeft:'auto', fontSize:'11px', color:'#94A3B8' }}>
+              {events.length > 0 ? `${events.length} high-impact` : 'No high-impact events'} · USD · GBP · EUR
+            </span>
+          </div>
 
-            return (
-              <div key={day.dateStr} style={{ borderLeft: isToday ? '3px solid var(--amber)' : '3px solid transparent', borderBottom: di < 6 ? '1px solid var(--border)' : 'none' }}>
-                {/* Day header */}
-                <div style={{ padding:'8px 16px 4px', display:'flex', alignItems:'center', gap:'8px', background: isToday ? 'rgba(251,191,36,.08)' : day.isWeekend ? 'var(--surface2)' : 'transparent', opacity: day.isWeekend ? .6 : 1 }}>
-                  <span style={{ fontSize:'12px', fontWeight:'800', color: isToday ? 'var(--amber)' : 'var(--text2)' }}>{day.dayName}</span>
-                  <span style={{ fontSize:'11px', color:'var(--muted)' }}>{day.month} {day.dayNum}</span>
-                  {isToday && <span style={{ padding:'1px 7px', borderRadius:'20px', background:'var(--amber)', color:'#fff', fontSize:'9px', fontWeight:'800' }}>TODAY</span>}
-                  {!day.isWeekend && dayEvs.length === 0 && (
-                    <span style={{ fontSize:'11px', color:'var(--muted2)', fontStyle:'italic', marginLeft:'4px' }}>No high-impact events</span>
-                  )}
-                  {dayEvs.length > 0 && <span style={{ marginLeft:'auto', fontSize:'10px', fontWeight:'700', color:'var(--red)' }}>🔴 {dayEvs.length}</span>}
-                </div>
-                {/* Events */}
-                {dayEvs.map((e, ei) => (
-                  <div key={ei} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 16px', borderTop:'1px solid var(--border)', background: bg, transition:'background .1s' }}
-                    onMouseEnter={ev=>ev.currentTarget.style.background='var(--surface2)'}
-                    onMouseLeave={ev=>ev.currentTarget.style.background=bg}>
-                    {/* Time */}
-                    <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'600', color:'var(--muted)', minWidth:'44px' }}>{e.time||'—'}</span>
-                    {/* Currency badge */}
-                    <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'2px 7px', borderRadius:'4px', background:CCY_BG[e.country]||'var(--surface2)', fontSize:'10px', fontWeight:'800', color:CCY_COL[e.country]||'var(--muted)', flexShrink:0 }}>
-                      <span>{currencyFlag(e.country)}</span>
-                      <span>{e.country}</span>
+          {/* Days */}
+          <div>
+            {weekDays.map((day, di) => {
+              const dayEvs  = eventsForDate(day.dateStr)
+              const isToday = day.dateStr === today
+
+              return (
+                <div key={day.dateStr} style={{ borderBottom: di < 6 ? '1px solid #F8FAFC' : 'none' }}>
+                  {/* Day header */}
+                  <div style={{ padding:'8px 20px 4px', display:'flex', alignItems:'center', gap:'8px' }}>
+                    <span style={{ fontSize:'10px', fontWeight:'700', color: isToday ? 'var(--amber)' : '#94A3B8', letterSpacing:'.06em', textTransform:'uppercase' }}>
+                      {day.dayName} {day.dayNum} {day.month.toUpperCase()}
                     </span>
-                    {/* Red square */}
-                    <div style={{ width:'9px', height:'9px', background:'var(--red)', borderRadius:'2px', flexShrink:0 }} />
-                    {/* Event name */}
-                    <span style={{ fontSize:'13px', fontWeight:'600', color:'var(--text)', flex:1 }}>{e.title}</span>
-                    {/* Values */}
-                    {e.actual   && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'700', color:'var(--green)' }}>{e.actual}</span>}
-                    {e.forecast && !e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'var(--text2)' }}>F: {e.forecast}</span>}
-                    {e.previous && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'var(--muted)' }}>P: {e.previous}</span>}
+                    {isToday && <span style={{ padding:'1px 6px', borderRadius:'20px', background:'var(--amber)', color:'#fff', fontSize:'9px', fontWeight:'800' }}>TODAY</span>}
+                    {!day.isWeekend && dayEvs.length === 0 && (
+                      <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>No high-impact events</span>
+                    )}
                   </div>
-                ))}
-              </div>
-            )
-          })}
+
+                  {/* Events */}
+                  {dayEvs.map((e, ei) => (
+                    <div key={ei} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 20px', borderTop: ei > 0 ? '1px solid #F8FAFC' : 'none' }}>
+                      <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#64748B', minWidth:'44px' }}>{e.time||'—'}</span>
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'2px 8px', borderRadius:'4px', background:CCY_BG[e.country]||'#F1F5F9', fontSize:'10px', fontWeight:'800', color:CCY_COL[e.country]||'#64748B', flexShrink:0 }}>
+                        {e.country}
+                      </span>
+                      <div style={{ width:'8px', height:'8px', borderRadius:'2px', background:'#EF4444', flexShrink:0 }} />
+                      <span style={{ fontSize:'13px', fontWeight:'600', color:'#334155', flex:1 }}>{e.title}</span>
+                      {e.actual   && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color:'#10B981' }}>{e.actual}</span>}
+                      {e.forecast && !e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#64748B' }}>{e.forecast}</span>}
+                      {e.previous && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#94A3B8' }}>{e.previous}</span>}
+                    </div>
+                  ))}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 

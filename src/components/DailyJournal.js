@@ -566,6 +566,12 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   function markDirty() { setNoteDirty(true) }
 
   async function saveNote() {
+    // Don't save if there's no actual content (prevents ghost note icons)
+    const hasContent = [mood, plan, eodReview, wentWell, improve, followedPlan,
+      chart1, chart2, chart3, chart4, chartNote1, chartNote2, chartNote3, chartNote4
+    ].some(v => v && v.trim().length > 0)
+    if (!hasContent && !existingNote) { setNoteDirty(false); return }
+
     setSaving(true)
     try {
       await onSaveNote({

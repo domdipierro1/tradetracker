@@ -42,7 +42,15 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
   })
 
   const noteMap = {}
-  ;(dailyNotes||[]).forEach(n => { noteMap[n.date] = n })
+  ;(dailyNotes||[]).forEach(n => {
+    // Only mark as having a note if there's actual content
+    const hasContent = [
+      n.mood, n.market_conditions, n.note, n.trading_errors,
+      n.what_worked, n.improvements, n.consistency,
+      n.observations, n.execution_review, n.week_summary
+    ].some(v => v && typeof v === 'string' && !v.startsWith('[') && v.trim().length > 0)
+    if (hasContent) noteMap[n.date] = n
+  })
 
   const firstDow   = (new Date(year, month, 1).getDay() + 6) % 7
   const daysInMonth = new Date(year, month+1, 0).getDate()
@@ -187,7 +195,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                   </div>
                 )}
                 {hasWeeklyNote && (
-                  <div style={{ width:'20px', height:'20px', borderRadius:'6px', background: isSaturdayCell ? 'var(--green)' : '#6366F1', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 1px 4px rgba(99,102,241,.35)' }}>
+                  <div style={{ width:'20px', height:'20px', borderRadius:'6px', background: '#6366F1', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 1px 4px rgba(99,102,241,.35)' }}>
                     <svg width="11" height="11" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M8.5 1.5L10.5 3.5L4 10H2V8L8.5 1.5Z" fill="white" fillOpacity="0.9"/>
                       <path d="M7 3L9 5" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.6"/>
