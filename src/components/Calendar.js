@@ -196,14 +196,20 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                 )}
               </div>
 
-              {cnt > 0 && <>
-                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'13px', fontWeight:'600', color:numCol[cls], marginTop:'auto', lineHeight:1.2 }}>
+              {(cnt > 0 || isSaturdayCell || isSundayCell) && <>
+                {cnt > 0 && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'13px', fontWeight:'600', color:numCol[cls], marginTop:'auto', lineHeight:1.2 }}>
                   {f2(pl)}
-                </span>
-                {isSaturdayCell ? <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--green)', opacity:.9 }}>Weekly Review</span> : isSundayCell ? <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--purple)', opacity:.9 }}>Weekly Forecast</span> : <span style={{ fontSize:'9px', color:numCol[cls], opacity:.8 }}>{cnt} trade{cnt>1?'s':''}</span>}
-                <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background: cls==='win'?'var(--green-dim)':cls==='loss'?'var(--red-dim)':'var(--amber-dim)', color: cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--amber)' }}>
-                  {pl>0?'WIN':pl<0?'LOSS':'BE'}
-                </span>
+                </span>}
+                {isSaturdayCell
+                  ? <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--green)' }}>Weekly Review</span>
+                  : isSundayCell
+                  ? <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--purple)' }}>Weekly Forecast</span>
+                  : <span style={{ fontSize:'9px', color:numCol[cls], opacity:.8 }}>{cnt} trade{cnt>1?'s':''}</span>}
+                {cnt > 0 && !isSaturdayCell && !isSundayCell && (
+                  <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background: cls==='win'?'var(--green-dim)':cls==='loss'?'var(--red-dim)':'var(--amber-dim)', color: cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--amber)' }}>
+                    {pl>0?'WIN':pl<0?'LOSS':'BE'}
+                  </span>
+                )}
               </>}
             </div>
           )

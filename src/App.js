@@ -249,6 +249,13 @@ export default function App() {
 
   function handleNav(id) {
     if (id !== 'journal') { setJournalDate(null); setJournalIsWeekly(false) }
+    else if (!journalDate) {
+      // Default journal mode based on today's day
+      const dow = new Date().getDay()
+      if (dow === 6) setJournalIsWeekly(true)           // Saturday = Weekly Review
+      else if (dow === 0) setJournalIsWeekly('forecast') // Sunday = Weekly Forecast
+      else setJournalIsWeekly(false)
+    }
     setPage(id); window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 

@@ -43,13 +43,6 @@ export default function EconomicCalendar() {
         </div>
       </div>
 
-      {/* ICT Rule */}
-      <div style={{ display:'flex', gap:'8px', alignItems:'center', padding:'9px 14px', background:'var(--amber-bg)', border:'1px solid var(--amber-dim)', borderRadius:'var(--r-sm)', marginBottom:'14px' }}>
-        <span>⚠️</span>
-        <span style={{ fontSize:'12px', color:'var(--text2)', fontWeight:'500' }}>
-          <strong>ICT Rule:</strong> Avoid entries 15 minutes either side of any red folder event.
-        </span>
-      </div>
 
       {loading && (
         <div style={{ textAlign:'center', padding:'60px', color:'var(--muted)' }}>

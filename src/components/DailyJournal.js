@@ -368,7 +368,7 @@ function AutoTextarea({ value, onChange, placeholder, style, minHeight = 80 }) {
 // ── WEEKLY ECON SNAPSHOT ─────────────────────────────────────────
 // Shows Mon-Fri high-impact events for the week being reviewed
 function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents }) {
-  const { eventsForDate, loading } = useEconomicCalendar()
+  const { events: allEvents, eventsForDate, loading } = useEconomicCalendar()
 
   const weekdays = React.useMemo(() => {
     if (!weekRange) return []
@@ -409,7 +409,7 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents })
       <div style={{ padding:'14px 20px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
         <div style={{ width:'3px', height:'16px', borderRadius:'2px', background:'#EF4444', flexShrink:0 }} />
         <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>Week's High-Impact Events</span>
-        <span style={{ marginLeft:'auto', fontSize:'11px', color:'#94A3B8' }}>Mon–Fri · USD · GBP · EUR</span>
+        <span style={{ marginLeft:'auto', fontSize:'11px', color:'#94A3B8' }}>{useNextWeek ? 'Coming week' : 'Past week'} · Mon–Fri · USD · GBP · EUR</span>
       </div>
       <div style={{ padding:'0' }}>
         {Object.keys(grouped).sort().map(dateStr => {
