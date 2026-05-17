@@ -371,11 +371,20 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents })
   const { events: allEvents, eventsForDate, loading } = useEconomicCalendar()
 
   const weekdays = React.useMemo(() => {
-    if (!weekRange) return []
     const days = []
-    // For forecast (Sunday), use NEXT week's Mon-Fri
-    const start = new Date(weekRange.mon + 'T12:00:00')
-    if (useNextWeek) start.setDate(start.getDate() + 7)
+    let start
+    if (useNextWeek) {
+      // For Sunday forecast: next Mon is tomorrow
+      const now = new Date()
+      const dow = now.getDay() // 0=Sun
+      start = new Date(now)
+      start.setDate(now.getDate() + (dow === 0 ? 1 : 8 - dow)) // next Monday
+      start.setHours(0,0,0,0)
+    } else {
+      // For Saturday review: this week's Mon (5 days ago)
+      if (!weekRange) return []
+      start = new Date(weekRange.mon + 'T12:00:00')
+    }
     for (let i = 0; i < 5; i++) {
       const d = new Date(start); d.setDate(start.getDate() + i)
       const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0')

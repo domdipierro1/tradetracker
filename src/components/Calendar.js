@@ -178,7 +178,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                   <span style={{ fontSize:'11px', fontWeight:'600', color: numCol[cls] }}>{day}</span>
                   {isToday && <div style={{ fontSize:'8px', fontWeight:'700', color:'var(--blue)', letterSpacing:'.04em' }}>TODAY</div>}
                 </div>
-                {(hasNote && !isSundayCell) && (
+                {(hasNote && !isSundayCell && !isSaturdayCell) && (
                   <div style={{ width:'20px', height:'20px', borderRadius:'6px', background:'#6366F1', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 1px 4px rgba(99,102,241,.35)' }}>
                     <svg width="11" height="11" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M8.5 1.5L10.5 3.5L4 10H2V8L8.5 1.5Z" fill="white" fillOpacity="0.9"/>
@@ -187,7 +187,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                   </div>
                 )}
                 {hasWeeklyNote && (
-                  <div style={{ width:'20px', height:'20px', borderRadius:'6px', background:'#6366F1', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 1px 4px rgba(99,102,241,.35)' }}>
+                  <div style={{ width:'20px', height:'20px', borderRadius:'6px', background: isSaturdayCell ? 'var(--green)' : '#6366F1', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 1px 4px rgba(99,102,241,.35)' }}>
                     <svg width="11" height="11" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M8.5 1.5L10.5 3.5L4 10H2V8L8.5 1.5Z" fill="white" fillOpacity="0.9"/>
                       <path d="M7 3L9 5" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.6"/>
