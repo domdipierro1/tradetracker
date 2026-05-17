@@ -367,19 +367,22 @@ function AutoTextarea({ value, onChange, placeholder, style, minHeight = 80 }) {
 
 // ── WEEKLY ECON SNAPSHOT ─────────────────────────────────────────
 // Shows Mon-Fri high-impact events for the week being reviewed
-function WeeklyEconNews({ weekRange, onEventsLoaded, savedEvents }) {
+function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents }) {
   const { eventsForDate, loading } = useEconomicCalendar()
 
   const weekdays = React.useMemo(() => {
     if (!weekRange) return []
-    const days = []; const start = new Date(weekRange.mon + 'T12:00:00')
-    for (let i = 0; i < 5; i++) { // Mon-Fri only
+    const days = []
+    // For forecast (Sunday), use NEXT week's Mon-Fri
+    const start = new Date(weekRange.mon + 'T12:00:00')
+    if (useNextWeek) start.setDate(start.getDate() + 7)
+    for (let i = 0; i < 5; i++) {
       const d = new Date(start); d.setDate(start.getDate() + i)
       const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0')
       days.push(`${y}-${m}-${dd}`)
     }
     return days
-  }, [weekRange?.mon])
+  }, [weekRange?.mon, useNextWeek])
 
   const liveEvents = weekdays.flatMap(ds => eventsForDate(ds))
   const events = liveEvents.length > 0 ? liveEvents : (savedEvents || [])
@@ -453,7 +456,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const dayTrades = trades.filter(t => t.date === dateStr)
 
   // Week trades (Mon-Sun of the Sunday selected)
-  const weekRange = isWeekly ? getWeekRange(dateStr) : null
+  const weekRange = (isWeekly || isForecast) ? getWeekRange(dateStr) : null
   const weekTrades = isWeekly && weekRange
     ? trades.filter(t => t.date >= weekRange.mon && t.date <= weekRange.sun).sort((a,b) => a.date.localeCompare(b.date))
     : []
@@ -541,7 +544,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       await onSaveNote({
         id:               existingNote?.id,
         date:             dateStr,
-        note_type:        isWeekly ? 'week' : 'day',
+        note_type:        isWeekly ? 'week' : isForecast ? 'forecast' : 'day',
         note:             plan,
         mood,
         htf_bias:         bias,
@@ -593,7 +596,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'24px', flexWrap:'wrap', gap:'12px' }}>
         <div>
           <div style={{ fontSize:'11px', fontWeight:'600', color:'#94A3B8', letterSpacing:'.1em', textTransform:'uppercase', marginBottom:'6px' }}>
-            {isWeekly ? 'Weekly Review' : isToday ? 'Today' : 'Daily Journal'}
+            {isWeekly ? 'Weekly Review' : isForecast ? 'Weekly Forecast' : isToday ? 'Today' : 'Daily Journal'}
           </div>
           <h1 style={{ fontSize:'26px', fontWeight:'700', color:'#0F172A', letterSpacing:'-.03em', lineHeight:1.1 }}>
             {isWeekly
@@ -605,7 +608,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         </div>
         <button onClick={saveNote} disabled={saving}
           style={{ background: saving ? '#E2E8F0' : '#0F172A', color: saving ? '#94A3B8' : '#FFFFFF', border:'none', borderRadius:'12px', padding:'10px 20px', fontSize:'13px', fontWeight:'600', cursor: saving ? 'default' : 'pointer', fontFamily:'inherit', letterSpacing:'-.01em', transition:'all .15s', boxShadow: saving ? 'none' : '0 4px 14px rgba(15,23,42,.25)' }}>
-          {saving ? 'Saving...' : autoSaving ? 'Auto-saving...' : isWeekly ? 'Save Week' : 'Save Day'}
+          {saving ? 'Saving...' : autoSaving ? 'Auto-saving...' : isWeekly ? 'Save Review' : isForecast ? 'Save Forecast' : 'Save Day'}
         </button>
       </div>
 
@@ -647,26 +650,24 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       <DayNews dateStr={dateStr} />
 
       {/* ── DAY PLAN CARD ── */}
-      <div style={{ order: isWeekly ? 3 : 1, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+      {/* Only show for daily and forecast modes */}
+      {(isForecast || !isWeekly) && (
+      <div style={{ order: isForecast ? 1 : 1, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
         <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background: isWeekly ? '#F3E8FF' : '#EFF6FF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>
-              {isWeekly ? '📋' : '📋'}
-            </div>
-            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>{isWeekly ? 'Weekly Plan' : 'Day Plan'}</span>
+            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background: isForecast ? '#F3E8FF' : '#EFF6FF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>📋</div>
+            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>{isForecast ? 'Weekly Forecast' : 'Day Plan'}</span>
           </div>
           {noteDirty && <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>Unsaved changes</span>}
         </div>
-
         <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
 
-          {/* ── DAILY ONLY FIELDS ── */}
-          {!isWeekly && (<>
+          {/* DAILY: Feeling + Bias + Plan */}
+          {!isWeekly && !isForecast && (<>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
               <div>
                 <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Feeling</label>
-                <AutoTextarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }}
-                  placeholder="How are you feeling going into today's session?" minHeight={70} />
+                <AutoTextarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }} placeholder="How are you feeling going into today's session?" minHeight={70} />
               </div>
               <div>
                 <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Bias Today</label>
@@ -678,32 +679,30 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             </div>
             <div>
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Trading Plan</label>
-              <AutoTextarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }}
-                placeholder="What are you watching? Key levels, bias read, what needs to happen for you to take a trade..." minHeight={110} />
+              <AutoTextarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }} placeholder="What are you watching? Key levels, bias read, what needs to happen for you to take a trade..." minHeight={110} />
             </div>
           </>)}
 
-          {/* ── WEEKLY ONLY FIELDS ── */}
-          {isWeekly && (<>
+          {/* FORECAST: Plan for the week */}
+          {isForecast && (
             <div>
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Plan for the Week</label>
-              <AutoTextarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }}
-                placeholder="Macro backdrop, key themes, currencies to focus on, what you need to see to trade..." minHeight={120} />
+              <AutoTextarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }} placeholder="Macro backdrop, key themes, currencies to focus on, what you need to see to trade..." minHeight={120} />
             </div>
-          </>)}
+          )}
 
-          {/* ── CHART IMAGES (both daily and weekly) ── */}
+          {/* CHARTS: both daily and forecast */}
           <div>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
               <label style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase' }}>
-                {isWeekly ? 'Charts to Watch' : 'Chart Images'}
+                {isForecast ? 'Charts to Watch' : 'Chart Images'}
               </label>
               {[chart1,chart2,chart3,chart4].filter(v=>v&&v.trim()).length < 4 && (
                 <button type="button" onClick={() => {
                   if (!chart1) { setChart1(' '); markDirty() }
                   else if (!chart2) { setChart2(' '); markDirty() }
                   else if (!chart3) { setChart3(' '); markDirty() }
-                  else if (!chart4) { setChart4(' '); markDirty() }
+                  else { setChart4(' '); markDirty() }
                 }}
                   style={{ background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'6px 12px', fontSize:'12px', fontWeight:'600', color:'#475569', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'5px' }}>
                   <span style={{ fontSize:'14px', lineHeight:1 }}>+</span> Add Chart
@@ -712,7 +711,6 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             </div>
             {[[chart1,setChart1,chartNote1,setChartNote1,chartTf1,setChartTf1,noteOpen1,setNoteOpen1],[chart2,setChart2,chartNote2,setChartNote2,chartTf2,setChartTf2,noteOpen2,setNoteOpen2],[chart3,setChart3,chartNote3,setChartNote3,chartTf3,setChartTf3,noteOpen3,setNoteOpen3],[chart4,setChart4,chartNote4,setChartNote4,chartTf4,setChartTf4,noteOpen4,setNoteOpen4]].map(([val,setter,note,setNote,tf,setTf,noteOpen,setNoteOpen],i) => val ? (
               <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'12px', padding:'12px 14px', border:'1px solid #E2E8F0' }}>
-                {/* Header: TF dropdown + remove */}
                 <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
                   <select value={tf} onChange={e => { setTf(e.target.value); markDirty() }}
                     style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'5px 10px', fontSize:'12px', fontWeight:'600', color: tf ? '#0F172A' : '#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer', flex:1, maxWidth:'120px' }}>
@@ -721,146 +719,215 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
                   </select>
                   <span style={{ fontSize:'10px', color:'#94A3B8', flex:1 }}>Chart {i+1}</span>
                   <button type="button" onClick={() => { setter(''); setNote(''); setTf(''); setNoteOpen(false); markDirty() }}
-                    style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'14px', padding:'0', lineHeight:1, fontWeight:'700' }}>✕</button>
+                    style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'14px', padding:'0' }}>✕</button>
                 </div>
-                {/* URL input */}
                 <input type="url" value={val.trim()} onChange={e => { setter(e.target.value); markDirty() }}
                   placeholder="Paste TradingView snapshot URL..."
                   style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'9px 12px', fontSize:'12px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', marginBottom:'8px', transition:'border-color .15s' }}
                   onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
-                {/* Note toggle button */}
                 {!noteOpen && (
                   <button type="button" onClick={() => setNoteOpen(true)}
                     style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', marginBottom: val.trim() ? '10px' : '0', display:'inline-flex', alignItems:'center', gap:'5px' }}>
-                    <span style={{ fontSize:'13px' }}>+</span> Add note
+                    <span>+</span> Add note
                   </button>
                 )}
                 {noteOpen && (
                   <div style={{ marginBottom: val.trim() ? '10px' : '0', position:'relative' }}>
                     <AutoTextarea value={note} onChange={e => { setNote(e.target.value); markDirty() }}
-                      placeholder={isWeekly ? "What are you watching on this chart — key levels, bias, setup..." : "Chart analysis notes..."}
+                      placeholder={isForecast ? "What are you watching on this chart — key levels, setup, bias..." : "Chart analysis notes..."}
                       minHeight={60} />
                     {!note && <button type="button" onClick={() => setNoteOpen(false)}
                       style={{ position:'absolute', top:'6px', right:'8px', background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'12px', padding:'0' }}>✕</button>}
                   </div>
                 )}
-                {/* Chart image */}
                 {val.trim() && <ChartImage url={val.trim()} label={tf || `Chart ${i+1}`} large />}
               </div>
             ) : null)}
           </div>
 
+          {/* Save button for forecast */}
+          {isForecast && (
+            <button onClick={saveNote} disabled={saving}
+              style={{ alignSelf:'flex-start', background: saving ? '#E2E8F0' : '#0F172A', color: saving ? '#94A3B8' : '#FFFFFF', border:'none', borderRadius:'12px', padding:'11px 24px', fontSize:'13px', fontWeight:'600', cursor: saving ? 'default' : 'pointer', fontFamily:'inherit', letterSpacing:'-.01em', boxShadow: saving ? 'none' : '0 4px 14px rgba(15,23,42,.25)', transition:'all .15s' }}>
+              {saving ? 'Saving...' : autoSaving ? 'Auto-saving...' : 'Save Forecast'}
+            </button>
+          )}
+
         </div>
       </div>
+      )}
 
       {/* ── TRADES ── */}
       <div style={{ order: isWeekly ? 2 : 3, marginBottom:'16px' }}>
-        {!isWeekly && (
-          <>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
-              <div style={{ fontSize:'11px', fontWeight:'600', color:'#94A3B8', letterSpacing:'.08em', textTransform:'uppercase' }}>
-                Trades {dayTrades.length > 0 && <span style={{ background:'#F1F5F9', color:'#475569', borderRadius:'6px', padding:'1px 7px', marginLeft:'4px', fontSize:'10px' }}>{dayTrades.length}</span>}
-              </div>
-              {!showTradeForm && (
-                <button onClick={openTradeForm}
-                  style={{ background:'#0F172A', color:'#FFFFFF', border:'none', borderRadius:'10px', padding:'8px 16px', fontSize:'12px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', letterSpacing:'-.01em', boxShadow:'0 2px 8px rgba(15,23,42,.2)' }}>
-                  + Log Trade
-                </button>
-              )}
-            </div>
-            {showTradeForm && (
-              <div style={{ marginBottom:'14px' }}>
-                <TradeForm onSave={handleAddTrade} onCancel={() => { setShowTradeForm(false); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
-              </div>
-            )}
-            {dayTrades.length === 0 && !showTradeForm && (
-              <div style={{ padding:'32px', textAlign:'center', background:'#FFFFFF', borderRadius:'16px', border:'1.5px dashed #E2E8F0', color:'#94A3B8', fontSize:'13px' }}>
-                No trades logged for this day
-              </div>
-            )}
-            {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={isToday ? onDeleteTrade : null} />)}
-          </>
+        {!isWeekly && !isForecast && (
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
+            <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>Trades</span>
+            <button onClick={openTradeForm}
+              style={{ background:'#6366F1', color:'#fff', border:'none', borderRadius:'10px', padding:'8px 16px', fontSize:'12px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'6px' }}>
+              <span style={{ fontSize:'15px', lineHeight:1 }}>+</span> Log Trade
+            </button>
+          </div>
         )}
-        {isWeekly && (
+        {isWeekly && weekTrades.length > 0 && (
+          <div>
+            <div style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A', marginBottom:'12px' }}>Week's Trades</div>
+            {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} />)}
+          </div>
+        )}
+        {!isWeekly && !isForecast && (
           <>
-            <div style={{ fontSize:'11px', fontWeight:'600', color:'#94A3B8', letterSpacing:'.08em', textTransform:'uppercase', marginBottom:'12px' }}>
-              Week Trades {weekTrades.length > 0 && <span style={{ background:'#F1F5F9', color:'#475569', borderRadius:'6px', padding:'1px 7px', marginLeft:'4px', fontSize:'10px' }}>{weekTrades.length}</span>}
-            </div>
-            {weekTrades.length === 0
-              ? <div style={{ padding:'32px', textAlign:'center', background:'#FFFFFF', borderRadius:'16px', border:'1.5px dashed #E2E8F0', color:'#94A3B8', fontSize:'13px' }}>No trades logged this week</div>
-              : weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={null} />)
-            }
+            {showTradeForm && (
+              <TradeForm onSave={handleAddTrade} onCancel={() => { setShowTradeForm(false); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
+            )}
+            {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} />)}
           </>
         )}
       </div>
 
-      {/* ── END OF DAY / WEEK REVIEW ── */}
-      <div style={{ order: isWeekly ? 1 : 4, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
-        <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
-          <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#ECFDF5', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>
-            {isWeekly ? '📊' : '✍️'}
+      {/* ── WEEKLY REVIEW CARD (Saturday only) ── */}
+      {isWeekly && (
+        <div style={{ order:1, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+          <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#ECFDF5', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>📊</div>
+            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>End of Week Review</span>
           </div>
-          <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>{isWeekly ? 'End of Week Review' : 'End of Day Review'}</span>
-        </div>
-
-        <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
-          {/* Followed plan pills */}
-          <div>
-            <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'10px' }}>
-              {isWeekly ? 'Did you follow your rules this week?' : 'Did you follow your plan?'}
-            </label>
-            <div style={{ display:'flex', gap:'8px' }}>
+          <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
+            {/* Followed rules toggle */}
+            <div style={{ display:'flex', alignItems:'center', gap:'12px', padding:'12px 16px', background:'#F8FAFC', borderRadius:'12px', border:'1px solid #E2E8F0' }}>
+              <span style={{ fontSize:'13px', fontWeight:'600', color:'#334155', flex:1 }}>Did you follow your rules this week?</span>
               {['Yes','Mostly','No'].map(v => (
-                <button key={v} type="button" onClick={() => { setFollowedPlan(v); markDirty() }}
-                  style={{
-                    padding:'8px 18px', borderRadius:'10px', fontSize:'12px', fontWeight:'600',
-                    border:`1.5px solid ${followedPlan===v ? (v==='Yes'?'#10B981':v==='Mostly'?'#F59E0B':'#EF4444') : '#E2E8F0'}`,
-                    background: followedPlan===v ? (v==='Yes'?'#ECFDF5':v==='Mostly'?'#FFFBEB':'#FEF2F2') : '#F8FAFC',
-                    color: followedPlan===v ? (v==='Yes'?'#065F46':v==='Mostly'?'#92400E':'#7F1D1D') : '#94A3B8',
-                    cursor:'pointer', fontFamily:'inherit', transition:'all .15s'
-                  }}>
-                  {v==='Yes'?'✓ Yes':v==='Mostly'?'~ Mostly':'✗ No'}
+                <button key={v} onClick={() => { setFollowedPlan(v); markDirty() }}
+                  style={{ padding:'5px 14px', borderRadius:'8px', border:`1.5px solid ${followedPlan===v?'#6366F1':'#E2E8F0'}`, background: followedPlan===v?'#6366F1':'transparent', color: followedPlan===v?'#fff':'#64748B', fontSize:'12px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>
+                  {v}
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* How did it go */}
-          <div>
-            <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>
-              {isWeekly ? 'How did the week go?' : 'How did the session go?'}
-            </label>
-            <AutoTextarea value={eodReview} onChange={e => { setEodReview(e.target.value); markDirty() }}
-              placeholder={isWeekly ? "Overall feel of the week — market conditions, your execution, what stood out..." : "Overall feel of the session — how price moved, your execution, anything notable..."}
-              minHeight={90}
-              style={{ background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px' }} />
-          </div>
-
-          {/* Went well / Improve */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+            {/* How did week go */}
             <div>
-              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#10B981', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>What went well</label>
-              <AutoTextarea value={wentWell} onChange={e => { setWentWell(e.target.value); markDirty() }}
-                placeholder={isWeekly ? "Best decisions, good habits, what worked..." : "Execution, patience, market reads..."}
-                minHeight={80} style={{ background:'#F0FDF4', border:'1.5px solid #BBF7D0', borderRadius:'12px' }} />
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>How did the week go?</label>
+              <AutoTextarea value={eodReview} onChange={e => { setEodReview(e.target.value); markDirty() }}
+                placeholder="Overall feel of the week — market conditions, your execution, what stood out..."
+                minHeight={90} />
             </div>
+            {/* What went well / improve */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+              <div>
+                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#10B981', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>What went well</label>
+                <AutoTextarea value={wentWell} onChange={e => { setWentWell(e.target.value); markDirty() }}
+                  placeholder="Best decisions, good habits, what worked..."
+                  minHeight={80} style={{ background:'#F0FDF4', border:'1.5px solid #BBF7D0', borderRadius:'12px' }} />
+              </div>
+              <div>
+                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#EF4444', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>What to improve</label>
+                <AutoTextarea value={improve} onChange={e => { setImprove(e.target.value); markDirty() }}
+                  placeholder="One key focus for next week..."
+                  minHeight={80} style={{ background:'#FEF2F2', border:'1.5px solid #FECACA', borderRadius:'12px' }} />
+              </div>
+            </div>
+            {/* Charts for review */}
             <div>
-              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#EF4444', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>What to improve</label>
-              <AutoTextarea value={improve} onChange={e => { setImprove(e.target.value); markDirty() }}
-                placeholder={isWeekly ? "One key focus for next week..." : "One specific thing for tomorrow..."}
-                minHeight={80} style={{ background:'#FEF2F2', border:'1.5px solid #FECACA', borderRadius:'12px' }} />
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
+                <label style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase' }}>Charts</label>
+                {[chart1,chart2,chart3,chart4].filter(v=>v&&v.trim()).length < 4 && (
+                  <button type="button" onClick={() => {
+                    if (!chart1) { setChart1(' '); markDirty() }
+                    else if (!chart2) { setChart2(' '); markDirty() }
+                    else if (!chart3) { setChart3(' '); markDirty() }
+                    else { setChart4(' '); markDirty() }
+                  }}
+                    style={{ background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'6px 12px', fontSize:'12px', fontWeight:'600', color:'#475569', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'5px' }}>
+                    <span style={{ fontSize:'14px', lineHeight:1 }}>+</span> Add Chart
+                  </button>
+                )}
+              </div>
+              {[[chart1,setChart1,chartNote1,setChartNote1,chartTf1,setChartTf1,noteOpen1,setNoteOpen1],[chart2,setChart2,chartNote2,setChartNote2,chartTf2,setChartTf2,noteOpen2,setNoteOpen2],[chart3,setChart3,chartNote3,setChartNote3,chartTf3,setChartTf3,noteOpen3,setNoteOpen3],[chart4,setChart4,chartNote4,setChartNote4,chartTf4,setChartTf4,noteOpen4,setNoteOpen4]].map(([val,setter,note,setNote,tf,setTf,noteOpen,setNoteOpen],i) => val ? (
+                <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'12px', padding:'12px 14px', border:'1px solid #E2E8F0' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
+                    <select value={tf} onChange={e => { setTf(e.target.value); markDirty() }}
+                      style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'5px 10px', fontSize:'12px', fontWeight:'600', color: tf ? '#0F172A' : '#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer', flex:1, maxWidth:'120px' }}>
+                      <option value="">Timeframe</option>
+                      {['Daily','4H','1H','30M','15M','5M'].map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <span style={{ fontSize:'10px', color:'#94A3B8', flex:1 }}>Chart {i+1}</span>
+                    <button type="button" onClick={() => { setter(''); setNote(''); setTf(''); setNoteOpen(false); markDirty() }}
+                      style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'14px', padding:'0' }}>✕</button>
+                  </div>
+                  <input type="url" value={val.trim()} onChange={e => { setter(e.target.value); markDirty() }}
+                    placeholder="Paste TradingView snapshot URL..."
+                    style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'9px 12px', fontSize:'12px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', marginBottom:'8px', transition:'border-color .15s' }}
+                    onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+                  {!noteOpen && (
+                    <button type="button" onClick={() => setNoteOpen(true)}
+                      style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', marginBottom: val.trim() ? '10px' : '0', display:'inline-flex', alignItems:'center', gap:'5px' }}>
+                      <span>+</span> Add note
+                    </button>
+                  )}
+                  {noteOpen && (
+                    <div style={{ marginBottom: val.trim() ? '10px' : '0', position:'relative' }}>
+                      <AutoTextarea value={note} onChange={e => { setNote(e.target.value); markDirty() }}
+                        placeholder="Chart analysis notes..." minHeight={60} />
+                      {!note && <button type="button" onClick={() => setNoteOpen(false)}
+                        style={{ position:'absolute', top:'6px', right:'8px', background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'12px', padding:'0' }}>✕</button>}
+                    </div>
+                  )}
+                  {val.trim() && <ChartImage url={val.trim()} label={tf || `Chart ${i+1}`} large />}
+                </div>
+              ) : null)}
             </div>
+            {/* Save */}
+            <button onClick={saveNote} disabled={saving}
+              style={{ alignSelf:'flex-start', background: saving ? '#E2E8F0' : '#0F172A', color: saving ? '#94A3B8' : '#FFFFFF', border:'none', borderRadius:'12px', padding:'11px 24px', fontSize:'13px', fontWeight:'600', cursor: saving ? 'default' : 'pointer', fontFamily:'inherit', letterSpacing:'-.01em', boxShadow: saving ? 'none' : '0 4px 14px rgba(15,23,42,.25)', transition:'all .15s' }}>
+              {saving ? 'Saving...' : autoSaving ? 'Auto-saving...' : 'Save Review'}
+            </button>
           </div>
-
-          {/* Save */}
-          <button onClick={saveNote} disabled={saving}
-            style={{ alignSelf:'flex-start', background: saving ? '#E2E8F0' : '#0F172A', color: saving ? '#94A3B8' : '#FFFFFF', border:'none', borderRadius:'12px', padding:'11px 24px', fontSize:'13px', fontWeight:'600', cursor: saving ? 'default' : 'pointer', fontFamily:'inherit', letterSpacing:'-.01em', boxShadow: saving ? 'none' : '0 4px 14px rgba(15,23,42,.25)', transition:'all .15s' }}>
-            {saving ? 'Saving...' : autoSaving ? 'Auto-saving...' : isWeekly ? 'Save Week' : 'Save Day'}
-          </button>
         </div>
-      </div>
+      )}
 
-      <div style={{ height:'20px' }} />
+      {/* ── EOD REVIEW CARD (daily only) ── */}
+      {!isWeekly && !isForecast && (
+        <div style={{ order:4, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+          <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#FFF7ED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>✍️</div>
+            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>End of Day Review</span>
+          </div>
+          <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'16px' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'12px', padding:'12px 16px', background:'#F8FAFC', borderRadius:'12px', border:'1px solid #E2E8F0' }}>
+              <span style={{ fontSize:'13px', fontWeight:'600', color:'#334155', flex:1 }}>Did you follow your plan?</span>
+              {['Yes','Mostly','No'].map(v => (
+                <button key={v} onClick={() => { setFollowedPlan(v); markDirty() }}
+                  style={{ padding:'5px 14px', borderRadius:'8px', border:`1.5px solid ${followedPlan===v?'#6366F1':'#E2E8F0'}`, background: followedPlan===v?'#6366F1':'transparent', color: followedPlan===v?'#fff':'#64748B', fontSize:'12px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>
+                  {v}
+                </button>
+              ))}
+            </div>
+            <div>
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>How did the session go?</label>
+              <AutoTextarea value={eodReview} onChange={e => { setEodReview(e.target.value); markDirty() }}
+                placeholder="Overall feel of the session — how price moved, your execution, anything notable..."
+                minHeight={90} />
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+              <div>
+                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#10B981', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>What went well</label>
+                <AutoTextarea value={wentWell} onChange={e => { setWentWell(e.target.value); markDirty() }}
+                  placeholder="Execution, patience, market reads..."
+                  minHeight={80} style={{ background:'#F0FDF4', border:'1.5px solid #BBF7D0', borderRadius:'12px' }} />
+              </div>
+              <div>
+                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#EF4444', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>What to improve</label>
+                <AutoTextarea value={improve} onChange={e => { setImprove(e.target.value); markDirty() }}
+                  placeholder="One specific thing for tomorrow..."
+                  minHeight={80} style={{ background:'#FEF2F2', border:'1.5px solid #FECACA', borderRadius:'12px' }} />
+              </div>
+            </div>
+            <button onClick={saveNote} disabled={saving}
+              style={{ alignSelf:'flex-start', background: saving ? '#E2E8F0' : '#0F172A', color: saving ? '#94A3B8' : '#FFFFFF', border:'none', borderRadius:'12px', padding:'11px 24px', fontSize:'13px', fontWeight:'600', cursor: saving ? 'default' : 'pointer', fontFamily:'inherit', letterSpacing:'-.01em', boxShadow: saving ? 'none' : '0 4px 14px rgba(15,23,42,.25)', transition:'all .15s' }}>
+              {saving ? 'Saving...' : autoSaving ? 'Auto-saving...' : 'Save Day'}
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
