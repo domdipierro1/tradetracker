@@ -8,7 +8,7 @@ const SYMBOLS = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','US
 const LEVELS  = ['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']
 const MISTAKES= ['No mistake','Wrong bias','Level not aligned with bias','Entered outside killzone','No breaker block formed','Entered before breaker closed','Premature entry — no confirmation','Moved stop too early','Took partial too early','Revenge trade','Overtraded']
 
-const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', r:'', mae:'', mfe:'', outcome:'', mistake:'No mistake', screenshot:'', screenshot2:'', journal:'' }
+const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', trade_type:'', r:'', mae:'', mfe:'', outcome:'', mistake:'No mistake', screenshot:'', screenshot2:'', journal:'' }
 const TRADE_DRAFT = 'tt26_trade_draft'
 const FORM_OPEN   = 'tt26_form_open'
 
@@ -571,7 +571,8 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [chartTf3,   setChartTf3]   = useState('')
   const [chartTf4,   setChartTf4]   = useState('')
   const [noteOpen1,  setNoteOpen1]  = useState(false)
-  const [checklist,  setChecklist]  = useState([false,false,false,false])
+  const [checklist,  setChecklist]  = useState([])
+  const [tradeType,   setTradeType]   = useState('')
   const [noteOpen2,  setNoteOpen2]  = useState(false)
   const [noteOpen3,  setNoteOpen3]  = useState(false)
   const [noteOpen4,  setNoteOpen4]  = useState(false)
@@ -595,7 +596,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   }, [noteDirty, mood, bias, plan, chart1, chart2, chart3, chart4,
       chartNote1, chartNote2, chartNote3, chartNote4,
       chartTf1, chartTf2, chartTf3, chartTf4,
-      eodReview, followedPlan, wentWell, improve, checklist])
+      eodReview, followedPlan, wentWell, improve, checklist, tradeType])
 
   // Load note data when date changes
   useEffect(() => {
@@ -609,7 +610,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       try { const notes = JSON.parse(existingNote.top_mistake||'[]'); setChartNote1(notes[0]||''); setChartNote2(notes[1]||''); setChartNote3(notes[2]||''); setChartNote4(notes[3]||'') } catch(e) { setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('') }
       try { const tfs = JSON.parse(existingNote.htf_bias||'[]'); setChartTf1(tfs[0]||''); setChartTf2(tfs[1]||''); setChartTf3(tfs[2]||''); setChartTf4(tfs[3]||'') } catch(e) { setChartTf1(''); setChartTf2(''); setChartTf3(''); setChartTf4('') }
       try { setEconSnapshot(JSON.parse(existingNote.econ_snapshot||'[]')) } catch(e) { setEconSnapshot([]) }
-      try { setChecklist(JSON.parse(existingNote.checklist_data||'[false,false,false,false]')) } catch(e) { setChecklist([false,false,false,false]) }
+      try { const cd = JSON.parse(existingNote.checklist_data||'{}'); setChecklist(cd.checks||[]); setTradeType(cd.type||'') } catch(e) { setChecklist([]); setTradeType('') }
       setEodReview(existingNote.trading_errors && !existingNote.trading_errors.startsWith('[') ? existingNote.trading_errors : '')
       setFollowedPlan(existingNote.consistency || '')
       setWentWell(existingNote.what_worked || '')
@@ -622,7 +623,8 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('')
       setChartTf1(''); setChartTf2(''); setChartTf3(''); setChartTf4('')
       setNoteOpen1(false); setNoteOpen2(false); setNoteOpen3(false); setNoteOpen4(false)
-      setChecklist([false,false,false,false])
+      setChecklist([])
+      setTradeType('')
     }
     setNoteDirty(false)
   }, [dateStr, existingNote?.id])
@@ -633,7 +635,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
     // Don't save if there's no actual content (prevents ghost note icons)
     const hasContent = [mood, plan, eodReview, wentWell, improve, followedPlan,
       chart1, chart2, chart3, chart4, chartNote1, chartNote2, chartNote3, chartNote4
-    ].some(v => v && v.trim().length > 0) || checklist.some(v => v)
+    ].some(v => v && v.trim().length > 0) || checklist.some(v => v) || !!tradeType
     if (!hasContent && !existingNote) { setNoteDirty(false); return }
 
     setSaving(true)
@@ -657,7 +659,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         htf_bias:         JSON.stringify([chartTf1,chartTf2,chartTf3,chartTf4]),
         top_mistake:      JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
         econ_snapshot:    JSON.stringify(econSnapshot),
-        checklist_data:   JSON.stringify(checklist),
+        checklist_data:   JSON.stringify({ type: tradeType, checks: checklist }),
       })
       setNoteDirty(false)
       toast('Day saved ✓')
@@ -801,30 +803,55 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
           {!isWeekly && !isForecast && (
             <div>
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'10px' }}>Pre-Trade Checklist</label>
-              <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
-                {[
+
+              {/* Trade type selector */}
+              <div style={{ display:'flex', gap:'8px', marginBottom:'14px' }}>
+                {[['type1','Type 1','SMR','#6366F1','#EEF2FF'],['type2','Type 2','Distribution','#0EA5E9','#F0F9FF']].map(([val,label,sub,col,bg]) => (
+                  <div key={val} onClick={() => { setTradeType(tradeType===val?'':val); setChecklist([]); markDirty() }}
+                    style={{ flex:1, padding:'10px 14px', borderRadius:'12px', border:`1.5px solid ${tradeType===val?col:'#E2E8F0'}`, background:tradeType===val?bg:'#F8FAFC', cursor:'pointer', transition:'all .15s', userSelect:'none' }}>
+                    <div style={{ fontSize:'13px', fontWeight:'700', color:tradeType===val?col:'#475569' }}>{label}</div>
+                    <div style={{ fontSize:'11px', color:tradeType===val?col:'#94A3B8', marginTop:'1px' }}>{sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Questions */}
+              {tradeType && (() => {
+                const questions = tradeType === 'type1' ? [
                   'Is there a clear and obvious DOL on the weekly and daily?',
-                  'Is the 4H showing clean expansion and retracement toward it — not consolidation or chop?',
+                  'Is price at or near the key level where the SMR should occur?',
+                  'Between 3am–10am NY has price formed a clean 15m breaker block at that level signalling the SMR is in?',
+                ] : [
+                  'Is there a clear and obvious DOL on the weekly and daily?',
+                  'Is the SMR confirmed — is the high or low of the week in?',
+                  'Is the 4H showing clean expansion and retracement toward the DOL — not consolidation or chop?',
                   'Is there one obvious level overlapping with premium or discount within the 4H range?',
                   'Between 3am–10am NY has price formed a clean 15m breaker block rejection at that level?',
-                ].map((q, i) => {
-                  const checked = checklist[i]
-                  return (
-                    <div key={i} onClick={() => { const n=[...checklist]; n[i]=!n[i]; setChecklist(n); markDirty() }}
-                      style={{ display:'flex', alignItems:'flex-start', gap:'10px', padding:'10px 14px', background: checked ? '#F0FDF4' : '#F8FAFC', border: `1.5px solid ${checked ? '#86EFAC' : '#E2E8F0'}`, borderRadius:'10px', cursor:'pointer', transition:'all .15s', userSelect:'none' }}>
-                      <div style={{ width:'18px', height:'18px', borderRadius:'5px', border: `2px solid ${checked ? '#10B981' : '#CBD5E1'}`, background: checked ? '#10B981' : '#FFFFFF', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:'1px', transition:'all .15s' }}>
-                        {checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                ]
+                const accentCol = tradeType === 'type1' ? '#6366F1' : '#0EA5E9'
+                const allDone = checklist.length === questions.length && checklist.every(v=>v)
+                return (
+                  <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                    {questions.map((q, i) => {
+                      const checked = !!checklist[i]
+                      return (
+                        <div key={i} onClick={() => { const n=[...checklist]; n[i]=!n[i]; setChecklist(n); markDirty() }}
+                          style={{ display:'flex', alignItems:'flex-start', gap:'10px', padding:'10px 14px', background: checked?'#F0FDF4':'#F8FAFC', border:`1.5px solid ${checked?'#86EFAC':'#E2E8F0'}`, borderRadius:'10px', cursor:'pointer', transition:'all .15s', userSelect:'none' }}>
+                          <div style={{ width:'18px', height:'18px', borderRadius:'5px', border:`2px solid ${checked?'#10B981':'#CBD5E1'}`, background:checked?'#10B981':'#FFFFFF', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:'1px', transition:'all .15s' }}>
+                            {checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                          </div>
+                          <span style={{ fontSize:'12px', fontWeight:'500', color:checked?'#166534':'#475569', lineHeight:'1.5' }}>{q}</span>
+                        </div>
+                      )
+                    })}
+                    {allDone && (
+                      <div style={{ padding:'10px 14px', background:'#DCFCE7', border:'1.5px solid #86EFAC', borderRadius:'10px', textAlign:'center', fontSize:'12px', fontWeight:'700', color:'#166534' }}>
+                        ✓ All conditions met — valid {tradeType==='type1'?'Type 1 SMR':'Type 2 Distribution'} setup
                       </div>
-                      <span style={{ fontSize:'12px', fontWeight:'500', color: checked ? '#166534' : '#475569', lineHeight:'1.5' }}>{q}</span>
-                    </div>
-                  )
-                })}
-                {checklist.every(v=>v) && (
-                  <div style={{ padding:'8px 14px', background:'#DCFCE7', border:'1.5px solid #86EFAC', borderRadius:'10px', textAlign:'center', fontSize:'12px', fontWeight:'700', color:'#166534' }}>
-                    ✓ All conditions met — you have a valid setup
+                    )}
                   </div>
-                )}
-              </div>
+                )
+              })()}
             </div>
           )}
 
