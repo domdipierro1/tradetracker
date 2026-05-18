@@ -175,7 +175,8 @@ export default function Analysis({ trades }) {
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))', gap:'14px' }}>
               <BreakdownTable title="By Symbol"    k="symbol"    items={['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','Gold','Silver']} trades={trades} accent="#6366F1" />
               <BreakdownTable title="By Key Level" k="level"     items={['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']} trades={trades} accent="#8B5CF6" />
-              <BreakdownTable title="By Direction" k="direction" items={['Long','Short']} trades={trades} accent="#10B981" />
+              <BreakdownTable title="By Trade Type" k="trade_type" items={['Type 1 — SMR','Type 2 — Distribution']} trades={trades} accent="#6366F1" />
+  <BreakdownTable title="By Direction" k="direction" items={['Long','Short']} trades={trades} accent="#10B981" />
               <BreakdownTable title="By Session"   k="session"   items={['London (02:00–05:00)','New York AM (06:00–10:00)']} trades={trades} accent="#0EA5E9" />
               <BreakdownTable title="By Day"       k="dow"       items={DOW} trades={trades} accent="#F59E0B" />
               <BreakdownTable title="By Bias"      k="bias"      items={['Bullish','Bearish']} trades={trades} accent="#EF4444" />

@@ -223,6 +223,7 @@ function TradeForm({ onSave, onCancel }) {
         {sel('time', 'Time (NY)', TIMES)}
         {sel('symbol', 'Symbol', SYMBOLS)}
         {sel('direction', 'Direction', ['Long','Short'])}
+        {sel('trade_type', 'Trade Type', ['Type 1 — SMR', 'Type 2 — Distribution'])}
         {sel('bias', 'Bias', ['Bullish','Bearish'])}
         {sel('session', 'Session', ['London (02:00–05:00)','New York AM (06:00–10:00)'])}
         {sel('level', 'Key Level', LEVELS)}
