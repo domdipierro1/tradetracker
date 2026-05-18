@@ -94,31 +94,35 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
       words.some(w => (e.title||'').toLowerCase().includes(w.toLowerCase()))
     )
 
+    // USD-only events for avoid-trading rules
+    const usdToday    = todayEvs.filter(e => e.country === 'USD')
+    const usdAll      = allEvents.filter(e => e.country === 'USD')
+
     // 1. USD Bank Holiday today
-    const usdHoliday = todayEvs.find(e => e.country === 'USD' && e.isHoliday)
+    const usdHoliday = usdToday.find(e => e.isHoliday)
     if (usdHoliday) return { type: 'holiday', msg: `🏦 USD Bank Holiday — ${usdHoliday.title}. No trading today.` }
 
-    // 2. Day OF CPI, NFP, or FOMC
-    if (has(todayEvs, 'CPI', 'NFP', 'Non-Farm', 'FOMC', 'Fed Funds')) {
-      const names = todayEvs.filter(e => has([e], 'CPI','NFP','Non-Farm','FOMC','Fed Funds')).map(e => e.title).join(', ')
+    // 2. Day OF USD CPI, NFP, or FOMC
+    if (has(usdToday, 'CPI', 'NFP', 'Non-Farm', 'FOMC', 'Fed Funds')) {
+      const names = usdToday.filter(e => has([e], 'CPI','NFP','Non-Farm','FOMC','Fed Funds')).map(e => e.title).join(', ')
       return { type: 'high', msg: `🚫 No trading today — ${names}` }
     }
 
-    // 3. Day BEFORE CPI or NFP — check tomorrow's events
+    // 3. Day BEFORE USD CPI or NFP
     const tomorrow = new Date(d); tomorrow.setDate(d.getDate() + 1)
     const tomorrowStr = tomorrow.toLocaleDateString('en-CA')
-    const tomorrowEvs = allEvents.filter(e => e.date === tomorrowStr)
-    if (has(tomorrowEvs, 'CPI', 'NFP', 'Non-Farm')) {
-      const names = tomorrowEvs.filter(e => has([e], 'CPI','NFP','Non-Farm')).map(e => e.title).join(', ')
-      return { type: 'high', msg: `⚠️ Day before high-impact news — ${names} tomorrow. Avoid trading today.` }
+    const usdTomorrow = allEvents.filter(e => e.date === tomorrowStr && e.country === 'USD')
+    if (has(usdTomorrow, 'CPI', 'NFP', 'Non-Farm')) {
+      const names = usdTomorrow.filter(e => has([e], 'CPI','NFP','Non-Farm')).map(e => e.title).join(', ')
+      return { type: 'high', msg: `⚠️ Day before USD news — ${names} tomorrow. Avoid trading today.` }
     }
 
-    // 4. No News Monday — Monday with no high-impact events this week
-    //    UNLESS CPI or NFP is in the week
+    // 4. No News Monday — Monday with no USD high-impact events this week
+    //    UNLESS USD CPI or NFP is in the week
     if (dow === 1) {
-      const weekHasCpiNfp = allEvents.some(e => has([e], 'CPI','NFP','Non-Farm'))
-      if (!weekHasCpiNfp && allEvents.length === 0) {
-        return { type: 'quiet', msg: '📭 No News Monday — no high-impact events this week. Avoid trading.' }
+      const weekHasUsdCpiNfp = usdAll.some(e => has([e], 'CPI','NFP','Non-Farm'))
+      if (!weekHasUsdCpiNfp && usdAll.length === 0) {
+        return { type: 'quiet', msg: '📭 No News Monday — no USD high-impact events this week. Avoid trading.' }
       }
     }
 
