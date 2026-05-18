@@ -66,54 +66,111 @@ function ChartImage({ url, label, large }) {
 
 // ── NEWS STRIP ───────────────────────────────────────────────────
 function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
-  const { eventsForDate, loading } = useEconomicCalendar()
+  const { events: allEvents, eventsForDate, loading } = useEconomicCalendar()
   const liveEvents = eventsForDate(dateStr)
   const events = liveEvents.length > 0 ? liveEvents : (savedEvents || [])
 
-  // Snapshot as soon as loading finishes — even if empty (saves "no news" permanently)
+  // Snapshot as soon as loading finishes
   const notified = React.useRef(false)
   React.useEffect(() => {
     if (!loading && !notified.current) {
       notified.current = true
-      // Save whatever we have (live events, or empty array meaning no news)
       onEventsLoaded && onEventsLoaded(liveEvents)
     }
   }, [loading])
 
-  const CCY = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
+  // ── NO-TRADE RULES (auto-detect from calendar data) ──────────────
+  const noTradeWarning = React.useMemo(() => {
+    if (loading) return null
+    const d    = new Date(dateStr + 'T12:00:00')
+    const dow  = d.getDay() // 0=Sun,1=Mon...
+    const isWeekday = dow >= 1 && dow <= 5
+    if (!isWeekday) return null
+
+    const todayEvs = events  // already filtered to today
+
+    // Helper: check if event title contains keywords
+    const has = (evList, ...words) => evList.some(e =>
+      words.some(w => (e.title||'').toLowerCase().includes(w.toLowerCase()))
+    )
+
+    // 1. USD Bank Holiday today
+    const usdHoliday = todayEvs.find(e => e.country === 'USD' && e.isHoliday)
+    if (usdHoliday) return { type: 'holiday', msg: `🏦 USD Bank Holiday — ${usdHoliday.title}. No trading today.` }
+
+    // 2. Day OF CPI, NFP, or FOMC
+    if (has(todayEvs, 'CPI', 'NFP', 'Non-Farm', 'FOMC', 'Fed Funds')) {
+      const names = todayEvs.filter(e => has([e], 'CPI','NFP','Non-Farm','FOMC','Fed Funds')).map(e => e.title).join(', ')
+      return { type: 'high', msg: `🚫 No trading today — ${names}` }
+    }
+
+    // 3. Day BEFORE CPI or NFP — check tomorrow's events
+    const tomorrow = new Date(d); tomorrow.setDate(d.getDate() + 1)
+    const tomorrowStr = tomorrow.toLocaleDateString('en-CA')
+    const tomorrowEvs = allEvents.filter(e => e.date === tomorrowStr)
+    if (has(tomorrowEvs, 'CPI', 'NFP', 'Non-Farm')) {
+      const names = tomorrowEvs.filter(e => has([e], 'CPI','NFP','Non-Farm')).map(e => e.title).join(', ')
+      return { type: 'high', msg: `⚠️ Day before high-impact news — ${names} tomorrow. Avoid trading today.` }
+    }
+
+    // 4. No News Monday — Monday with no high-impact events this week
+    //    UNLESS CPI or NFP is in the week
+    if (dow === 1) {
+      const weekHasCpiNfp = allEvents.some(e => has([e], 'CPI','NFP','Non-Farm'))
+      if (!weekHasCpiNfp && allEvents.length === 0) {
+        return { type: 'quiet', msg: '📭 No News Monday — no high-impact events this week. Avoid trading.' }
+      }
+    }
+
+    return null
+  }, [loading, events, allEvents, dateStr])
+
+  const CCY    = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
   const CCY_BG = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5' }
 
-  // Always show the block — even if no events (show "no news")
   if (loading) return null
 
+  const warnBg    = noTradeWarning?.type === 'holiday' ? '#FEF3C7' : noTradeWarning?.type === 'quiet' ? '#F0F9FF' : '#FEF2F2'
+  const warnBorder = noTradeWarning?.type === 'holiday' ? '#FDE68A' : noTradeWarning?.type === 'quiet' ? '#BAE6FD' : '#FECACA'
+  const warnColor  = noTradeWarning?.type === 'holiday' ? '#92400E' : noTradeWarning?.type === 'quiet' ? '#0369A1' : '#991B1B'
+
   return (
-    <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)', marginBottom:'14px' }}>
-      <div style={{ padding:'10px 16px', borderBottom: events.length > 0 ? '1px solid var(--border)' : 'none', background:'var(--red-bg)', display:'flex', alignItems:'center', gap:'8px' }}>
-        <span style={{ fontSize:'12px' }}>{events.length > 0 ? '🔴' : '✅'}</span>
-        <span style={{ fontSize:'11px', fontWeight:'600', color: events.length > 0 ? 'var(--red)' : 'var(--green)', letterSpacing:'.04em', textTransform:'uppercase' }}>
-          {events.length > 0 ? 'High Impact News' : 'No High-Impact Events Today'}
-        </span>
-        {events.length > 0 && <span style={{ fontSize:'11px', color:'var(--muted)', marginLeft:'auto' }}>{events.length} event{events.length > 1 ? 's' : ''}</span>}
-      </div>
-      {events.length > 0 && (
-        <div style={{ display:'flex', flexDirection:'column' }}>
-          {events.map((e, i) => (
-            <div key={i} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 16px', borderBottom: i < events.length-1 ? '1px solid var(--border)' : 'none' }}>
-              <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--muted)', minWidth:'48px' }}>{e.time || '—'}</span>
-              <span style={{ fontSize:'11px', fontWeight:'700', color: CCY[e.country] || 'var(--muted)', background: CCY_BG[e.country] || 'var(--surface2)', padding:'2px 7px', borderRadius:'4px' }}>{e.country}</span>
-              <span style={{ fontSize:'12px', color:'var(--text)', flex:1 }}>{e.title}</span>
-              {e.forecast && !e.actual && <span style={{ fontSize:'11px', color:'var(--muted)', fontFamily:"'JetBrains Mono',monospace" }}>F: {e.forecast}</span>}
-              {e.actual && <span style={{ fontSize:'11px', color:'var(--green)', fontFamily:"'JetBrains Mono',monospace", fontWeight:'600' }}>A: {e.actual}</span>}
-            </div>
-          ))}
+    <div style={{ marginBottom:'14px' }}>
+      {/* No-trade warning banner */}
+      {noTradeWarning && (
+        <div style={{ padding:'12px 16px', background:warnBg, border:`1.5px solid ${warnBorder}`, borderRadius:'var(--r)', marginBottom:'10px', display:'flex', alignItems:'flex-start', gap:'8px' }}>
+          <span style={{ fontSize:'13px', fontWeight:'700', color:warnColor, lineHeight:'1.4' }}>{noTradeWarning.msg}</span>
         </div>
       )}
+
+      {/* Economic events card */}
+      <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
+        <div style={{ padding:'10px 16px', borderBottom: events.length > 0 ? '1px solid var(--border)' : 'none', background: events.length > 0 ? 'var(--red-bg)' : 'var(--surface2)', display:'flex', alignItems:'center', gap:'8px' }}>
+          <span style={{ fontSize:'12px' }}>{events.length > 0 ? '🔴' : '✅'}</span>
+          <span style={{ fontSize:'11px', fontWeight:'600', color: events.length > 0 ? 'var(--red)' : 'var(--green)', letterSpacing:'.04em', textTransform:'uppercase' }}>
+            {events.length > 0 ? 'High Impact News' : 'No High-Impact Events Today'}
+          </span>
+          {events.length > 0 && <span style={{ fontSize:'11px', color:'var(--muted)', marginLeft:'auto' }}>{events.length} event{events.length > 1 ? 's' : ''}</span>}
+        </div>
+        {events.length > 0 && (
+          <div style={{ display:'flex', flexDirection:'column' }}>
+            {events.map((e, i) => (
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 16px', borderBottom: i < events.length-1 ? '1px solid var(--border)' : 'none' }}>
+                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--muted)', minWidth:'48px' }}>{e.time || '—'}</span>
+                <span style={{ fontSize:'11px', fontWeight:'700', color: CCY[e.country] || 'var(--muted)', background: CCY_BG[e.country] || 'var(--surface2)', padding:'2px 7px', borderRadius:'4px' }}>{e.country}</span>
+                <span style={{ fontSize:'12px', color:'var(--text)', flex:1 }}>{e.title}</span>
+                {e.forecast && !e.actual && <span style={{ fontSize:'11px', color:'var(--muted)', fontFamily:"'JetBrains Mono',monospace" }}>F: {e.forecast}</span>}
+                {e.actual && <span style={{ fontSize:'11px', color:'var(--green)', fontFamily:"'JetBrains Mono',monospace", fontWeight:'600' }}>A: {e.actual}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
 
-// ── TRADE FORM ───────────────────────────────────────────────────
 function TradeForm({ onSave, onCancel }) {
   const [form, setForm] = useState(() => {
     try { const s = localStorage.getItem(TRADE_DRAFT); return s ? { ...EMPTY_TRADE, ...JSON.parse(s) } : EMPTY_TRADE } catch(e) { return EMPTY_TRADE }
@@ -510,6 +567,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [chartTf3,   setChartTf3]   = useState('')
   const [chartTf4,   setChartTf4]   = useState('')
   const [noteOpen1,  setNoteOpen1]  = useState(false)
+  const [checklist,  setChecklist]  = useState([false,false,false,false])
   const [noteOpen2,  setNoteOpen2]  = useState(false)
   const [noteOpen3,  setNoteOpen3]  = useState(false)
   const [noteOpen4,  setNoteOpen4]  = useState(false)
@@ -533,7 +591,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   }, [noteDirty, mood, bias, plan, chart1, chart2, chart3, chart4,
       chartNote1, chartNote2, chartNote3, chartNote4,
       chartTf1, chartTf2, chartTf3, chartTf4,
-      eodReview, followedPlan, wentWell, improve])
+      eodReview, followedPlan, wentWell, improve, checklist])
 
   // Load note data when date changes
   useEffect(() => {
@@ -547,6 +605,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       try { const notes = JSON.parse(existingNote.top_mistake||'[]'); setChartNote1(notes[0]||''); setChartNote2(notes[1]||''); setChartNote3(notes[2]||''); setChartNote4(notes[3]||'') } catch(e) { setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('') }
       try { const tfs = JSON.parse(existingNote.htf_bias||'[]'); setChartTf1(tfs[0]||''); setChartTf2(tfs[1]||''); setChartTf3(tfs[2]||''); setChartTf4(tfs[3]||'') } catch(e) { setChartTf1(''); setChartTf2(''); setChartTf3(''); setChartTf4('') }
       try { setEconSnapshot(JSON.parse(existingNote.econ_snapshot||'[]')) } catch(e) { setEconSnapshot([]) }
+      try { setChecklist(JSON.parse(existingNote.checklist_data||'[false,false,false,false]')) } catch(e) { setChecklist([false,false,false,false]) }
       setEodReview(existingNote.trading_errors && !existingNote.trading_errors.startsWith('[') ? existingNote.trading_errors : '')
       setFollowedPlan(existingNote.consistency || '')
       setWentWell(existingNote.what_worked || '')
@@ -559,6 +618,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('')
       setChartTf1(''); setChartTf2(''); setChartTf3(''); setChartTf4('')
       setNoteOpen1(false); setNoteOpen2(false); setNoteOpen3(false); setNoteOpen4(false)
+      setChecklist([false,false,false,false])
     }
     setNoteDirty(false)
   }, [dateStr, existingNote?.id])
@@ -569,7 +629,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
     // Don't save if there's no actual content (prevents ghost note icons)
     const hasContent = [mood, plan, eodReview, wentWell, improve, followedPlan,
       chart1, chart2, chart3, chart4, chartNote1, chartNote2, chartNote3, chartNote4
-    ].some(v => v && v.trim().length > 0)
+    ].some(v => v && v.trim().length > 0) || checklist.some(v => v)
     if (!hasContent && !existingNote) { setNoteDirty(false); return }
 
     setSaving(true)
@@ -593,6 +653,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         htf_bias:         JSON.stringify([chartTf1,chartTf2,chartTf3,chartTf4]),
         top_mistake:      JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
         econ_snapshot:    JSON.stringify(econSnapshot),
+        checklist_data:   JSON.stringify(checklist),
       })
       setNoteDirty(false)
       toast('Day saved ✓')
@@ -732,7 +793,38 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             </div>
           )}
 
-          {/* CHARTS: both daily and forecast */}
+          {/* PRE-TRADE CHECKLIST — daily only */}
+          {!isWeekly && !isForecast && (
+            <div>
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'10px' }}>Pre-Trade Checklist</label>
+              <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                {[
+                  'Is there a clear and obvious DOL on the weekly and daily?',
+                  'Is the 4H showing clean expansion and retracement toward it — not consolidation or chop?',
+                  'Is there one obvious level overlapping with premium or discount within the 4H range?',
+                  'Between 3am–10am NY has price formed a clean 15m breaker block rejection at that level?',
+                ].map((q, i) => {
+                  const checked = checklist[i]
+                  return (
+                    <div key={i} onClick={() => { const n=[...checklist]; n[i]=!n[i]; setChecklist(n); markDirty() }}
+                      style={{ display:'flex', alignItems:'flex-start', gap:'10px', padding:'10px 14px', background: checked ? '#F0FDF4' : '#F8FAFC', border: `1.5px solid ${checked ? '#86EFAC' : '#E2E8F0'}`, borderRadius:'10px', cursor:'pointer', transition:'all .15s', userSelect:'none' }}>
+                      <div style={{ width:'18px', height:'18px', borderRadius:'5px', border: `2px solid ${checked ? '#10B981' : '#CBD5E1'}`, background: checked ? '#10B981' : '#FFFFFF', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:'1px', transition:'all .15s' }}>
+                        {checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </div>
+                      <span style={{ fontSize:'12px', fontWeight:'500', color: checked ? '#166534' : '#475569', lineHeight:'1.5' }}>{q}</span>
+                    </div>
+                  )
+                })}
+                {checklist.every(v=>v) && (
+                  <div style={{ padding:'8px 14px', background:'#DCFCE7', border:'1.5px solid #86EFAC', borderRadius:'10px', textAlign:'center', fontSize:'12px', fontWeight:'700', color:'#166534' }}>
+                    ✓ All conditions met — you have a valid setup
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+                    {/* CHARTS: both daily and forecast */}
           <div>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
               <label style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase' }}>

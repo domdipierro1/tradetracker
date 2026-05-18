@@ -1,3 +1,4 @@
+import React, { useState } from 'react'
 import { computeStats } from '../lib/stats'
 
 import AccountManager from './AccountManager'
@@ -70,7 +71,7 @@ export default function Layout({ page, onNav, trades, user, onSignOut, onExport,
       </aside>
 
       {/* MAIN */}
-      <div className="main" style={{ marginLeft:'var(--nav-w)', flex:1, minHeight:'100vh', display:'flex', flexDirection:'column' }}>
+      <div className="main" style={{ marginLeft:'var(--nav-w)', flex:1, minHeight:'100vh', display:'flex', flexDirection:'column' }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         <header style={{ background:'var(--surface)', borderBottom:'1px solid var(--border)', padding:'0 28px', height:'48px', display:'flex', alignItems:'center', justifyContent:'space-between', position:'sticky', top:0, zIndex:40 }}>
           <span style={{ fontSize:'13px', fontWeight:'500', color:'var(--text)' }}>{NAV.find(n => n.id === page)?.label}</span>
           <div style={{ display:'flex', gap:'5px', alignItems:'center' }}>
