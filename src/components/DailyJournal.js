@@ -759,20 +759,16 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       )}
 
       {/* ── DAY PLAN CARD ── */}
-      {/* Only show for daily and forecast modes */}
-      {(isForecast || !isWeekly) && (
-      <div style={{ order: isForecast ? 1 : 1, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
-        <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background: isForecast ? '#F3E8FF' : '#EFF6FF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>📋</div>
-            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>{isForecast ? 'Weekly Forecast' : 'Day Plan'}</span>
+      {!isWeekly && !isForecast && (
+        <div style={{ order:1, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+          <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+              <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#EFF6FF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>📋</div>
+              <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>Day Plan</span>
+            </div>
+            {noteDirty && <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>Unsaved changes</span>}
           </div>
-          {noteDirty && <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>Unsaved changes</span>}
-        </div>
-        <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
-
-          {/* DAILY: Feeling + Bias + Plan */}
-          {!isWeekly && !isForecast && (<>
+          <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
               <div>
                 <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Feeling</label>
@@ -790,78 +786,10 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Trading Plan</label>
               <AutoTextarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }} placeholder="What are you watching? Key levels, bias read, what needs to happen for you to take a trade..." minHeight={110} />
             </div>
-          </>)}
-
-          {/* FORECAST: Plan for the week */}
-          {isForecast && (
+            {/* Chart Images */}
             <div>
-              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Plan for the Week</label>
-              <AutoTextarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }} placeholder="Macro backdrop, key themes, currencies to focus on, what you need to see to trade..." minHeight={120} />
-            </div>
-          )}
-
-          {/* PRE-TRADE CHECKLIST — daily only */}
-          {!isWeekly && !isForecast && (
-            <div>
-              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'10px' }}>Pre-Trade Checklist</label>
-
-              {/* Trade type selector */}
-              <div style={{ display:'flex', gap:'8px', marginBottom:'14px' }}>
-                {[['type1','Type 1','SMR','#6366F1','#EEF2FF'],['type2','Type 2','Distribution','#0EA5E9','#F0F9FF']].map(([val,label,sub,col,bg]) => (
-                  <div key={val} onClick={() => { setTradeType(tradeType===val?'':val); setChecklist([]); markDirty() }}
-                    style={{ flex:1, padding:'10px 14px', borderRadius:'12px', border:`1.5px solid ${tradeType===val?col:'#E2E8F0'}`, background:tradeType===val?bg:'#F8FAFC', cursor:'pointer', transition:'all .15s', userSelect:'none' }}>
-                    <div style={{ fontSize:'13px', fontWeight:'700', color:tradeType===val?col:'#475569' }}>{label}</div>
-                    <div style={{ fontSize:'11px', color:tradeType===val?col:'#94A3B8', marginTop:'1px' }}>{sub}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Questions */}
-              {tradeType && (() => {
-                const questions = tradeType === 'type1' ? [
-                  'Is there a clear and obvious DOL on the weekly and daily?',
-                  'Is price at or near the key level where the SMR should occur?',
-                  'Between 3am–10am NY has price formed a clean 15m breaker block at that level signalling the SMR is in?',
-                ] : [
-                  'Is there a clear and obvious DOL on the weekly and daily?',
-                  'Is the SMR confirmed — is the high or low of the week in?',
-                  'Is the 4H showing clean expansion and retracement toward the DOL — not consolidation or chop?',
-                  'Is there one obvious level overlapping with premium or discount within the 4H range?',
-                  'Between 3am–10am NY has price formed a clean 15m breaker block rejection at that level?',
-                ]
-                const accentCol = tradeType === 'type1' ? '#6366F1' : '#0EA5E9'
-                const allDone = checklist.length === questions.length && checklist.every(v=>v)
-                return (
-                  <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
-                    {questions.map((q, i) => {
-                      const checked = !!checklist[i]
-                      return (
-                        <div key={i} onClick={() => { const n=[...checklist]; n[i]=!n[i]; setChecklist(n); markDirty() }}
-                          style={{ display:'flex', alignItems:'flex-start', gap:'10px', padding:'10px 14px', background: checked?'#F0FDF4':'#F8FAFC', border:`1.5px solid ${checked?'#86EFAC':'#E2E8F0'}`, borderRadius:'10px', cursor:'pointer', transition:'all .15s', userSelect:'none' }}>
-                          <div style={{ width:'18px', height:'18px', borderRadius:'5px', border:`2px solid ${checked?'#10B981':'#CBD5E1'}`, background:checked?'#10B981':'#FFFFFF', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:'1px', transition:'all .15s' }}>
-                            {checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                          </div>
-                          <span style={{ fontSize:'12px', fontWeight:'500', color:checked?'#166534':'#475569', lineHeight:'1.5' }}>{q}</span>
-                        </div>
-                      )
-                    })}
-                    {allDone && (
-                      <div style={{ padding:'10px 14px', background:'#DCFCE7', border:'1.5px solid #86EFAC', borderRadius:'10px', textAlign:'center', fontSize:'12px', fontWeight:'700', color:'#166534' }}>
-                        ✓ All conditions met — valid {tradeType==='type1'?'Type 1 SMR':'Type 2 Distribution'} setup
-                      </div>
-                    )}
-                  </div>
-                )
-              })()}
-            </div>
-          )}
-
-                    {/* CHARTS: both daily and forecast */}
-          <div>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
-              <label style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase' }}>
-                {isForecast ? 'Charts to Watch' : 'Chart Images'}
-              </label>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
+                <label style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase' }}>Chart Images</label>
               {[chart1,chart2,chart3,chart4].filter(v=>v&&v.trim()).length < 4 && (
                 <button type="button" onClick={() => {
                   if (!chart1) { setChart1(' '); markDirty() }
@@ -873,7 +801,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
                   <span style={{ fontSize:'14px', lineHeight:1 }}>+</span> Add Chart
                 </button>
               )}
-            </div>
+              </div>
             {[[chart1,setChart1,chartNote1,setChartNote1,chartTf1,setChartTf1,noteOpen1,setNoteOpen1],[chart2,setChart2,chartNote2,setChartNote2,chartTf2,setChartTf2,noteOpen2,setNoteOpen2],[chart3,setChart3,chartNote3,setChartNote3,chartTf3,setChartTf3,noteOpen3,setNoteOpen3],[chart4,setChart4,chartNote4,setChartNote4,chartTf4,setChartTf4,noteOpen4,setNoteOpen4]].map(([val,setter,note,setNote,tf,setTf,noteOpen,setNoteOpen],i) => val ? (
               <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'12px', padding:'12px 14px', border:'1px solid #E2E8F0' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
@@ -899,7 +827,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
                 {noteOpen && (
                   <div style={{ marginBottom: val.trim() ? '10px' : '0', position:'relative' }}>
                     <AutoTextarea value={note} onChange={e => { setNote(e.target.value); markDirty() }}
-                      placeholder={isForecast ? "What are you watching on this chart — key levels, setup, bias..." : "Chart analysis notes..."}
+                      placeholder={isForecast ? "What are you watching on this chart — key levels, bias, setup..." : "Chart analysis notes..."}
                       minHeight={60} />
                     {!note && <button type="button" onClick={() => setNoteOpen(false)}
                       style={{ position:'absolute', top:'6px', right:'8px', background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'12px', padding:'0' }}>✕</button>}
@@ -908,18 +836,139 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
                 {val.trim() && <ChartImage url={val.trim()} label={tf || `Chart ${i+1}`} large />}
               </div>
             ) : null)}
+            </div>
           </div>
-
-          {/* Save button for forecast */}
-          {isForecast && (
-            <button onClick={saveNote} disabled={saving}
-              style={{ alignSelf:'flex-start', background: saving ? '#E2E8F0' : '#0F172A', color: saving ? '#94A3B8' : '#FFFFFF', border:'none', borderRadius:'12px', padding:'11px 24px', fontSize:'13px', fontWeight:'600', cursor: saving ? 'default' : 'pointer', fontFamily:'inherit', letterSpacing:'-.01em', boxShadow: saving ? 'none' : '0 4px 14px rgba(15,23,42,.25)', transition:'all .15s' }}>
-              {saving ? 'Saving...' : autoSaving ? 'Auto-saving...' : 'Save Forecast'}
-            </button>
-          )}
-
         </div>
-      </div>
+      )}
+
+      {/* ── PRE-TRADE CHECKLIST CARD — daily only ── */}
+      {!isWeekly && !isForecast && (
+        <div style={{ order:2, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+          <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#F0FDF4', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>✓</div>
+            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>Pre-Trade Checklist</span>
+          </div>
+          <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'14px' }}>
+            {/* Trade type selector */}
+            <div style={{ display:'flex', gap:'8px' }}>
+              {[['type1','Type 1','SMR','#6366F1','#EEF2FF'],['type2','Type 2','Distribution','#0EA5E9','#F0F9FF']].map(([val,label,sub,col,bg]) => (
+                <div key={val} onClick={() => { setTradeType(tradeType===val?'':val); setChecklist([]); markDirty() }}
+                  style={{ flex:1, padding:'10px 14px', borderRadius:'12px', border:`1.5px solid ${tradeType===val?col:'#E2E8F0'}`, background:tradeType===val?bg:'#F8FAFC', cursor:'pointer', transition:'all .15s', userSelect:'none' }}>
+                  <div style={{ fontSize:'13px', fontWeight:'700', color:tradeType===val?col:'#475569' }}>{label}</div>
+                  <div style={{ fontSize:'11px', color:tradeType===val?col:'#94A3B8', marginTop:'1px' }}>{sub}</div>
+                </div>
+              ))}
+            </div>
+            {tradeType && (() => {
+              const questions = tradeType === 'type1' ? [
+                'Is there a clear and obvious DOL on the weekly and daily?',
+                'Is price at or near the key level where the SMR should occur?',
+                'Between 3am–10am NY has price formed a clean 15m breaker block at that level signalling the SMR is in?',
+              ] : [
+                'Is there a clear and obvious DOL on the weekly and daily?',
+                'Is the SMR confirmed — is the high or low of the week in?',
+                'Is the 4H showing clean expansion and retracement toward the DOL — not consolidation or chop?',
+                'Is there one obvious level overlapping with premium or discount within the 4H range?',
+                'Between 3am–10am NY has price formed a clean 15m breaker block rejection at that level?',
+              ]
+              const allDone = checklist.length === questions.length && checklist.every(v=>v)
+              return (
+                <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                  {questions.map((q, i) => {
+                    const checked = !!checklist[i]
+                    return (
+                      <div key={i} onClick={() => { const n=[...checklist]; n[i]=!n[i]; setChecklist(n); markDirty() }}
+                        style={{ display:'flex', alignItems:'flex-start', gap:'10px', padding:'10px 14px', background:checked?'#F0FDF4':'#F8FAFC', border:`1.5px solid ${checked?'#86EFAC':'#E2E8F0'}`, borderRadius:'10px', cursor:'pointer', transition:'all .15s', userSelect:'none' }}>
+                        <div style={{ width:'18px', height:'18px', borderRadius:'5px', border:`2px solid ${checked?'#10B981':'#CBD5E1'}`, background:checked?'#10B981':'#FFFFFF', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:'1px', transition:'all .15s' }}>
+                          {checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        <span style={{ fontSize:'12px', fontWeight:'500', color:checked?'#166534':'#475569', lineHeight:'1.5' }}>{q}</span>
+                      </div>
+                    )
+                  })}
+                  {allDone && (
+                    <div style={{ padding:'10px 14px', background:'#DCFCE7', border:'1.5px solid #86EFAC', borderRadius:'10px', textAlign:'center', fontSize:'12px', fontWeight:'700', color:'#166534' }}>
+                      ✓ All conditions met — valid {tradeType==='type1'?'Type 1 SMR':'Type 2 Distribution'} setup
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ── FORECAST CARD (Sunday) ── */}
+      {isForecast && (
+        <div style={{ order:1, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+          <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+              <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#F3E8FF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>📋</div>
+              <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>Weekly Forecast</span>
+            </div>
+            {noteDirty && <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>Unsaved changes</span>}
+          </div>
+          <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
+            <div>
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Plan for the Week</label>
+              <AutoTextarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }} placeholder="Macro backdrop, key themes, currencies to focus on, what you need to see to trade..." minHeight={120} />
+            </div>
+            <div>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
+                <label style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase' }}>Charts to Watch</label>
+              {[chart1,chart2,chart3,chart4].filter(v=>v&&v.trim()).length < 4 && (
+                <button type="button" onClick={() => {
+                  if (!chart1) { setChart1(' '); markDirty() }
+                  else if (!chart2) { setChart2(' '); markDirty() }
+                  else if (!chart3) { setChart3(' '); markDirty() }
+                  else { setChart4(' '); markDirty() }
+                }}
+                  style={{ background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'6px 12px', fontSize:'12px', fontWeight:'600', color:'#475569', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'5px' }}>
+                  <span style={{ fontSize:'14px', lineHeight:1 }}>+</span> Add Chart
+                </button>
+              )}
+              </div>
+            {[[chart1,setChart1,chartNote1,setChartNote1,chartTf1,setChartTf1,noteOpen1,setNoteOpen1],[chart2,setChart2,chartNote2,setChartNote2,chartTf2,setChartTf2,noteOpen2,setNoteOpen2],[chart3,setChart3,chartNote3,setChartNote3,chartTf3,setChartTf3,noteOpen3,setNoteOpen3],[chart4,setChart4,chartNote4,setChartNote4,chartTf4,setChartTf4,noteOpen4,setNoteOpen4]].map(([val,setter,note,setNote,tf,setTf,noteOpen,setNoteOpen],i) => val ? (
+              <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'12px', padding:'12px 14px', border:'1px solid #E2E8F0' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
+                  <select value={tf} onChange={e => { setTf(e.target.value); markDirty() }}
+                    style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'5px 10px', fontSize:'12px', fontWeight:'600', color: tf ? '#0F172A' : '#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer', flex:1, maxWidth:'120px' }}>
+                    <option value="">Timeframe</option>
+                    {['W','D','4H','1H','30M','15M','5M'].map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <span style={{ fontSize:'10px', color:'#94A3B8', flex:1 }}>Chart {i+1}</span>
+                  <button type="button" onClick={() => { setter(''); setNote(''); setTf(''); setNoteOpen(false); markDirty() }}
+                    style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'14px', padding:'0' }}>✕</button>
+                </div>
+                <input type="url" value={val.trim()} onChange={e => { setter(e.target.value); markDirty() }}
+                  placeholder="Paste TradingView snapshot URL..."
+                  style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'9px 12px', fontSize:'12px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', marginBottom:'8px', transition:'border-color .15s' }}
+                  onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+                {!noteOpen && (
+                  <button type="button" onClick={() => setNoteOpen(true)}
+                    style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', marginBottom: val.trim() ? '10px' : '0', display:'inline-flex', alignItems:'center', gap:'5px' }}>
+                    <span>+</span> Add note
+                  </button>
+                )}
+                {noteOpen && (
+                  <div style={{ marginBottom: val.trim() ? '10px' : '0', position:'relative' }}>
+                    <AutoTextarea value={note} onChange={e => { setNote(e.target.value); markDirty() }}
+                      placeholder={isForecast ? "What are you watching on this chart — key levels, bias, setup..." : "Chart analysis notes..."}
+                      minHeight={60} />
+                    {!note && <button type="button" onClick={() => setNoteOpen(false)}
+                      style={{ position:'absolute', top:'6px', right:'8px', background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'12px', padding:'0' }}>✕</button>}
+                  </div>
+                )}
+                {val.trim() && <ChartImage url={val.trim()} label={tf || `Chart ${i+1}`} large />}
+              </div>
+            ) : null)}
+            </div>
+            <button onClick={saveNote} disabled={saving}
+              style={{ alignSelf:'flex-start', background:saving?'#E2E8F0':'#0F172A', color:saving?'#94A3B8':'#FFFFFF', border:'none', borderRadius:'12px', padding:'11px 24px', fontSize:'13px', fontWeight:'600', cursor:saving?'default':'pointer', fontFamily:'inherit', letterSpacing:'-.01em', boxShadow:saving?'none':'0 4px 14px rgba(15,23,42,.25)', transition:'all .15s' }}>
+              {saving?'Saving...':autoSaving?'Auto-saving...':'Save Forecast'}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* ── TRADES ── */}
