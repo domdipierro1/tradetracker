@@ -608,7 +608,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setChart1(existingNote.observations || '')
       setChart2(existingNote.execution_review || '')
       setChart3(existingNote.week_summary || '')
-      try { const notes = JSON.parse(existingNote.top_mistake||'[]'); setChartNote1(notes[0]||''); setChartNote2(notes[1]||''); setChartNote3(notes[2]||''); setChartNote4(notes[3]||'') } catch(e) { setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('') }
+      try { const notes = JSON.parse(existingNote.top_mistake||'[]'); setChartNote1(notes[0]||''); setChartNote2(notes[1]||''); setChartNote3(notes[2]||''); setChartNote4(notes[3]||''); setNoteOpen1(!!notes[0]); setNoteOpen2(!!notes[1]); setNoteOpen3(!!notes[2]); setNoteOpen4(!!notes[3]) } catch(e) { setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('') }
       try { const tfs = JSON.parse(existingNote.htf_bias||'[]'); setChartTf1(tfs[0]||''); setChartTf2(tfs[1]||''); setChartTf3(tfs[2]||''); setChartTf4(tfs[3]||'') } catch(e) { setChartTf1(''); setChartTf2(''); setChartTf3(''); setChartTf4('') }
       try { setEconSnapshot(JSON.parse(existingNote.econ_snapshot||'[]')) } catch(e) { setEconSnapshot([]) }
       try { const cd = JSON.parse(existingNote.checklist_data||'{}'); setChecklist(cd.checks||[]); setTradeType(cd.type||'') } catch(e) { setChecklist([]); setTradeType('') }
