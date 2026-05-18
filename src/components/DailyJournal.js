@@ -828,9 +828,8 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
                   <div style={{ marginBottom: val.trim() ? '10px' : '0', position:'relative' }}>
                     <AutoTextarea value={note} onChange={e => { setNote(e.target.value); markDirty() }}
                       placeholder={isForecast ? "What are you watching on this chart — key levels, bias, setup..." : "Chart analysis notes..."}
-                      minHeight={60} />
-                    {!note && <button type="button" onClick={() => setNoteOpen(false)}
-                      style={{ position:'absolute', top:'6px', right:'8px', background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'12px', padding:'0' }}>✕</button>}
+                      minHeight={60} style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px' }} />
+
                   </div>
                 )}
                 {val.trim() && <ChartImage url={val.trim()} label={tf || `Chart ${i+1}`} large />}
@@ -954,9 +953,8 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
                   <div style={{ marginBottom: val.trim() ? '10px' : '0', position:'relative' }}>
                     <AutoTextarea value={note} onChange={e => { setNote(e.target.value); markDirty() }}
                       placeholder={isForecast ? "What are you watching on this chart — key levels, bias, setup..." : "Chart analysis notes..."}
-                      minHeight={60} />
-                    {!note && <button type="button" onClick={() => setNoteOpen(false)}
-                      style={{ position:'absolute', top:'6px', right:'8px', background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'12px', padding:'0' }}>✕</button>}
+                      minHeight={60} style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px' }} />
+
                   </div>
                 )}
                 {val.trim() && <ChartImage url={val.trim()} label={tf || `Chart ${i+1}`} large />}
