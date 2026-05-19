@@ -171,8 +171,6 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
         )}
       </div>
     </div>
-    </div>
-    </div>
   )
 }
 
@@ -354,8 +352,6 @@ function TradeCard({ t, onDelete }) {
         </div>
       )}
     </div>
-    </div>
-    </div>
   )
 }
 
@@ -525,8 +521,6 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents })
           )
         })}
       </div>
-    </div>
-    </div>
     </div>
   )
 }
