@@ -559,8 +559,24 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [mood,       setMood]       = useState('')
   const [bias,       setBias]       = useState('')
   const [plan,       setPlan]       = useState('')
+  const [chart1,     setChart1]     = useState('')
+  const [chart2,     setChart2]     = useState('')
+  const [chart3,     setChart3]     = useState('')
+  const [chart4,     setChart4]     = useState('')
+  const [chartNote1, setChartNote1] = useState('')
+  const [chartNote2, setChartNote2] = useState('')
+  const [chartNote3, setChartNote3] = useState('')
+  const [chartNote4, setChartNote4] = useState('')
+  const [chartTf1,   setChartTf1]   = useState('')
+  const [chartTf2,   setChartTf2]   = useState('')
+  const [chartTf3,   setChartTf3]   = useState('')
+  const [chartTf4,   setChartTf4]   = useState('')
+  const [noteOpen1,  setNoteOpen1]  = useState(false)
   const [checklist,  setChecklist]  = useState([])
   const [tradeType,   setTradeType]   = useState('')
+  const [noteOpen2,  setNoteOpen2]  = useState(false)
+  const [noteOpen3,  setNoteOpen3]  = useState(false)
+  const [noteOpen4,  setNoteOpen4]  = useState(false)
   const [econSnapshot, setEconSnapshot] = useState([])
   const [eodReview,  setEodReview]  = useState('')
   const [followedPlan, setFollowedPlan] = useState('')
@@ -578,8 +594,10 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setAutoSaving(false)
     }, 2000)
     return () => clearTimeout(timer)
-  }, [noteDirty, mood, bias, plan, chartGroups,
-      eodReview, followedPlan, wentWell, improve, checklist, tradeType, chartGroups])
+  }, [noteDirty, mood, bias, plan, chart1, chart2, chart3, chart4,
+      chartNote1, chartNote2, chartNote3, chartNote4,
+      chartTf1, chartTf2, chartTf3, chartTf4,
+      eodReview, followedPlan, wentWell, improve, checklist, tradeType])
 
   // Load note data when date changes
   useEffect(() => {
@@ -587,7 +605,11 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setMood(existingNote.mood || '')
       // htf_bias stores TF JSON, so only use it for TFs not for bias text
       setPlan(existingNote.market_conditions && !existingNote.market_conditions.startsWith('[') ? existingNote.market_conditions : '')
-      try { setChartGroups(JSON.parse(existingNote.chart_groups||'[]')) } catch(e) { setChartGroups([]) }
+      setChart1(existingNote.observations || '')
+      setChart2(existingNote.execution_review || '')
+      setChart3(existingNote.week_summary || '')
+      try { const notes = JSON.parse(existingNote.top_mistake||'[]'); setChartNote1(notes[0]||''); setChartNote2(notes[1]||''); setChartNote3(notes[2]||''); setChartNote4(notes[3]||''); setNoteOpen1(!!notes[0]); setNoteOpen2(!!notes[1]); setNoteOpen3(!!notes[2]); setNoteOpen4(!!notes[3]) } catch(e) { setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('') }
+      try { const tfs = JSON.parse(existingNote.htf_bias||'[]'); setChartTf1(tfs[0]||''); setChartTf2(tfs[1]||''); setChartTf3(tfs[2]||''); setChartTf4(tfs[3]||'') } catch(e) { setChartTf1(''); setChartTf2(''); setChartTf3(''); setChartTf4('') }
       try { setEconSnapshot(JSON.parse(existingNote.econ_snapshot||'[]')) } catch(e) { setEconSnapshot([]) }
       try { const cd = JSON.parse(existingNote.checklist_data||'{}'); setChecklist(cd.checks||[]); setTradeType(cd.type||'') } catch(e) { setChecklist([]); setTradeType('') }
       setEodReview(existingNote.trading_errors && !existingNote.trading_errors.startsWith('[') ? existingNote.trading_errors : '')
@@ -596,9 +618,12 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setImprove(existingNote.improvements && !existingNote.improvements.startsWith('[') ? existingNote.improvements : '')
       setBias('')  // bias field separate from TF JSON
     } else {
-      setMood(''); setBias(''); setPlan('')
+      setMood(''); setBias(''); setPlan(''); setChart1(''); setChart2('')
       setEodReview(''); setFollowedPlan(''); setWentWell(''); setImprove('')
-      setChartGroups([])
+      setChart3(''); setChart4('')
+      setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('')
+      setChartTf1(''); setChartTf2(''); setChartTf3(''); setChartTf4('')
+      setNoteOpen1(false); setNoteOpen2(false); setNoteOpen3(false); setNoteOpen4(false)
       setChecklist([])
       setTradeType('')
     }
@@ -607,25 +632,11 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
 
   function markDirty() { setNoteDirty(true) }
 
-
-  function updateGroup(i, key, val) {
-    setChartGroups(gs => { const n=[...gs]; n[i]={...n[i],[key]:val}; return n })
-    markDirty()
-  }
-  function addGroup() {
-    setChartGroups(gs => [...gs, { symbol:'', url1:'', tf1:'', url2:'', tf2:'', note:'' }])
-    markDirty()
-  }
-  function removeGroup(i) {
-    setChartGroups(gs => gs.filter((_,idx)=>idx!==i))
-    markDirty()
-  }
-
   async function saveNote() {
     // Don't save if there's no actual content (prevents ghost note icons)
-    const chartHasContent = chartGroups.length > 0 || chartGroups.some(g => g.symbol || g.url1 || g.url2 || g.note)
-    const hasContent = [mood, plan, eodReview, wentWell, improve, followedPlan
-    ].some(v => v && String(v).trim().length > 0) || checklist.some(v => v) || !!tradeType || chartHasContent
+    const hasContent = [mood, plan, eodReview, wentWell, improve, followedPlan,
+      chart1, chart2, chart3, chart4, chartNote1, chartNote2, chartNote3, chartNote4
+    ].some(v => v && v.trim().length > 0) || checklist.some(v => v) || !!tradeType
     if (!hasContent && !existingNote) { setNoteDirty(false); return }
 
     setSaving(true)
@@ -638,13 +649,16 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         mood,
         htf_bias:         bias,
         market_conditions: plan,
-        chart_groups:     JSON.stringify(chartGroups),
+        observations:     chart1,
+        execution_review: chart2,
+        week_summary:     chart3,
+        top_mistake:      chart4,
         improvements:     improve,
         what_worked:      wentWell,
         consistency:      followedPlan,
         trading_errors:   eodReview,
-
-
+        htf_bias:         JSON.stringify([chartTf1,chartTf2,chartTf3,chartTf4]),
+        top_mistake:      JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
         econ_snapshot:    JSON.stringify(econSnapshot),
         checklist_data:   JSON.stringify({ type: tradeType, checks: checklist }),
       })
@@ -772,64 +786,55 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Trading Plan</label>
               <AutoTextarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }} placeholder="What are you watching? Key levels, bias read, what needs to happen for you to take a trade..." minHeight={110} />
             </div>
-            {/* Chart Groups */}
+            {/* Chart Images */}
             <div>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
                 <label style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase' }}>Chart Images</label>
-                <button type="button" onClick={addGroup}
+              {[chart1,chart2,chart3,chart4].filter(v=>v&&v.trim()).length < 4 && (
+                <button type="button" onClick={() => {
+                  if (!chart1) { setChart1(' '); markDirty() }
+                  else if (!chart2) { setChart2(' '); markDirty() }
+                  else if (!chart3) { setChart3(' '); markDirty() }
+                  else { setChart4(' '); markDirty() }
+                }}
                   style={{ background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'6px 12px', fontSize:'12px', fontWeight:'600', color:'#475569', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'5px' }}>
                   <span style={{ fontSize:'14px', lineHeight:1 }}>+</span> Add Chart
                 </button>
+              )}
               </div>
-              {chartGroups.map((g, i) => (
-                <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'14px', padding:'14px', border:'1px solid #E2E8F0' }}>
-                  {/* Symbol header */}
-                  <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'12px' }}>
-                    <input value={g.symbol} onChange={e => updateGroup(i,'symbol',e.target.value)}
-                      placeholder="Symbol (e.g. GBP/USD)"
-                      style={{ flex:1, background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'6px 10px', fontSize:'12px', fontWeight:'600', color:'#0F172A', fontFamily:'inherit', outline:'none', transition:'border-color .15s' }}
-                      onFocus={e=>e.target.style.borderColor='#6366F1'} onBlur={e=>e.target.style.borderColor='#E2E8F0'} />
-                    <button type="button" onClick={() => removeGroup(i)}
-                      style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'16px', padding:'0', lineHeight:1 }}>✕</button>
-                  </div>
-                  {/* Two charts side by side */}
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px' }}>
-                    {[['url1','tf1'],['url2','tf2']].map(([urlKey,tfKey], ci) => (
-                      <div key={ci}>
-                        <div style={{ display:'flex', gap:'6px', marginBottom:'6px' }}>
-                          <select value={g[tfKey]} onChange={e => updateGroup(i,tfKey,e.target.value)}
-                            style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'7px', padding:'4px 8px', fontSize:'11px', fontWeight:'600', color:g[tfKey]?'#0F172A':'#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer', flex:'0 0 auto' }}>
-                            <option value="">TF</option>
-                            {['W','D','4H','1H','30M','15M','5M'].map(t=><option key={t} value={t}>{t}</option>)}
-                          </select>
-                          <span style={{ fontSize:'10px', color:'#94A3B8', alignSelf:'center' }}>Chart {ci+1}</span>
-                        </div>
-                        <input type="url" value={g[urlKey]} onChange={e => updateGroup(i,urlKey,e.target.value)}
-                          placeholder="TradingView URL..."
-                          style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'7px', padding:'7px 10px', fontSize:'11px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', transition:'border-color .15s' }}
-                          onFocus={e=>e.target.style.borderColor='#6366F1'} onBlur={e=>e.target.style.borderColor='#E2E8F0'} />
-                        {g[urlKey]?.trim() && (
-                          <div style={{ marginTop:'8px' }}>
-                            <ChartImage url={g[urlKey].trim()} label={g[tfKey]||`Chart ${ci+1}`} large />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  {/* Notes */}
-                  {!g.noteOpen && !g.note && (
-                    <button type="button" onClick={() => updateGroup(i,'noteOpen',true)}
-                      style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', display:'inline-flex', alignItems:'center', gap:'5px' }}>
-                      <span>+</span> Add note
-                    </button>
-                  )}
-                  {(g.noteOpen || g.note) && (
-                    <AutoTextarea value={g.note||''} onChange={e => updateGroup(i,'note',e.target.value)}
-                      placeholder="Analysis notes for this pair..."
-                      minHeight={60} style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px' }} />
-                  )}
+            {[[chart1,setChart1,chartNote1,setChartNote1,chartTf1,setChartTf1,noteOpen1,setNoteOpen1],[chart2,setChart2,chartNote2,setChartNote2,chartTf2,setChartTf2,noteOpen2,setNoteOpen2],[chart3,setChart3,chartNote3,setChartNote3,chartTf3,setChartTf3,noteOpen3,setNoteOpen3],[chart4,setChart4,chartNote4,setChartNote4,chartTf4,setChartTf4,noteOpen4,setNoteOpen4]].map(([val,setter,note,setNote,tf,setTf,noteOpen,setNoteOpen],i) => val ? (
+              <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'12px', padding:'12px 14px', border:'1px solid #E2E8F0' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
+                  <select value={tf} onChange={e => { setTf(e.target.value); markDirty() }}
+                    style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'5px 10px', fontSize:'12px', fontWeight:'600', color: tf ? '#0F172A' : '#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer', flex:1, maxWidth:'120px' }}>
+                    <option value="">Timeframe</option>
+                    {['W','D','4H','1H','30M','15M','5M'].map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <span style={{ fontSize:'10px', color:'#94A3B8', flex:1 }}>Chart {i+1}</span>
+                  <button type="button" onClick={() => { setter(''); setNote(''); setTf(''); setNoteOpen(false); markDirty() }}
+                    style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'14px', padding:'0' }}>✕</button>
                 </div>
-              ))}
+                <input type="url" value={val.trim()} onChange={e => { setter(e.target.value); markDirty() }}
+                  placeholder="Paste TradingView snapshot URL..."
+                  style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'9px 12px', fontSize:'12px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', marginBottom:'8px', transition:'border-color .15s' }}
+                  onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+                {!noteOpen && (
+                  <button type="button" onClick={() => setNoteOpen(true)}
+                    style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', marginBottom: val.trim() ? '10px' : '0', display:'inline-flex', alignItems:'center', gap:'5px' }}>
+                    <span>+</span> Add note
+                  </button>
+                )}
+                {noteOpen && (
+                  <div style={{ marginBottom: val.trim() ? '10px' : '0', position:'relative' }}>
+                    <AutoTextarea value={note} onChange={e => { setNote(e.target.value); markDirty() }}
+                      placeholder={isForecast ? "What are you watching on this chart — key levels, bias, setup..." : "Chart analysis notes..."}
+                      minHeight={60} style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px' }} />
+
+                  </div>
+                )}
+                {val.trim() && <ChartImage url={val.trim()} label={tf || `Chart ${i+1}`} large />}
+              </div>
+            ) : null)}
             </div>
           </div>
         </div>
@@ -910,58 +915,51 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             <div>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
                 <label style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase' }}>Charts to Watch</label>
-              {/* Chart Groups */}
-              <div>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
-                  <label style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase' }}>{isWeekly ? 'Charts' : 'Charts to Watch'}</label>
-                  <button type="button" onClick={addGroup}
-                    style={{ background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'6px 12px', fontSize:'12px', fontWeight:'600', color:'#475569', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'5px' }}>
-                    <span style={{ fontSize:'14px', lineHeight:1 }}>+</span> Add Chart
-                  </button>
+              {[chart1,chart2,chart3,chart4].filter(v=>v&&v.trim()).length < 4 && (
+                <button type="button" onClick={() => {
+                  if (!chart1) { setChart1(' '); markDirty() }
+                  else if (!chart2) { setChart2(' '); markDirty() }
+                  else if (!chart3) { setChart3(' '); markDirty() }
+                  else { setChart4(' '); markDirty() }
+                }}
+                  style={{ background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'6px 12px', fontSize:'12px', fontWeight:'600', color:'#475569', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'5px' }}>
+                  <span style={{ fontSize:'14px', lineHeight:1 }}>+</span> Add Chart
+                </button>
+              )}
+              </div>
+            {[[chart1,setChart1,chartNote1,setChartNote1,chartTf1,setChartTf1,noteOpen1,setNoteOpen1],[chart2,setChart2,chartNote2,setChartNote2,chartTf2,setChartTf2,noteOpen2,setNoteOpen2],[chart3,setChart3,chartNote3,setChartNote3,chartTf3,setChartTf3,noteOpen3,setNoteOpen3],[chart4,setChart4,chartNote4,setChartNote4,chartTf4,setChartTf4,noteOpen4,setNoteOpen4]].map(([val,setter,note,setNote,tf,setTf,noteOpen,setNoteOpen],i) => val ? (
+              <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'12px', padding:'12px 14px', border:'1px solid #E2E8F0' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
+                  <select value={tf} onChange={e => { setTf(e.target.value); markDirty() }}
+                    style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'5px 10px', fontSize:'12px', fontWeight:'600', color: tf ? '#0F172A' : '#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer', flex:1, maxWidth:'120px' }}>
+                    <option value="">Timeframe</option>
+                    {['W','D','4H','1H','30M','15M','5M'].map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <span style={{ fontSize:'10px', color:'#94A3B8', flex:1 }}>Chart {i+1}</span>
+                  <button type="button" onClick={() => { setter(''); setNote(''); setTf(''); setNoteOpen(false); markDirty() }}
+                    style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'14px', padding:'0' }}>✕</button>
                 </div>
-                {chartGroups.map((g, i) => (
-                  <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'14px', padding:'14px', border:'1px solid #E2E8F0' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'12px' }}>
-                      <input value={g.symbol} onChange={e => updateGroup(i,'symbol',e.target.value)}
-                        placeholder="Symbol (e.g. GBP/USD)"
-                        style={{ flex:1, background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'6px 10px', fontSize:'12px', fontWeight:'600', color:'#0F172A', fontFamily:'inherit', outline:'none', transition:'border-color .15s' }}
-                        onFocus={e=>e.target.style.borderColor='#6366F1'} onBlur={e=>e.target.style.borderColor='#E2E8F0'} />
-                      <button type="button" onClick={() => removeGroup(i)}
-                        style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'16px', padding:'0' }}>✕</button>
-                    </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px' }}>
-                      {[['url1','tf1'],['url2','tf2']].map(([urlKey,tfKey], ci) => (
-                        <div key={ci}>
-                          <div style={{ display:'flex', gap:'6px', marginBottom:'6px' }}>
-                            <select value={g[tfKey]} onChange={e => updateGroup(i,tfKey,e.target.value)}
-                              style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'7px', padding:'4px 8px', fontSize:'11px', fontWeight:'600', color:g[tfKey]?'#0F172A':'#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer' }}>
-                              <option value="">TF</option>
-                              {['W','D','4H','1H','30M','15M','5M'].map(t=><option key={t} value={t}>{t}</option>)}
-                            </select>
-                            <span style={{ fontSize:'10px', color:'#94A3B8', alignSelf:'center' }}>Chart {ci+1}</span>
-                          </div>
-                          <input type="url" value={g[urlKey]} onChange={e => updateGroup(i,urlKey,e.target.value)}
-                            placeholder="TradingView URL..."
-                            style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'7px', padding:'7px 10px', fontSize:'11px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', transition:'border-color .15s' }}
-                            onFocus={e=>e.target.style.borderColor='#6366F1'} onBlur={e=>e.target.style.borderColor='#E2E8F0'} />
-                          {g[urlKey]?.trim() && <div style={{ marginTop:'8px' }}><ChartImage url={g[urlKey].trim()} label={g[tfKey]||`Chart ${ci+1}`} large /></div>}
-                        </div>
-                      ))}
-                    </div>
-                    {!g.noteOpen && !g.note && (
-                      <button type="button" onClick={() => updateGroup(i,'noteOpen',true)}
-                        style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', display:'inline-flex', alignItems:'center', gap:'5px' }}>
-                        <span>+</span> Add note
-                      </button>
-                    )}
-                    {(g.noteOpen || g.note) && (
-                      <AutoTextarea value={g.note||''} onChange={e => updateGroup(i,'note',e.target.value)}
-                        placeholder="Analysis notes for this pair..."
-                        minHeight={60} style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px' }} />
-                    )}
+                <input type="url" value={val.trim()} onChange={e => { setter(e.target.value); markDirty() }}
+                  placeholder="Paste TradingView snapshot URL..."
+                  style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'9px 12px', fontSize:'12px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', marginBottom:'8px', transition:'border-color .15s' }}
+                  onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+                {!noteOpen && (
+                  <button type="button" onClick={() => setNoteOpen(true)}
+                    style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', marginBottom: val.trim() ? '10px' : '0', display:'inline-flex', alignItems:'center', gap:'5px' }}>
+                    <span>+</span> Add note
+                  </button>
+                )}
+                {noteOpen && (
+                  <div style={{ marginBottom: val.trim() ? '10px' : '0', position:'relative' }}>
+                    <AutoTextarea value={note} onChange={e => { setNote(e.target.value); markDirty() }}
+                      placeholder={isForecast ? "What are you watching on this chart — key levels, bias, setup..." : "Chart analysis notes..."}
+                      minHeight={60} style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px' }} />
+
                   </div>
-                ))}
-              </div>}
+                )}
+                {val.trim() && <ChartImage url={val.trim()} label={tf || `Chart ${i+1}`} large />}
+              </div>
+            ) : null)}
             </div>
             <button onClick={saveNote} disabled={saving}
               style={{ alignSelf:'flex-start', background:saving?'#E2E8F0':'#0F172A', color:saving?'#94A3B8':'#FFFFFF', border:'none', borderRadius:'12px', padding:'11px 24px', fontSize:'13px', fontWeight:'600', cursor:saving?'default':'pointer', fontFamily:'inherit', letterSpacing:'-.01em', boxShadow:saving?'none':'0 4px 14px rgba(15,23,42,.25)', transition:'all .15s' }}>
@@ -1042,58 +1040,51 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             <div>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
                 <label style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase' }}>Charts</label>
-                {/* Chart Groups */}
-              <div>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
-                  <label style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase' }}>{isWeekly ? 'Charts' : 'Charts to Watch'}</label>
-                  <button type="button" onClick={addGroup}
+                {[chart1,chart2,chart3,chart4].filter(v=>v&&v.trim()).length < 4 && (
+                  <button type="button" onClick={() => {
+                    if (!chart1) { setChart1(' '); markDirty() }
+                    else if (!chart2) { setChart2(' '); markDirty() }
+                    else if (!chart3) { setChart3(' '); markDirty() }
+                    else { setChart4(' '); markDirty() }
+                  }}
                     style={{ background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'6px 12px', fontSize:'12px', fontWeight:'600', color:'#475569', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'5px' }}>
                     <span style={{ fontSize:'14px', lineHeight:1 }}>+</span> Add Chart
                   </button>
-                </div>
-                {chartGroups.map((g, i) => (
-                  <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'14px', padding:'14px', border:'1px solid #E2E8F0' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'12px' }}>
-                      <input value={g.symbol} onChange={e => updateGroup(i,'symbol',e.target.value)}
-                        placeholder="Symbol (e.g. GBP/USD)"
-                        style={{ flex:1, background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'6px 10px', fontSize:'12px', fontWeight:'600', color:'#0F172A', fontFamily:'inherit', outline:'none', transition:'border-color .15s' }}
-                        onFocus={e=>e.target.style.borderColor='#6366F1'} onBlur={e=>e.target.style.borderColor='#E2E8F0'} />
-                      <button type="button" onClick={() => removeGroup(i)}
-                        style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'16px', padding:'0' }}>✕</button>
-                    </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px', marginBottom:'10px' }}>
-                      {[['url1','tf1'],['url2','tf2']].map(([urlKey,tfKey], ci) => (
-                        <div key={ci}>
-                          <div style={{ display:'flex', gap:'6px', marginBottom:'6px' }}>
-                            <select value={g[tfKey]} onChange={e => updateGroup(i,tfKey,e.target.value)}
-                              style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'7px', padding:'4px 8px', fontSize:'11px', fontWeight:'600', color:g[tfKey]?'#0F172A':'#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer' }}>
-                              <option value="">TF</option>
-                              {['W','D','4H','1H','30M','15M','5M'].map(t=><option key={t} value={t}>{t}</option>)}
-                            </select>
-                            <span style={{ fontSize:'10px', color:'#94A3B8', alignSelf:'center' }}>Chart {ci+1}</span>
-                          </div>
-                          <input type="url" value={g[urlKey]} onChange={e => updateGroup(i,urlKey,e.target.value)}
-                            placeholder="TradingView URL..."
-                            style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'7px', padding:'7px 10px', fontSize:'11px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', transition:'border-color .15s' }}
-                            onFocus={e=>e.target.style.borderColor='#6366F1'} onBlur={e=>e.target.style.borderColor='#E2E8F0'} />
-                          {g[urlKey]?.trim() && <div style={{ marginTop:'8px' }}><ChartImage url={g[urlKey].trim()} label={g[tfKey]||`Chart ${ci+1}`} large /></div>}
-                        </div>
-                      ))}
-                    </div>
-                    {!g.noteOpen && !g.note && (
-                      <button type="button" onClick={() => updateGroup(i,'noteOpen',true)}
-                        style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', display:'inline-flex', alignItems:'center', gap:'5px' }}>
-                        <span>+</span> Add note
-                      </button>
-                    )}
-                    {(g.noteOpen || g.note) && (
-                      <AutoTextarea value={g.note||''} onChange={e => updateGroup(i,'note',e.target.value)}
-                        placeholder="Analysis notes for this pair..."
-                        minHeight={60} style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px' }} />
-                    )}
+                )}
+              </div>
+              {[[chart1,setChart1,chartNote1,setChartNote1,chartTf1,setChartTf1,noteOpen1,setNoteOpen1],[chart2,setChart2,chartNote2,setChartNote2,chartTf2,setChartTf2,noteOpen2,setNoteOpen2],[chart3,setChart3,chartNote3,setChartNote3,chartTf3,setChartTf3,noteOpen3,setNoteOpen3],[chart4,setChart4,chartNote4,setChartNote4,chartTf4,setChartTf4,noteOpen4,setNoteOpen4]].map(([val,setter,note,setNote,tf,setTf,noteOpen,setNoteOpen],i) => val ? (
+                <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'12px', padding:'12px 14px', border:'1px solid #E2E8F0' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
+                    <select value={tf} onChange={e => { setTf(e.target.value); markDirty() }}
+                      style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'5px 10px', fontSize:'12px', fontWeight:'600', color: tf ? '#0F172A' : '#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer', flex:1, maxWidth:'120px' }}>
+                      <option value="">Timeframe</option>
+                      {['W','D','4H','1H','30M','15M','5M'].map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <span style={{ fontSize:'10px', color:'#94A3B8', flex:1 }}>Chart {i+1}</span>
+                    <button type="button" onClick={() => { setter(''); setNote(''); setTf(''); setNoteOpen(false); markDirty() }}
+                      style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'14px', padding:'0' }}>✕</button>
                   </div>
-                ))}
-              </div>}
+                  <input type="url" value={val.trim()} onChange={e => { setter(e.target.value); markDirty() }}
+                    placeholder="Paste TradingView snapshot URL..."
+                    style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'9px 12px', fontSize:'12px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', marginBottom:'8px', transition:'border-color .15s' }}
+                    onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+                  {!noteOpen && (
+                    <button type="button" onClick={() => setNoteOpen(true)}
+                      style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', marginBottom: val.trim() ? '10px' : '0', display:'inline-flex', alignItems:'center', gap:'5px' }}>
+                      <span>+</span> Add note
+                    </button>
+                  )}
+                  {noteOpen && (
+                    <div style={{ marginBottom: val.trim() ? '10px' : '0', position:'relative' }}>
+                      <AutoTextarea value={note} onChange={e => { setNote(e.target.value); markDirty() }}
+                        placeholder="Chart analysis notes..." minHeight={60} />
+                      {!note && <button type="button" onClick={() => setNoteOpen(false)}
+                        style={{ position:'absolute', top:'6px', right:'8px', background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'12px', padding:'0' }}>✕</button>}
+                    </div>
+                  )}
+                  {val.trim() && <ChartImage url={val.trim()} label={tf || `Chart ${i+1}`} large />}
+                </div>
+              ) : null)}
             </div>
             {/* Save */}
             <button onClick={saveNote} disabled={saving}
@@ -1149,8 +1140,6 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         </div>
       )}
 
-    </div>
-    </div>
     </div>
   )
 }
