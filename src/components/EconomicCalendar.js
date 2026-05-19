@@ -1,7 +1,7 @@
 import { useEconomicCalendar, currencyFlag, getFFWeekDays } from '../lib/useEconomicCalendar'
 
-const CCY_COL = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
-const CCY_BG  = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5' }
+const CCY_COL = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46', AUD:'#0369A1', CAD:'#B45309', CHF:'#DC2626', JPY:'#7C3AED', NZD:'#047857' }
+const CCY_BG  = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5', AUD:'#E0F2FE', CAD:'#FEF3C7', CHF:'#FEE2E2', JPY:'#EDE9FE', NZD:'#D1FAE5' }
 
 export default function EconomicCalendar() {
   const { events, loading, error, fetchedAt, eventsForDate } = useEconomicCalendar()
@@ -11,6 +11,11 @@ export default function EconomicCalendar() {
   const usd = events.filter(e=>e.country==='USD').length
   const gbp = events.filter(e=>e.country==='GBP').length
   const eur = events.filter(e=>e.country==='EUR').length
+  const aud = events.filter(e=>e.country==='AUD').length
+  const cad = events.filter(e=>e.country==='CAD').length
+  const chf = events.filter(e=>e.country==='CHF').length
+  const jpy = events.filter(e=>e.country==='JPY').length
+  const nzd = events.filter(e=>e.country==='NZD').length
   const weekLabel = `${weekDays[0].month} ${weekDays[0].dayNum} – ${weekDays[6].month} ${weekDays[6].dayNum}`
 
   function refresh() {
@@ -27,7 +32,7 @@ export default function EconomicCalendar() {
           <div style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>🔴 High impact · USD · GBP · EUR · {weekLabel}</div>
         </div>
         <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
-          {[['USD',usd],['GBP',gbp],['EUR',eur]].map(([cur,n]) => (
+          {[['USD',usd],['GBP',gbp],['EUR',eur],['AUD',aud],['CAD',cad],['CHF',chf],['JPY',jpy],['NZD',nzd]].filter(([,n])=>n>0).map(([cur,n]) => (
             <div key={cur} style={{ display:'flex', alignItems:'center', gap:'4px', padding:'4px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'6px', fontSize:'11px', fontWeight:'700' }}>
               <span style={{ color:CCY_COL[cur] }}>{cur}</span>
               <span style={{ color:'var(--muted)' }}>{n}</span>

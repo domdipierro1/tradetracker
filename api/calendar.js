@@ -2,7 +2,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=1200')
 
-  const TARGET = ['USD', 'GBP', 'EUR']
+  const TARGET = ['USD', 'GBP', 'EUR', 'AUD', 'CAD', 'CHF', 'JPY', 'NZD']
 
   // FF week = Sun-Sat. On Sunday, "this week" on FF is actually in nextweek.json
   // because FF's week starts Sunday, and today being Sunday means we want

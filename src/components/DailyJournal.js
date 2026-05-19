@@ -129,8 +129,8 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
     return null
   }, [loading, events, allEvents, dateStr])
 
-  const CCY    = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
-  const CCY_BG = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5' }
+  const CCY    = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46', AUD:'#0369A1', CAD:'#B45309', CHF:'#DC2626', JPY:'#7C3AED', NZD:'#047857' }
+  const CCY_BG = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5', AUD:'#E0F2FE', CAD:'#FEF3C7', CHF:'#FEE2E2', JPY:'#EDE9FE', NZD:'#D1FAE5' }
 
   if (loading) return null
 
