@@ -559,10 +559,6 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [mood,       setMood]       = useState('')
   const [bias,       setBias]       = useState('')
   const [plan,       setPlan]       = useState('')
-  const [chartTf1,   setChartTf1]   = useState('')
-  const [chartTf2,   setChartTf2]   = useState('')
-  const [chartTf3,   setChartTf3]   = useState('')
-  const [chartTf4,   setChartTf4]   = useState('')
   const [checklist,  setChecklist]  = useState([])
   const [tradeType,   setTradeType]   = useState('')
   const [econSnapshot, setEconSnapshot] = useState([])
@@ -600,11 +596,8 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setImprove(existingNote.improvements && !existingNote.improvements.startsWith('[') ? existingNote.improvements : '')
       setBias('')  // bias field separate from TF JSON
     } else {
-      setMood(''); setBias(''); setPlan(''); setChart1(''); setChart2('')
+      setMood(''); setBias(''); setPlan('')
       setEodReview(''); setFollowedPlan(''); setWentWell(''); setImprove('')
-      setChart3(''); setChart4('')
-      setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('')
-      setChartTf1(''); setChartTf2(''); setChartTf3(''); setChartTf4('')
       setChartGroups([])
       setChecklist([])
       setTradeType('')
@@ -630,9 +623,9 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
 
   async function saveNote() {
     // Don't save if there's no actual content (prevents ghost note icons)
-    const hasContent = [mood, plan, eodReview, wentWell, improve, followedPlan,
-      ...(chartGroups.map(g=>g.note||'')), ...(chartGroups.map(g=>g.symbol||''))
-    ].some(v => v && v.trim().length > 0) || checklist.some(v => v) || !!tradeType || chartGroups.length > 0
+    const chartHasContent = chartGroups.length > 0 || chartGroups.some(g => g.symbol || g.url1 || g.url2 || g.note)
+    const hasContent = [mood, plan, eodReview, wentWell, improve, followedPlan
+    ].some(v => v && String(v).trim().length > 0) || checklist.some(v => v) || !!tradeType || chartHasContent
     if (!hasContent && !existingNote) { setNoteDirty(false); return }
 
     setSaving(true)
