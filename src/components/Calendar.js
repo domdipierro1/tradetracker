@@ -214,7 +214,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
                   ? <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--purple)' }}>Weekly Forecast</span>
                   : <span style={{ fontSize:'9px', color:numCol[cls], opacity:.8 }}>{cnt} trade{cnt>1?'s':''}</span>}
                 {cnt > 0 && !isSaturdayCell && !isSundayCell && (
-                  <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background: cls==='win'?'var(--green-dim)':cls==='loss'?'var(--red-dim)':'var(--amber-dim)', color: cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--amber)' }}>
+                  <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background: (cls==='win'||cls==='today-win')?'var(--green-dim)':(cls==='loss'||cls==='today-loss')?'var(--red-dim)':'var(--amber-dim)', color: (cls==='win'||cls==='today-win')?'var(--green)':(cls==='loss'||cls==='today-loss')?'var(--red)':'var(--amber)' }}>
                     {pl>0?'WIN':pl<0?'LOSS':'BE'}
                   </span>
                 )}
