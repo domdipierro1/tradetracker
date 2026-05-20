@@ -177,7 +177,7 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
 
 function TradeForm({ onSave, onCancel, initialData }) {
   const [form, setForm] = useState(() => {
-    if (initialData) return { ...EMPTY_TRADE, ...initialData }
+    if (initialData) return { ...EMPTY_TRADE, ...initialData, r: initialData.r ?? initialData.r_multiple ?? initialData.pl ?? '' }
     try { const s = localStorage.getItem(TRADE_DRAFT); return s ? { ...EMPTY_TRADE, ...JSON.parse(s) } : EMPTY_TRADE } catch(e) { return EMPTY_TRADE }
   })
   const [err, setErr] = useState('')
