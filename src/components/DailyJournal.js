@@ -770,7 +770,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
           </div>
           <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
             <div>
-              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }>Mindset Going Into the Day</label>
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Mindset Going Into the Day</label>
               <AutoTextarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }} placeholder="How are you feeling mentally? Focused, patient, distracted, emotional..." minHeight={70} />
             </div>
             <div>
