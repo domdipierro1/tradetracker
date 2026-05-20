@@ -769,18 +769,9 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             {noteDirty && <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>Unsaved changes</span>}
           </div>
           <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
-              <div>
-                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Feeling</label>
-                <AutoTextarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }} placeholder="How are you feeling going into today's session?" minHeight={70} />
-              </div>
-              <div>
-                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Bias Today</label>
-                <input value={bias} onChange={e => { setBias(e.target.value); markDirty() }}
-                  placeholder="e.g. Bearish NQ, Bullish GBP/USD..."
-                  style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'12px 14px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', transition:'border-color .15s', boxSizing:'border-box' }}
-                  onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
-              </div>
+            <div>
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }>Mindset Going Into the Day</label>
+              <AutoTextarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }} placeholder="How are you feeling mentally? Focused, patient, distracted, emotional..." minHeight={70} />
             </div>
             <div>
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Trading Plan</label>
