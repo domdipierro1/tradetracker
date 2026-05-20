@@ -258,6 +258,7 @@ function TradeForm({ onSave, onCancel }) {
             <span style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>Chart 1</span>
           </div>
           <input className="form-input" type="url" value={form.screenshot} onChange={set('screenshot')} placeholder="Paste TradingView snapshot URL..." />
+          {form.screenshot?.trim() && <div style={{marginTop:'8px'}}><ChartImage url={form.screenshot.trim()} label={form.screenshot_tf||'Chart 1'} large /></div>}
         </div>
         <div className="form-group">
           <div style={{ display:'flex', gap:'6px', marginBottom:'6px', alignItems:'center' }}>
@@ -269,6 +270,7 @@ function TradeForm({ onSave, onCancel }) {
             <span style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>Chart 2</span>
           </div>
           <input className="form-input" type="url" value={form.screenshot2||''} onChange={set('screenshot2')} placeholder="Paste TradingView snapshot URL..." />
+          {form.screenshot2?.trim() && <div style={{marginTop:'8px'}}><ChartImage url={form.screenshot2.trim()} label={form.screenshot2_tf||'Chart 2'} large /></div>}
         </div>
       </div>
       <div className="form-group" style={{ marginBottom:'14px' }}>
