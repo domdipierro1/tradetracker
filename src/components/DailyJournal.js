@@ -175,8 +175,9 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
 }
 
 
-function TradeForm({ onSave, onCancel }) {
+function TradeForm({ onSave, onCancel, initialData }) {
   const [form, setForm] = useState(() => {
+    if (initialData) return { ...EMPTY_TRADE, ...initialData }
     try { const s = localStorage.getItem(TRADE_DRAFT); return s ? { ...EMPTY_TRADE, ...JSON.parse(s) } : EMPTY_TRADE } catch(e) { return EMPTY_TRADE }
   })
   const [err, setErr] = useState('')
@@ -218,7 +219,7 @@ function TradeForm({ onSave, onCancel }) {
 
   return (
     <form onSubmit={submit} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', padding:'18px', boxShadow:'var(--shadow)' }}>
-      <div style={{ fontSize:'13px', fontWeight:'600', color:'var(--text)', marginBottom:'16px' }}>Log Trade</div>
+      <div style={{ fontSize:'13px', fontWeight:'600', color:'var(--text)', marginBottom:'16px' }}>{initialData ? 'Edit Trade' : 'Log Trade'}</div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:'11px', marginBottom:'12px' }}>
         {sel('time', 'Time (NY)', TIMES)}
         {sel('symbol', 'Symbol', SYMBOLS)}
@@ -279,7 +280,7 @@ function TradeForm({ onSave, onCancel }) {
       </div>
       {err && <div style={{ color:'var(--red)', fontSize:'12px', marginBottom:'10px' }}>{err}</div>}
       <div style={{ display:'flex', gap:'8px' }}>
-        <button type="submit" className="btn btn-blue" disabled={saving}>{saving ? 'Saving...' : 'Save Trade'}</button>
+        <button type="submit" className="btn btn-blue" disabled={saving}>{saving ? 'Saving...' : initialData ? 'Update Trade' : 'Save Trade'}</button>
         <button type="button" className="btn btn-outline" onClick={() => { clear(); onCancel() }}>Cancel</button>
       </div>
     </form>
@@ -287,7 +288,7 @@ function TradeForm({ onSave, onCancel }) {
 }
 
 // ── TRADE CARD ───────────────────────────────────────────────────
-function TradeCard({ t, onDelete }) {
+function TradeCard({ t, onDelete, onEdit }) {
   const up = (t.pl || t.r_multiple || 0) >= 0
   const rVal = t.pl || t.r_multiple || 0
   const ob = o => o==='Win' ? { bg:'#ECFDF5', col:'#065F46', border:'#BBF7D0' }
@@ -308,13 +309,19 @@ function TradeCard({ t, onDelete }) {
         {t.outcome && (
           <span style={{ fontSize:'11px', fontWeight:'700', padding:'3px 9px', borderRadius:'7px', background:oc.bg, color:oc.col, border:`1px solid ${oc.border}` }}>{t.outcome}</span>
         )}
-        <span style={{ marginLeft:'auto', fontFamily:"'JetBrains Mono',monospace", fontSize:'18px', fontWeight:'700', color: up ? '#10B981' : '#EF4444' }}>
+        <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'18px', fontWeight:'700', color: up ? '#10B981' : '#EF4444', marginLeft:'auto' }}>
           {rVal >= 0 ? '+' : ''}{rVal.toFixed ? rVal.toFixed(2) : rVal}R
         </span>
-        {onDelete && (
-          <button onClick={() => { if(window.confirm('Delete this trade?')) onDelete(t.id) }}
-            style={{ background:'none', border:'none', cursor:'pointer', color:'#CBD5E1', fontSize:'14px', padding:'0', lineHeight:1, fontWeight:'700' }}>✕</button>
-        )}
+        <div style={{ display:'flex', gap:'6px', marginLeft:'auto', alignItems:'center' }}>
+          {onEdit && (
+            <button onClick={() => onEdit(t)}
+              style={{ background:'none', border:'1px solid #E2E8F0', borderRadius:'6px', cursor:'pointer', color:'#64748B', fontSize:'11px', fontWeight:'600', padding:'3px 8px', fontFamily:'inherit' }}>Edit</button>
+          )}
+          {onDelete && (
+            <button onClick={() => { if(window.confirm('Delete this trade?')) onDelete(t.id) }}
+              style={{ background:'none', border:'none', cursor:'pointer', color:'#CBD5E1', fontSize:'14px', padding:'0', lineHeight:1, fontWeight:'700' }}>✕</button>
+          )}
+        </div>
       </div>
 
       {/* Details grid */}
@@ -529,7 +536,7 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents })
 
 
 // ── MAIN COMPONENT ───────────────────────────────────────────────
-export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast, dateStr: propDateStr, isWeekly: propIsWeekly }) {
+export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onEditTrade, onDeleteTrade, toast, dateStr: propDateStr, isWeekly: propIsWeekly }) {
   const today = toDateStr(new Date())
   const [dateStr, setDateStr] = useState(propDateStr || today)
   const isWeekly   = propIsWeekly === true
@@ -537,6 +544,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [showTradeForm, setShowTradeForm] = useState(() => {
     try { return sessionStorage.getItem(FORM_OPEN) === 'true' } catch { return false }
   })
+  const [editingTrade, setEditingTrade] = useState(null)
   const [saving, setSaving] = useState(false)
 
   // When propDateStr changes (from calendar click), update local date
@@ -672,10 +680,16 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
 
   async function handleAddTrade(tradeData) {
     try {
-      await onAddTrade({ ...tradeData, date: dateStr })
+      if (editingTrade) {
+        await onEditTrade(editingTrade.id, { ...tradeData })
+        setEditingTrade(null)
+        toast('Trade updated ✓')
+      } else {
+        await onAddTrade({ ...tradeData, date: dateStr })
+        toast('Trade logged ✓')
+      }
       setShowTradeForm(false)
       try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {}
-      toast('Trade logged ✓')
     } catch(err) {
       toast('Error saving trade: ' + err.message)
     }
@@ -976,15 +990,15 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         {isWeekly && weekTrades.length > 0 && (
           <div>
             <div style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A', marginBottom:'12px' }}>Week's Trades</div>
-            {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} />)}
+            {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={t => { setEditingTrade(t); setShowTradeForm(true) }} />)}
           </div>
         )}
         {!isWeekly && !isForecast && (
           <>
             {showTradeForm && (
-              <TradeForm onSave={handleAddTrade} onCancel={() => { setShowTradeForm(false); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
+              <TradeForm onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
             )}
-            {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} />)}
+            {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={t => { setEditingTrade(t); setShowTradeForm(true) }} />)}
           </>
         )}
       </div>
