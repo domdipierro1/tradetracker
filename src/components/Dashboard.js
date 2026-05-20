@@ -80,6 +80,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
   const outcomeRef = useRef(null)
   const dirRef     = useRef(null)
   const symRef     = useRef(null)
+  const typeRef    = useRef(null)
   const sessRef    = useRef(null)
   const rdistRef   = useRef(null)
   const rollingRef = useRef(null)
@@ -189,7 +190,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
     }))
 
     // Symbol R bar
-    const syms = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','Gold','Silver']
+    const syms = [...new Set(trades.map(t => t.symbol).filter(Boolean))].sort()
     const symData = syms.map(s2 => trades.filter(t => t.symbol === s2).reduce((sum, t) => sum + (t.pl || t.r_multiple || 0), 0))
     safe(symRef, ctx => new Chart(ctx, {
       type: 'bar',
@@ -211,6 +212,30 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         }
       }
     }))
+
+    // Trade Type R bar
+    const types = ['Type 1 — SMR', 'Type 2 — Distribution', 'Not in Plan']
+    const typeData = types.map(tp => trades.filter(t => t.trade_type === tp).reduce((sum, t) => sum + (t.pl || t.r_multiple || 0), 0))
+    const typeCounts = types.map(tp => trades.filter(t => t.trade_type === tp).length)
+    const typeLabels = types.map((tp, i) => typeCounts[i] > 0 ? `${tp} (${typeCounts[i]})` : tp)
+    safe(typeRef, ctx => new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: typeLabels,
+        datasets: [{
+          data: typeData,
+          backgroundColor: typeData.map(v => v >= 0 ? '#DCFCE7' : '#FEE2E2'),
+          borderColor:     typeData.map(v => v >= 0 ? '#10B981' : '#EF4444'),
+          borderWidth: 2, borderRadius: 6,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1E293B', padding: 10, cornerRadius: 8, bodyFont: font(12, '600') } },
+        scales: { x: { grid: { display: false }, ticks: { font: font(11) } }, y: { grid: { color: '#F1F5F9' }, ticks: { font: font(11), callback: v => v + 'R' } } }
+      }
+    }))
+
 
     // Session R bar
     const sess = ['London (02:00–05:00)', 'New York AM (06:00–10:00)']
@@ -341,6 +366,7 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         <Panel title="R Distribution" accent="#8B5CF6"><canvas ref={rdistRef} /></Panel>
         <Panel title="P/L by Session" accent="#8B5CF6" height="140px"><canvas ref={sessRef} /></Panel>
         <Panel title="P/L by Symbol" accent="#0EA5E9" span={2} height="260px"><canvas ref={symRef} /></Panel>
+        <Panel title="P/L by Trade Type" accent="#6366F1" span={2} height="200px"><canvas ref={typeRef} /></Panel>
       </div>
 
       {/* ── ROLLING WIN RATE ── */}
