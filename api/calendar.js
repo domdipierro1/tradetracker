@@ -60,8 +60,8 @@ export default async function handler(req, res) {
       const data = await r.json()
       if (!Array.isArray(data) || !data.length) { console.log(`${url}: empty`); continue }
       const events = data
-        .filter(e => e.impact === 'High' && TARGET.includes(e.country))
-        .map(parseEvent)
+        .filter(e => (e.impact === 'High' || e.impact === 'Holiday') && TARGET.includes(e.country))
+        .map(e => ({ ...parseEvent(e), isHoliday: e.impact === 'Holiday' }))
       console.log(`${url}: ${events.length} events, isSunday=${isEST_Sunday}`)
       return res.status(200).json({ ok: true, events, source: url, isSunday: isEST_Sunday })
     } catch(err) { console.log(`${url}: ${err.message}`); continue }
