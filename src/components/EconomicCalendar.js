@@ -95,7 +95,7 @@ export default function EconomicCalendar() {
                         {e.country}
                       </span>
                       <div style={{ width:'8px', height:'8px', borderRadius:'2px', background: e.isHoliday ? '#CBD5E1' : '#EF4444', flexShrink:0 }} />
-                      <span style={{ fontSize:'13px', fontWeight: e.isHoliday ? '400' : '600', color: e.isHoliday ? '#94A3B8' : '#334155', flex:1, fontStyle: e.isHoliday ? 'italic' : 'normal' }}>{e.title}</span>
+                      <span style={{ fontSize:'13px', fontWeight: '600', color: e.isHoliday ? '#94A3B8' : '#334155', flex:1, fontStyle: 'normal' }}>{e.title}</span>
                       {!e.isHoliday && e.actual   && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color:'#10B981' }}>{e.actual}</span>}
                       {!e.isHoliday && e.forecast && !e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#64748B' }}>{e.forecast}</span>}
                       {!e.isHoliday && e.previous && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#94A3B8' }}>{e.previous}</span>}
