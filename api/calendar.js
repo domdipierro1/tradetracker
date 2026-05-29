@@ -2,7 +2,8 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=1200')
 
-  const TARGET = ['USD', 'GBP', 'EUR', 'AUD', 'CAD', 'CHF', 'JPY', 'NZD']
+  const NEWS_CURRENCIES = ['USD', 'GBP', 'EUR']
+  const ALL_CURRENCIES  = ['USD', 'GBP', 'EUR', 'AUD', 'CAD', 'CHF', 'JPY', 'NZD']
 
   // FF week = Sun-Sat. On Sunday, "this week" on FF is actually in nextweek.json
   // because FF's week starts Sunday, and today being Sunday means we want
@@ -60,7 +61,7 @@ export default async function handler(req, res) {
       const data = await r.json()
       if (!Array.isArray(data) || !data.length) { console.log(`${url}: empty`); continue }
       const events = data
-        .filter(e => (e.impact === 'High' || e.impact === 'Holiday') && TARGET.includes(e.country))
+        .filter(e => (e.impact === 'High' && NEWS_CURRENCIES.includes(e.country)) || (e.impact === 'Holiday' && ALL_CURRENCIES.includes(e.country)))
         .map(e => ({ ...parseEvent(e), isHoliday: e.impact === 'Holiday' }))
       console.log(`${url}: ${events.length} events, isSunday=${isEST_Sunday}`)
       return res.status(200).json({ ok: true, events, source: url, isSunday: isEST_Sunday })
