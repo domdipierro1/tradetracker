@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useEconomicCalendar, currencyFlag, getFFWeekDays } from '../lib/useEconomicCalendar'
 
-const CCY_COL = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46', AUD:'#0369A1', CAD:'#B45309', CHF:'#DC2626', JPY:'#7C3AED', NZD:'#047857' }
-const CCY_BG  = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5', AUD:'#E0F2FE', CAD:'#FEF3C7', CHF:'#FEE2E2', JPY:'#EDE9FE', NZD:'#D1FAE5' }
+const CCY_COL = { USD:'#1D4ED8', GBP:'#1D4ED8', EUR:'#1D4ED8', AUD:'#1D4ED8', CAD:'#1D4ED8', CHF:'#1D4ED8', JPY:'#1D4ED8', NZD:'#1D4ED8' }
+const CCY_BG  = { USD:'#DBEAFE', GBP:'#DBEAFE', EUR:'#DBEAFE', AUD:'#DBEAFE', CAD:'#DBEAFE', CHF:'#DBEAFE', JPY:'#DBEAFE', NZD:'#DBEAFE' }
 
 export default function EconomicCalendar() {
   const { events, loading, error, fetchedAt, eventsForDate } = useEconomicCalendar()
