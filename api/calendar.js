@@ -3,7 +3,7 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=1200')
 
   const NEWS_CURRENCIES = ['USD', 'GBP', 'EUR']
-  const ALL_CURRENCIES  = ['USD', 'GBP', 'EUR', 'AUD', 'CAD', 'CHF', 'JPY', 'NZD']
+  const ALL_CURRENCIES  = ['USD', 'GBP', 'EUR']
 
   // FF week = Sun-Sat. On Sunday, "this week" on FF is actually in nextweek.json
   // because FF's week starts Sunday, and today being Sunday means we want

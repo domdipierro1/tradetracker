@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const CK = 'tt_econ_v24'
+const CK = 'tt_econ_v25'
 const TTL = 60 * 60 * 1000
 
 export function currencyFlag(c) {

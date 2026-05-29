@@ -20,7 +20,7 @@ export default function EconomicCalendar() {
   const weekLabel = `${weekDays[0].month} ${weekDays[0].dayNum} – ${weekDays[6].month} ${weekDays[6].dayNum}`
 
   function refresh() {
-    sessionStorage.removeItem('tt_econ_v21')
+    sessionStorage.removeItem('tt_econ_v25')
     window.location.reload()
   }
 
