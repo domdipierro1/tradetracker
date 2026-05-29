@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useEconomicCalendar, currencyFlag, getFFWeekDays } from '../lib/useEconomicCalendar'
 
-const CCY_COL = { USD:'#1D4ED8', GBP:'#1D4ED8', EUR:'#1D4ED8', AUD:'#1D4ED8', CAD:'#1D4ED8', CHF:'#1D4ED8', JPY:'#1D4ED8', NZD:'#1D4ED8' }
-const CCY_BG  = { USD:'#DBEAFE', GBP:'#DBEAFE', EUR:'#DBEAFE', AUD:'#DBEAFE', CAD:'#DBEAFE', CHF:'#DBEAFE', JPY:'#DBEAFE', NZD:'#DBEAFE' }
+const CCY_COL = { USD:'#1E293B', GBP:'#1E293B', EUR:'#1E293B', AUD:'#1E293B', CAD:'#1E293B', CHF:'#1E293B', JPY:'#1E293B', NZD:'#1E293B' }
+const CCY_BG  = { USD:'#F1F5F9', GBP:'#F1F5F9', EUR:'#F1F5F9', AUD:'#F1F5F9', CAD:'#F1F5F9', CHF:'#F1F5F9', JPY:'#F1F5F9', NZD:'#F1F5F9' }
 
 export default function EconomicCalendar() {
   const { events, loading, error, fetchedAt, eventsForDate } = useEconomicCalendar()
@@ -91,10 +91,10 @@ export default function EconomicCalendar() {
                   {dayEvs.map((e, ei) => (
                     <div key={ei} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 20px', borderTop: ei > 0 ? '1px solid #F8FAFC' : 'none' }}>
                       <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color: '#64748B', minWidth:'44px' }}>{e.isHoliday ? 'All Day' : (e.time||'—')}</span>
-                      <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'2px 8px', borderRadius:'4px', background: '#DBEAFE', fontSize:'10px', fontWeight:'700', color: '#1D4ED8', flexShrink:0 }}>
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'2px 8px', borderRadius:'4px', background: '#F1F5F9', fontSize:'10px', fontWeight:'700', color: '#1E293B', flexShrink:0 }}>
                         {e.country}
                       </span>
-                      <div style={{ width:'8px', height:'8px', borderRadius:'2px', background: e.isHoliday ? '#CBD5E1' : '#EF4444', flexShrink:0 }} />
+                      <div style={{ width:'11px', height:'11px', borderRadius:'3px', background: e.isHoliday ? '#94A3B8' : '#EF4444', flexShrink:0 }} />
                       <span style={{ fontSize:'13px', fontWeight: '600', color: '#334155', flex:1, fontStyle: 'normal' }}>{e.title}</span>
                       {!e.isHoliday && e.actual   && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color:'#10B981' }}>{e.actual}</span>}
                       {!e.isHoliday && e.forecast && !e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#64748B' }}>{e.forecast}</span>}
