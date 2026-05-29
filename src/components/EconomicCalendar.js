@@ -121,7 +121,7 @@ export default function EconomicCalendar() {
 function Mag7Earnings() {
   const [earnings, setEarnings] = useState([])
   const [loading, setLoading]   = useState(true)
-  const CK = 'tt_mag7_v1'
+  const CK = 'tt_mag7_v2'
 
   useEffect(() => {
     async function load() {
@@ -184,9 +184,12 @@ function Mag7Earnings() {
               </div>
               <div style={{ textAlign:'right' }}>
                 <div style={{ fontSize:'12px', fontWeight:'600', color:'#334155' }}>{fmt(e.date)}</div>
-                <div style={{ fontSize:'10px', fontWeight:'700', color: isToday?'var(--amber)':isClose?'var(--red)':'#94A3B8', marginTop:'1px' }}>
-                  {daysUntil(e.date)}
-                  {!e.confirmed && <span style={{ marginLeft:'4px', opacity:.6 }}>~est</span>}
+                <div style={{ display:'flex', alignItems:'center', gap:'4px', marginTop:'2px' }}>
+                  <span style={{ fontSize:'10px', fontWeight:'700', color: isToday?'var(--amber)':isClose?'var(--red)':'#94A3B8' }}>{daysUntil(e.date)}</span>
+                  {e.confirmed
+                    ? <span style={{ fontSize:'9px', fontWeight:'700', color:'#10B981', background:'#DCFCE7', padding:'1px 5px', borderRadius:'4px' }}>CONFIRMED</span>
+                    : <span style={{ fontSize:'9px', fontWeight:'600', color:'#94A3B8', background:'#F1F5F9', padding:'1px 5px', borderRadius:'4px' }}>ESTIMATED</span>
+                  }
                 </div>
               </div>
             </div>
