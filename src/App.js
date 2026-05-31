@@ -286,8 +286,8 @@ export default function App() {
         onDeleteAccount={handleDeleteAccount}
       >
         {page === 'dashboard' && <Dashboard {...pageProps} />}
-        {page === 'journal'   && <DailyJournal trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onEditTrade={handleEdit} onDeleteTrade={handleDelete} toast={showToast} dateStr={journalDate} isWeekly={journalIsWeekly} />}
-        {page === 'calendar'  && <Calendar  trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onEditTrade={handleEdit} onDeleteTrade={handleDelete} toast={showToast} onOpenJournal={(date, weekly) => { setJournalDate(date); setJournalIsWeekly(weekly); setPage('journal'); window.scrollTo({top:0}) }} />}
+        {page === 'journal'   && <DailyJournal trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onDeleteTrade={handleDelete} toast={showToast} dateStr={journalDate} isWeekly={journalIsWeekly} />}
+        {page === 'calendar'  && <Calendar  trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onDeleteTrade={handleDelete} toast={showToast} onOpenJournal={(date, weekly) => { setJournalDate(date); setJournalIsWeekly(weekly); setPage('journal'); window.scrollTo({top:0}) }} />}
         {page === 'news'      && <NewsTab />}
         {page === 'analysis'  && <Analysis  {...pageProps} />}
         {page === 'playbook'  && <Playbook />}

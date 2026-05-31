@@ -4,7 +4,7 @@ import { useEconomicCalendar, currencyFlag, formatFFTime } from '../lib/useEcono
 
 // ── CONSTANTS ────────────────────────────────────────────────────
 const TIMES   = ['02:00','02:30','03:00','03:30','04:00','04:30','05:00','05:30','06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00']
-const SYMBOLS = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','DAX','Gold','Silver']
+const SYMBOLS = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','Gold','Silver']
 const LEVELS  = ['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']
 const MISTAKES= ['No mistake','Wrong bias','Level not aligned with bias','Entered outside killzone','No breaker block formed','Entered before breaker closed','Premature entry — no confirmation','Moved stop too early','Took partial too early','Revenge trade','Overtraded']
 
@@ -129,8 +129,8 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
     return null
   }, [loading, events, allEvents, dateStr])
 
-  const CCY    = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46', AUD:'#0369A1', CAD:'#B45309', CHF:'#DC2626', JPY:'#7C3AED', NZD:'#047857' }
-  const CCY_BG = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5', AUD:'#E0F2FE', CAD:'#FEF3C7', CHF:'#FEE2E2', JPY:'#EDE9FE', NZD:'#D1FAE5' }
+  const CCY    = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
+  const CCY_BG = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5' }
 
   if (loading) return null
 
@@ -175,9 +175,8 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
 }
 
 
-function TradeForm({ onSave, onCancel, initialData }) {
+function TradeForm({ onSave, onCancel }) {
   const [form, setForm] = useState(() => {
-    if (initialData) return { ...EMPTY_TRADE, ...initialData, r: initialData.r ?? initialData.r_multiple ?? initialData.pl ?? '' }
     try { const s = localStorage.getItem(TRADE_DRAFT); return s ? { ...EMPTY_TRADE, ...JSON.parse(s) } : EMPTY_TRADE } catch(e) { return EMPTY_TRADE }
   })
   const [err, setErr] = useState('')
@@ -219,12 +218,12 @@ function TradeForm({ onSave, onCancel, initialData }) {
 
   return (
     <form onSubmit={submit} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', padding:'18px', boxShadow:'var(--shadow)' }}>
-      <div style={{ fontSize:'13px', fontWeight:'600', color:'var(--text)', marginBottom:'16px' }}>{initialData ? 'Edit Trade' : 'Log Trade'}</div>
+      <div style={{ fontSize:'13px', fontWeight:'600', color:'var(--text)', marginBottom:'16px' }}>Log Trade</div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:'11px', marginBottom:'12px' }}>
         {sel('time', 'Time (NY)', TIMES)}
         {sel('symbol', 'Symbol', SYMBOLS)}
         {sel('direction', 'Direction', ['Long','Short'])}
-        {sel('trade_type', 'Trade Type', ['Type 1 — SMR', 'Type 2 — Distribution', 'Not in Plan'])}
+        {sel('trade_type', 'Trade Type', ['Type 1 — SMR', 'Type 2 — Distribution'])}
         {sel('bias', 'Bias', ['Bullish','Bearish'])}
         {sel('session', 'Session', ['London (02:00–05:00)','New York AM (06:00–10:00)'])}
         {sel('level', 'Key Level', LEVELS)}
@@ -259,7 +258,6 @@ function TradeForm({ onSave, onCancel, initialData }) {
             <span style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>Chart 1</span>
           </div>
           <input className="form-input" type="url" value={form.screenshot} onChange={set('screenshot')} placeholder="Paste TradingView snapshot URL..." />
-          {form.screenshot?.trim() && <div style={{marginTop:'8px'}}><ChartImage url={form.screenshot.trim()} label={form.screenshot_tf||'Chart 1'} large /></div>}
         </div>
         <div className="form-group">
           <div style={{ display:'flex', gap:'6px', marginBottom:'6px', alignItems:'center' }}>
@@ -271,7 +269,6 @@ function TradeForm({ onSave, onCancel, initialData }) {
             <span style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>Chart 2</span>
           </div>
           <input className="form-input" type="url" value={form.screenshot2||''} onChange={set('screenshot2')} placeholder="Paste TradingView snapshot URL..." />
-          {form.screenshot2?.trim() && <div style={{marginTop:'8px'}}><ChartImage url={form.screenshot2.trim()} label={form.screenshot2_tf||'Chart 2'} large /></div>}
         </div>
       </div>
       <div className="form-group" style={{ marginBottom:'14px' }}>
@@ -280,7 +277,7 @@ function TradeForm({ onSave, onCancel, initialData }) {
       </div>
       {err && <div style={{ color:'var(--red)', fontSize:'12px', marginBottom:'10px' }}>{err}</div>}
       <div style={{ display:'flex', gap:'8px' }}>
-        <button type="submit" className="btn btn-blue" disabled={saving}>{saving ? 'Saving...' : initialData ? 'Update Trade' : 'Save Trade'}</button>
+        <button type="submit" className="btn btn-blue" disabled={saving}>{saving ? 'Saving...' : 'Save Trade'}</button>
         <button type="button" className="btn btn-outline" onClick={() => { clear(); onCancel() }}>Cancel</button>
       </div>
     </form>
@@ -288,7 +285,7 @@ function TradeForm({ onSave, onCancel, initialData }) {
 }
 
 // ── TRADE CARD ───────────────────────────────────────────────────
-function TradeCard({ t, onDelete, onEdit }) {
+function TradeCard({ t, onDelete }) {
   const up = (t.pl || t.r_multiple || 0) >= 0
   const rVal = t.pl || t.r_multiple || 0
   const ob = o => o==='Win' ? { bg:'#ECFDF5', col:'#065F46', border:'#BBF7D0' }
@@ -309,19 +306,13 @@ function TradeCard({ t, onDelete, onEdit }) {
         {t.outcome && (
           <span style={{ fontSize:'11px', fontWeight:'700', padding:'3px 9px', borderRadius:'7px', background:oc.bg, color:oc.col, border:`1px solid ${oc.border}` }}>{t.outcome}</span>
         )}
-        <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'18px', fontWeight:'700', color: up ? '#10B981' : '#EF4444', marginLeft:'auto' }}>
+        <span style={{ marginLeft:'auto', fontFamily:"'JetBrains Mono',monospace", fontSize:'18px', fontWeight:'700', color: up ? '#10B981' : '#EF4444' }}>
           {rVal >= 0 ? '+' : ''}{rVal.toFixed ? rVal.toFixed(2) : rVal}R
         </span>
-        <div style={{ display:'flex', gap:'6px', marginLeft:'auto', alignItems:'center' }}>
-          {onEdit && (
-            <button onClick={() => onEdit(t)}
-              style={{ background:'none', border:'1px solid #E2E8F0', borderRadius:'6px', cursor:'pointer', color:'#64748B', fontSize:'11px', fontWeight:'600', padding:'3px 8px', fontFamily:'inherit' }}>Edit</button>
-          )}
-          {onDelete && (
-            <button onClick={() => { if(window.confirm('Delete this trade?')) onDelete(t.id) }}
-              style={{ background:'none', border:'none', cursor:'pointer', color:'#CBD5E1', fontSize:'14px', padding:'0', lineHeight:1, fontWeight:'700' }}>✕</button>
-          )}
-        </div>
+        {onDelete && (
+          <button onClick={() => { if(window.confirm('Delete this trade?')) onDelete(t.id) }}
+            style={{ background:'none', border:'none', cursor:'pointer', color:'#CBD5E1', fontSize:'14px', padding:'0', lineHeight:1, fontWeight:'700' }}>✕</button>
+        )}
       </div>
 
       {/* Details grid */}
@@ -536,7 +527,7 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents })
 
 
 // ── MAIN COMPONENT ───────────────────────────────────────────────
-export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onEditTrade, onDeleteTrade, toast, dateStr: propDateStr, isWeekly: propIsWeekly }) {
+export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast, dateStr: propDateStr, isWeekly: propIsWeekly }) {
   const today = toDateStr(new Date())
   const [dateStr, setDateStr] = useState(propDateStr || today)
   const isWeekly   = propIsWeekly === true
@@ -544,7 +535,6 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [showTradeForm, setShowTradeForm] = useState(() => {
     try { return sessionStorage.getItem(FORM_OPEN) === 'true' } catch { return false }
   })
-  const [editingTrade, setEditingTrade] = useState(null)
   const [saving, setSaving] = useState(false)
 
   // When propDateStr changes (from calendar click), update local date
@@ -680,16 +670,10 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
 
   async function handleAddTrade(tradeData) {
     try {
-      if (editingTrade) {
-        await onEditTrade(editingTrade.id, { ...tradeData })
-        setEditingTrade(null)
-        toast('Trade updated ✓')
-      } else {
-        await onAddTrade({ ...tradeData, date: dateStr })
-        toast('Trade logged ✓')
-      }
+      await onAddTrade({ ...tradeData, date: dateStr })
       setShowTradeForm(false)
       try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {}
+      toast('Trade logged ✓')
     } catch(err) {
       toast('Error saving trade: ' + err.message)
     }
@@ -785,9 +769,18 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             {noteDirty && <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>Unsaved changes</span>}
           </div>
           <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
-            <div>
-              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Mindset Going Into the Day</label>
-              <AutoTextarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }} placeholder="How are you feeling mentally? Focused, patient, distracted, emotional..." minHeight={70} />
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+              <div>
+                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Feeling</label>
+                <AutoTextarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }} placeholder="How are you feeling going into today's session?" minHeight={70} />
+              </div>
+              <div>
+                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Bias Today</label>
+                <input value={bias} onChange={e => { setBias(e.target.value); markDirty() }}
+                  placeholder="e.g. Bearish NQ, Bullish GBP/USD..."
+                  style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'12px 14px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', transition:'border-color .15s', boxSizing:'border-box' }}
+                  onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+              </div>
             </div>
             <div>
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Trading Plan</label>
@@ -990,15 +983,15 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         {isWeekly && weekTrades.length > 0 && (
           <div>
             <div style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A', marginBottom:'12px' }}>Week's Trades</div>
-            {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={t => { setEditingTrade(t); setShowTradeForm(true) }} />)}
+            {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} />)}
           </div>
         )}
         {!isWeekly && !isForecast && (
           <>
             {showTradeForm && (
-              <TradeForm onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
+              <TradeForm onSave={handleAddTrade} onCancel={() => { setShowTradeForm(false); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
             )}
-            {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={t => { setEditingTrade(t); setShowTradeForm(true) }} />)}
+            {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} />)}
           </>
         )}
       </div>
