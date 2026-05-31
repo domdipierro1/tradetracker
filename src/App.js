@@ -29,6 +29,16 @@ export default function App() {
   const [darkMode, setDark]           = useState(() => localStorage.getItem('tt26_dark') === 'true')
   const [toast, setToastMsg]          = useState('')
   const [toastVisible, setToastVisible] = useState(false)
+  const [splash, setSplash]           = useState(() => !sessionStorage.getItem('tt26_splash_shown'))
+
+  useEffect(() => {
+    if (!splash) return
+    const t = setTimeout(() => {
+      setSplash(false)
+      try { sessionStorage.setItem('tt26_splash_shown', 'true') } catch(e) {}
+    }, 2000)
+    return () => clearTimeout(t)
+  }, [splash])
 
   useEffect(() => {
     document.body.classList.toggle('dark', darkMode)
@@ -258,6 +268,22 @@ export default function App() {
     }
     setPage(id); window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  // ── Splash: "Be The Observer" (2s on first load) ──────────────
+  if (splash) return (
+    <div style={{ position:'fixed', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg)', zIndex:99999, animation:'fadeIn .4s ease' }}>
+      <div style={{ textAlign:'center', animation:'observerRise 1s cubic-bezier(.16,1,.3,1)' }}>
+        <div style={{ fontFamily:"'Bricolage Grotesque', sans-serif", fontSize:'clamp(28px, 6vw, 52px)', fontWeight:'700', color:'var(--text)', letterSpacing:'-.03em', lineHeight:1.1 }}>
+          Be The Observer
+        </div>
+        <div style={{ margin:'22px auto 0', width:'46px', height:'2px', background:'var(--blue)', borderRadius:'2px', animation:'observerLine 2s cubic-bezier(.16,1,.3,1) forwards' }} />
+      </div>
+      <style>{`
+        @keyframes observerRise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes observerLine { from { width:0; opacity:0; } 40% { opacity:1; } to { width:120px; opacity:1; } }
+      `}</style>
+    </div>
+  )
 
   // ── Loading screen ────────────────────────────────────────────
   if (loading) return (
