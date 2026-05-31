@@ -70,12 +70,16 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
   const liveEvents = eventsForDate(dateStr)
   const events = liveEvents.length > 0 ? liveEvents : (savedEvents || [])
 
-  // Snapshot as soon as loading finishes
+  // Snapshot as soon as loading finishes — but ONLY capture when we actually
+  // have live events for this date. Past days return no live data (the calendar
+  // API only serves the current week), so we must never overwrite a saved snapshot.
   const notified = React.useRef(false)
   React.useEffect(() => {
     if (!loading && !notified.current) {
       notified.current = true
-      onEventsLoaded && onEventsLoaded(liveEvents)
+      if (liveEvents.length > 0) {
+        onEventsLoaded && onEventsLoaded(liveEvents)
+      }
     }
   }, [loading])
 
@@ -155,6 +159,7 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
             {events.length > 0 ? 'High Impact News' : 'No High-Impact Events Today'}
           </span>
           {events.length > 0 && <span style={{ fontSize:'11px', color:'var(--muted)', marginLeft:'auto' }}>{events.length} event{events.length > 1 ? 's' : ''}</span>}
+          {liveEvents.length === 0 && (savedEvents||[]).length > 0 && <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--muted2)', background:'var(--surface3)', padding:'2px 7px', borderRadius:'4px', letterSpacing:'.05em', marginLeft: events.length > 0 ? '8px' : 'auto' }}>SAVED</span>}
         </div>
         {events.length > 0 && (
           <div style={{ display:'flex', flexDirection:'column' }}>
@@ -528,12 +533,15 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents })
   const liveEvents = weekdays.flatMap(ds => eventsForDate(ds))
   const events = liveEvents.length > 0 ? liveEvents : (savedEvents || [])
 
-  // Always snapshot once loading is done
+  // Snapshot once loading is done — only when live events exist, so we never
+  // wipe a saved weekly snapshot when revisiting a past week.
   const notified = React.useRef(false)
   React.useEffect(() => {
     if (!loading && weekdays.length > 0 && !notified.current) {
       notified.current = true
-      onEventsLoaded && onEventsLoaded(liveEvents)
+      if (liveEvents.length > 0) {
+        onEventsLoaded && onEventsLoaded(liveEvents)
+      }
     }
   }, [loading, weekdays.length])
 
@@ -722,6 +730,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       chart1, chart2, chart3, chart4, chartNote1, chartNote2, chartNote3, chartNote4
     ].some(v => v && v.trim().length > 0) || checklist.some(v => v) || !!tradeType
       || charts.some(c => (c.url && c.url.trim()) || (c.note && c.note.trim()))
+      || (Array.isArray(econSnapshot) && econSnapshot.length > 0)
     if (!hasContent && !existingNote) { setNoteDirty(false); return }
 
     setSaving(true)
