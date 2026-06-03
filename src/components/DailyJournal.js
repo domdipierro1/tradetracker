@@ -84,6 +84,11 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
   }, [loading])
 
   // ── NO-TRADE RULES (auto-detect from calendar data) ──────────────
+  // Exactly four triggers, USD only:
+  //   1. USD Bank Holiday (day of)
+  //   2. USD CPI (day of)
+  //   3. USD FOMC (day of)
+  //   4. USD NFP — day of AND day before (NFP only, never ADP)
   const noTradeWarning = React.useMemo(() => {
     if (loading) return null
     const d    = new Date(dateStr + 'T12:00:00')
@@ -91,50 +96,37 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
     const isWeekday = dow >= 1 && dow <= 5
     if (!isWeekday) return null
 
-    const todayEvs = events  // already filtered to today
+    // NFP = Non-Farm Employment Change / Non-Farm Payrolls, but NOT ADP's version
+    const isNFP = e => {
+      const t = (e.title || '').toLowerCase()
+      if (t.includes('adp')) return false
+      return t.includes('non-farm') || t.includes('nonfarm') || t.includes('nfp')
+    }
+    const isCPI  = e => (e.title || '').toLowerCase().includes('cpi') || (e.title || '').toLowerCase().includes('consumer price')
+    const isFOMC = e => {
+      const t = (e.title || '').toLowerCase()
+      return t.includes('fomc') || t.includes('federal funds') || t.includes('fed funds') || t.includes('rate decision')
+    }
 
-    // Helper: check if event title contains keywords
-    const has = (evList, ...words) => evList.some(e =>
-      words.some(w => (e.title||'').toLowerCase().includes(w.toLowerCase()))
-    )
-
-    // USD-only events for avoid-trading rules
-    const usdToday    = todayEvs.filter(e => e.country === 'USD')
-    const usdAll      = allEvents.filter(e => e.country === 'USD')
+    const usdToday = events.filter(e => e.country === 'USD')
 
     // 1. USD Bank Holiday today
     const usdHoliday = usdToday.find(e => e.isHoliday)
     if (usdHoliday) return { type: 'holiday', msg: `🏦 USD Bank Holiday — ${usdHoliday.title}. No trading today.` }
 
-    // 2. Day OF USD CPI, NFP, or FOMC
-    if (has(usdToday, 'CPI', 'NFP', 'Non-Farm', 'FOMC', 'Fed Funds')) {
-      const names = usdToday.filter(e => has([e], 'CPI','NFP','Non-Farm','FOMC','Fed Funds')).map(e => e.title).join(', ')
-      return { type: 'high', msg: `🚫 No trading today — ${names}` }
-    }
+    // 2/3/4a. Day OF USD CPI, FOMC, or NFP
+    const todayHit = usdToday.find(e => isCPI(e) || isFOMC(e) || isNFP(e))
+    if (todayHit) return { type: 'high', msg: `🚫 No trading today — ${todayHit.title}` }
 
-    // 3. Day BEFORE USD CPI or NFP
+    // 4b. Day BEFORE USD NFP, CPI, or FOMC
     const tomorrow = new Date(d); tomorrow.setDate(d.getDate() + 1)
     const tomorrowStr = tomorrow.toLocaleDateString('en-CA')
     const usdTomorrow = allEvents.filter(e => e.date === tomorrowStr && e.country === 'USD')
-    if (has(usdTomorrow, 'CPI', 'NFP', 'Non-Farm')) {
-      const names = usdTomorrow.filter(e => has([e], 'CPI','NFP','Non-Farm')).map(e => e.title).join(', ')
-      return { type: 'high', msg: `⚠️ Day before USD news — ${names} tomorrow. Avoid trading today.` }
-    }
-
-    // 4. No News Monday — Monday with no USD high-impact events this week
-    //    UNLESS USD CPI or NFP is in the week
-    if (dow === 1) {
-      const weekHasUsdCpiNfp = usdAll.some(e => has([e], 'CPI','NFP','Non-Farm'))
-      if (!weekHasUsdCpiNfp && usdAll.length === 0) {
-        return { type: 'quiet', msg: '📭 No News Monday — no USD high-impact events this week. Avoid trading.' }
-      }
-    }
+    const tomorrowHit = usdTomorrow.find(e => isNFP(e) || isCPI(e) || isFOMC(e))
+    if (tomorrowHit) return { type: 'high', msg: `⚠️ Day before USD news — ${tomorrowHit.title} tomorrow. Avoid trading today.` }
 
     return null
   }, [loading, events, allEvents, dateStr])
-
-  const CCY    = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
-  const CCY_BG = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5' }
 
   if (loading) return null
 
@@ -165,11 +157,12 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
           <div style={{ display:'flex', flexDirection:'column' }}>
             {events.map((e, i) => (
               <div key={i} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 16px', borderBottom: i < events.length-1 ? '1px solid var(--border)' : 'none' }}>
-                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--muted)', minWidth:'48px' }}>{e.time || '—'}</span>
-                <span style={{ fontSize:'11px', fontWeight:'700', color: CCY[e.country] || 'var(--muted)', background: CCY_BG[e.country] || 'var(--surface2)', padding:'2px 7px', borderRadius:'4px' }}>{e.country}</span>
+                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--muted)', minWidth:'48px' }}>{e.isHoliday ? 'All Day' : (e.time || '—')}</span>
+                <span style={{ fontSize:'10px', fontWeight:'700', color:'#1E293B', background:'#F1F5F9', padding:'2px 8px', borderRadius:'4px' }}>{e.country}</span>
+                <div style={{ width:'11px', height:'11px', borderRadius:'3px', background: e.isHoliday ? '#94A3B8' : '#EF4444', flexShrink:0 }} />
                 <span style={{ fontSize:'12px', color:'var(--text)', flex:1 }}>{e.title}</span>
-                {e.forecast && !e.actual && <span style={{ fontSize:'11px', color:'var(--muted)', fontFamily:"'JetBrains Mono',monospace" }}>F: {e.forecast}</span>}
-                {e.actual && <span style={{ fontSize:'11px', color:'var(--green)', fontFamily:"'JetBrains Mono',monospace", fontWeight:'600' }}>A: {e.actual}</span>}
+                {!e.isHoliday && e.forecast && !e.actual && <span style={{ fontSize:'11px', color:'var(--muted)', fontFamily:"'JetBrains Mono',monospace" }}>F: {e.forecast}</span>}
+                {!e.isHoliday && e.actual && <span style={{ fontSize:'11px', color:'var(--green)', fontFamily:"'JetBrains Mono',monospace", fontWeight:'600' }}>A: {e.actual}</span>}
               </div>
             ))}
           </div>
@@ -559,9 +552,6 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents })
     }
   }, [loading, weekdays.length])
 
-  const CCY_COL = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
-  const CCY_BG  = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5' }
-
   if (loading) return null
 
   // Group events by date
@@ -592,14 +582,14 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents })
               </div>
               {dayEvs.map((e, i) => (
                 <div key={i} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'6px 20px', borderTop: i > 0 ? '1px solid #F8FAFC' : 'none' }}>
-                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#64748B', minWidth:'40px' }}>{e.time || '—'}</span>
-                  <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'1px 6px', borderRadius:'4px', background:CCY_BG[e.country]||'#F1F5F9', fontSize:'10px', fontWeight:'700', color:CCY_COL[e.country]||'#64748B', flexShrink:0 }}>
+                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#64748B', minWidth:'40px' }}>{e.isHoliday ? 'All Day' : (e.time || '—')}</span>
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'1px 6px', borderRadius:'4px', background:'#F1F5F9', fontSize:'10px', fontWeight:'700', color:'#1E293B', flexShrink:0 }}>
                     {e.country}
                   </span>
-                  <div style={{ width:'8px', height:'8px', borderRadius:'2px', background:'#EF4444', flexShrink:0 }} />
+                  <div style={{ width:'11px', height:'11px', borderRadius:'3px', background: e.isHoliday ? '#94A3B8' : '#EF4444', flexShrink:0 }} />
                   <span style={{ fontSize:'12px', fontWeight:'600', color:'#334155', flex:1 }}>{e.title}</span>
-                  {e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'700', color:'#10B981' }}>{e.actual}</span>}
-                  {e.forecast && !e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#64748B' }}>{e.forecast}</span>}
+                  {!e.isHoliday && e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'700', color:'#10B981' }}>{e.actual}</span>}
+                  {!e.isHoliday && e.forecast && !e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#64748B' }}>{e.forecast}</span>}
                 </div>
               ))}
             </div>
