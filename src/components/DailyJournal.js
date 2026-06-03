@@ -139,16 +139,16 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
       {/* No-trade warning banner */}
       {noTradeWarning && (
         <div style={{ padding:'12px 16px', background:warnBg, border:`1.5px solid ${warnBorder}`, borderRadius:'var(--r)', marginBottom:'10px', display:'flex', alignItems:'flex-start', gap:'8px' }}>
-          <span style={{ fontSize:'13px', fontWeight:'700', color:warnColor, lineHeight:'1.4' }}>{noTradeWarning.msg}</span>
+          <span style={{ fontSize:'13px', fontWeight:'700', color:warnColor, lineHeight:'1.4' }}>🚫 Non Trading Day</span>
         </div>
       )}
 
       {/* Economic events card */}
       <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
-        <div style={{ padding:'10px 16px', borderBottom: events.length > 0 ? '1px solid var(--border)' : 'none', background: events.length > 0 ? 'var(--red-bg)' : 'var(--surface2)', display:'flex', alignItems:'center', gap:'8px' }}>
-          <span style={{ fontSize:'12px' }}>{events.length > 0 ? '🔴' : '✅'}</span>
-          <span style={{ fontSize:'11px', fontWeight:'600', color: events.length > 0 ? 'var(--red)' : 'var(--green)', letterSpacing:'.04em', textTransform:'uppercase' }}>
-            {events.length > 0 ? 'High Impact News' : 'No High-Impact Events Today'}
+        <div style={{ padding:'10px 16px', borderBottom: events.length > 0 ? '1px solid var(--border)' : 'none', background: noTradeWarning ? 'var(--red-bg)' : 'var(--surface2)', display:'flex', alignItems:'center', gap:'8px' }}>
+          <span style={{ fontSize:'12px' }}>{noTradeWarning ? '🚫' : events.length > 0 ? '📅' : '✅'}</span>
+          <span style={{ fontSize:'11px', fontWeight:'600', color: noTradeWarning ? 'var(--red)' : events.length > 0 ? 'var(--text2)' : 'var(--green)', letterSpacing:'.04em', textTransform:'uppercase' }}>
+            {noTradeWarning ? 'Non Trading Day' : events.length > 0 ? "Today's News" : 'No High-Impact Events Today'}
           </span>
           {events.length > 0 && <span style={{ fontSize:'11px', color:'var(--muted)', marginLeft:'auto' }}>{events.length} event{events.length > 1 ? 's' : ''}</span>}
           {liveEvents.length === 0 && (savedEvents||[]).length > 0 && <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--muted2)', background:'var(--surface3)', padding:'2px 7px', borderRadius:'4px', letterSpacing:'.05em', marginLeft: events.length > 0 ? '8px' : 'auto' }}>SAVED</span>}
@@ -991,7 +991,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
           <div>
             <div style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A', marginBottom:'12px' }}>Week's Trades</div>
             {showTradeForm && editingTrade && (
-              <TradeForm onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
+              <TradeForm key={editingTrade.id} onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
             )}
             {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={tr => { setEditingTrade(tr); setShowTradeForm(true); try { sessionStorage.setItem(FORM_OPEN,'true') } catch(e) {} window.scrollTo({top:0,behavior:'smooth'}) }} />)}
           </div>
@@ -999,7 +999,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         {!isWeekly && !isForecast && (
           <>
             {showTradeForm && (
-              <TradeForm onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
+              <TradeForm key={editingTrade ? editingTrade.id : 'new'} onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
             )}
             {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={tr => { setEditingTrade(tr); setShowTradeForm(true); try { sessionStorage.setItem(FORM_OPEN,'true') } catch(e) {} window.scrollTo({top:0,behavior:'smooth'}) }} />)}
           </>
