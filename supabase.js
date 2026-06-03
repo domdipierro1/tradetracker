@@ -24,9 +24,21 @@ export default function App() {
   const [accounts, setAccounts]       = useState([])
   const [activeAccountId, setActiveAccountId] = useState(null)
   const [page, setPage]               = useState('dashboard')
+  const [journalDate,     setJournalDate]     = useState(null)
+  const [journalIsWeekly, setJournalIsWeekly] = useState(false)
   const [darkMode, setDark]           = useState(() => localStorage.getItem('tt26_dark') === 'true')
   const [toast, setToastMsg]          = useState('')
   const [toastVisible, setToastVisible] = useState(false)
+  const [splash, setSplash]           = useState(() => !sessionStorage.getItem('tt26_splash_shown'))
+
+  useEffect(() => {
+    if (!splash) return
+    const t = setTimeout(() => {
+      setSplash(false)
+      try { sessionStorage.setItem('tt26_splash_shown', 'true') } catch(e) {}
+    }, 2000)
+    return () => clearTimeout(t)
+  }, [splash])
 
   useEffect(() => {
     document.body.classList.toggle('dark', darkMode)
@@ -246,8 +258,32 @@ export default function App() {
   }
 
   function handleNav(id) {
+    if (id !== 'journal') { setJournalDate(null); setJournalIsWeekly(false) }
+    else if (!journalDate) {
+      // Default journal mode based on today's day
+      const dow = new Date().getDay()
+      if (dow === 6) setJournalIsWeekly(true)           // Saturday = Weekly Review
+      else if (dow === 0) setJournalIsWeekly('forecast') // Sunday = Weekly Forecast
+      else setJournalIsWeekly(false)
+    }
     setPage(id); window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  // ── Splash: "Be The Observer" (2s on first load) ──────────────
+  if (splash) return (
+    <div style={{ position:'fixed', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg)', zIndex:99999, animation:'fadeIn .4s ease' }}>
+      <div style={{ textAlign:'center', animation:'observerRise 1s cubic-bezier(.16,1,.3,1)' }}>
+        <div style={{ fontFamily:"'Bricolage Grotesque', sans-serif", fontSize:'clamp(28px, 6vw, 52px)', fontWeight:'700', color:'var(--text)', letterSpacing:'-.03em', lineHeight:1.1 }}>
+          Be The Observer
+        </div>
+        <div style={{ margin:'22px auto 0', width:'46px', height:'2px', background:'var(--blue)', borderRadius:'2px', animation:'observerLine 2s cubic-bezier(.16,1,.3,1) forwards' }} />
+      </div>
+      <style>{`
+        @keyframes observerRise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes observerLine { from { width:0; opacity:0; } 40% { opacity:1; } to { width:120px; opacity:1; } }
+      `}</style>
+    </div>
+  )
 
   // ── Loading screen ────────────────────────────────────────────
   if (loading) return (
@@ -276,8 +312,8 @@ export default function App() {
         onDeleteAccount={handleDeleteAccount}
       >
         {page === 'dashboard' && <Dashboard {...pageProps} />}
-        {page === 'journal'   && <DailyJournal trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onDeleteTrade={handleDelete} toast={showToast} />}
-        {page === 'calendar'  && <Calendar  trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onDeleteTrade={handleDelete} toast={showToast} />}
+        {page === 'journal'   && <DailyJournal trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onEditTrade={handleEdit} onDeleteTrade={handleDelete} toast={showToast} dateStr={journalDate} isWeekly={journalIsWeekly} />}
+        {page === 'calendar'  && <Calendar  trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onEditTrade={handleEdit} onDeleteTrade={handleDelete} toast={showToast} onOpenJournal={(date, weekly) => { setJournalDate(date); setJournalIsWeekly(weekly); setPage('journal'); window.scrollTo({top:0}) }} />}
         {page === 'news'      && <NewsTab />}
         {page === 'analysis'  && <Analysis  {...pageProps} />}
         {page === 'playbook'  && <Playbook />}

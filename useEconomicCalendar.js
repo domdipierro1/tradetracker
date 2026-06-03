@@ -163,8 +163,8 @@ select.form-input { cursor: pointer; }
 .spin  { animation: spin 1s linear infinite; }
 
 /* ── TOAST ── */
-.toast { position: fixed; bottom: calc(var(--bot-h) + 16px); left: 50%; transform: translateX(-50%) translateY(10px); background: var(--text); color: var(--bg); padding: 9px 18px; border-radius: 8px; font-size: 12px; font-weight: 500; z-index: 9999; opacity: 0; transition: all .2s var(--ease); pointer-events: none; white-space: nowrap; letter-spacing: .01em; }
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast { position: fixed; top: 16px; right: 20px; left: auto; transform: translateY(-8px); background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 500; z-index: 9999; opacity: 0; transition: all .2s var(--ease); pointer-events: none; white-space: nowrap; letter-spacing: .01em; box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.toast.show { opacity: 1; transform: translateY(0); }
 
 /* ── MODAL ── */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); backdrop-filter: blur(6px); z-index: 200; display: flex; align-items: flex-end; justify-content: center; animation: fadeIn .15s ease; }

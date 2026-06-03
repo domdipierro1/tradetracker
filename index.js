@@ -4,11 +4,11 @@ import { useEconomicCalendar, currencyFlag, formatFFTime } from '../lib/useEcono
 
 // ── CONSTANTS ────────────────────────────────────────────────────
 const TIMES   = ['02:00','02:30','03:00','03:30','04:00','04:30','05:00','05:30','06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00']
-const SYMBOLS = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','Gold','Silver']
+const SYMBOLS = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','DAX','Gold','Silver']
 const LEVELS  = ['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']
 const MISTAKES= ['No mistake','Wrong bias','Level not aligned with bias','Entered outside killzone','No breaker block formed','Entered before breaker closed','Premature entry — no confirmation','Moved stop too early','Took partial too early','Revenge trade','Overtraded']
 
-const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', r:'', mae:'', mfe:'', outcome:'', mistake:'No mistake', screenshot:'', screenshot2:'', journal:'' }
+const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', trade_type:'', r:'', mae:'', mfe:'', outcome:'', mistake:'No mistake', screenshot:'', screenshot2:'', journal:'' }
 const TRADE_DRAFT = 'tt26_trade_draft'
 const FORM_OPEN   = 'tt26_form_open'
 
@@ -17,10 +17,14 @@ const FORM_OPEN   = 'tt26_form_open'
 function getWeekRange(dateStr) {
   const d = new Date(dateStr + 'T12:00:00')
   const dow = d.getDay()
-  const mon = new Date(d); mon.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1))
-  const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+  // Trading week: Mon-Sat. If on Saturday, Mon = d-5
+  const mon = new Date(d)
+  if (dow === 6) mon.setDate(d.getDate() - 5)       // Saturday → go back to Monday
+  else if (dow === 0) mon.setDate(d.getDate() - 6)  // Sunday → go back to Monday
+  else mon.setDate(d.getDate() - (dow - 1))          // Mon-Fri → go back to Monday
+  const sat = new Date(mon); sat.setDate(mon.getDate() + 5)
   const fmt = dt => dt.toISOString().split('T')[0]
-  return { mon: fmt(mon), sun: fmt(sun) }
+  return { mon: fmt(mon), sun: fmt(sat) }  // sun field = Sat for trading week
 }
 
 // ── HELPERS ──────────────────────────────────────────────────────
@@ -61,43 +65,125 @@ function ChartImage({ url, label, large }) {
 }
 
 // ── NEWS STRIP ───────────────────────────────────────────────────
-function DayNews({ dateStr }) {
-  const { eventsForDate, loading } = useEconomicCalendar()
-  const events = eventsForDate(dateStr)
-  if (loading || events.length === 0) return null
-  const CCY = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
+function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
+  const { events: allEvents, eventsForDate, loading } = useEconomicCalendar()
+  const liveEvents = eventsForDate(dateStr)
+  const events = liveEvents.length > 0 ? liveEvents : (savedEvents || [])
+
+  // Snapshot as soon as loading finishes — but ONLY capture when we actually
+  // have live events for this date. Past days return no live data (the calendar
+  // API only serves the current week), so we must never overwrite a saved snapshot.
+  const notified = React.useRef(false)
+  React.useEffect(() => {
+    if (!loading && !notified.current) {
+      notified.current = true
+      if (liveEvents.length > 0) {
+        onEventsLoaded && onEventsLoaded(liveEvents)
+      }
+    }
+  }, [loading])
+
+  // ── NO-TRADE RULES (auto-detect from calendar data) ──────────────
+  // Exactly four triggers, USD only:
+  //   1. USD Bank Holiday (day of)
+  //   2. USD CPI (day of)
+  //   3. USD FOMC (day of)
+  //   4. USD NFP — day of AND day before (NFP only, never ADP)
+  const noTradeWarning = React.useMemo(() => {
+    if (loading) return null
+    const d    = new Date(dateStr + 'T12:00:00')
+    const dow  = d.getDay() // 0=Sun,1=Mon...
+    const isWeekday = dow >= 1 && dow <= 5
+    if (!isWeekday) return null
+
+    // NFP = Non-Farm Employment Change / Non-Farm Payrolls, but NOT ADP's version
+    const isNFP = e => {
+      const t = (e.title || '').toLowerCase()
+      if (t.includes('adp')) return false
+      return t.includes('non-farm') || t.includes('nonfarm') || t.includes('nfp')
+    }
+    const isCPI  = e => (e.title || '').toLowerCase().includes('cpi') || (e.title || '').toLowerCase().includes('consumer price')
+    const isFOMC = e => {
+      const t = (e.title || '').toLowerCase()
+      return t.includes('fomc') || t.includes('federal funds') || t.includes('fed funds') || t.includes('rate decision')
+    }
+
+    const usdToday = events.filter(e => e.country === 'USD')
+
+    // 1. USD Bank Holiday today
+    const usdHoliday = usdToday.find(e => e.isHoliday)
+    if (usdHoliday) return { type: 'holiday', msg: `🏦 USD Bank Holiday — ${usdHoliday.title}. No trading today.` }
+
+    // 2/3/4a. Day OF USD CPI, FOMC, or NFP
+    const todayHit = usdToday.find(e => isCPI(e) || isFOMC(e) || isNFP(e))
+    if (todayHit) return { type: 'high', msg: `🚫 No trading today — ${todayHit.title}` }
+
+    // 4b. Day BEFORE USD NFP, CPI, or FOMC
+    const tomorrow = new Date(d); tomorrow.setDate(d.getDate() + 1)
+    const tomorrowStr = tomorrow.toLocaleDateString('en-CA')
+    const usdTomorrow = allEvents.filter(e => e.date === tomorrowStr && e.country === 'USD')
+    const tomorrowHit = usdTomorrow.find(e => isNFP(e) || isCPI(e) || isFOMC(e))
+    if (tomorrowHit) return { type: 'high', msg: `⚠️ Day before USD news — ${tomorrowHit.title} tomorrow. Avoid trading today.` }
+
+    return null
+  }, [loading, events, allEvents, dateStr])
+
+  if (loading) return null
+
+  const warnBg    = noTradeWarning?.type === 'holiday' ? '#FEF3C7' : noTradeWarning?.type === 'quiet' ? '#F0F9FF' : '#FEF2F2'
+  const warnBorder = noTradeWarning?.type === 'holiday' ? '#FDE68A' : noTradeWarning?.type === 'quiet' ? '#BAE6FD' : '#FECACA'
+  const warnColor  = noTradeWarning?.type === 'holiday' ? '#92400E' : noTradeWarning?.type === 'quiet' ? '#0369A1' : '#991B1B'
+
   return (
-    <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)', marginBottom:'14px' }}>
-      <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--border)', background:'var(--red-bg)', display:'flex', alignItems:'center', gap:'8px' }}>
-        <span style={{ fontSize:'12px' }}>🔴</span>
-        <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--red)', letterSpacing:'.04em', textTransform:'uppercase' }}>High Impact News</span>
-        <span style={{ fontSize:'11px', color:'var(--muted)', marginLeft:'auto' }}>{events.length} event{events.length > 1 ? 's' : ''}</span>
-      </div>
-      <div style={{ display:'flex', flexDirection:'column' }}>
-        {events.map((e, i) => (
-          <div key={i} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 16px', borderBottom: i < events.length-1 ? '1px solid var(--border)' : 'none' }}>
-            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--muted)', minWidth:'48px' }}>{e.isHoliday ? "All Day" : (formatFFTime(e.time) !== "All Day" ? formatFFTime(e.time) : e.time || "All Day")}</span>
-            <span style={{ fontSize:'11px', fontWeight:'700', color: CCY[e.country] || 'var(--muted)', background: e.country==='USD'?'#DBEAFE':e.country==='GBP'?'#EDE9FE':'#D1FAE5', padding:'2px 7px', borderRadius:'4px' }}>{e.country}</span>
-            <span style={{ fontSize:'12px', color:'var(--text)', flex:1 }}>{e.title}</span>
-            {e.forecast && <span style={{ fontSize:'11px', color:'var(--muted)', fontFamily:"'JetBrains Mono',monospace" }}>F: {e.forecast}</span>}
-            {e.actual && <span style={{ fontSize:'11px', color:'var(--green)', fontFamily:"'JetBrains Mono',monospace", fontWeight:'600' }}>A: {e.actual}</span>}
+    <div style={{ marginBottom:'14px' }}>
+      {/* No-trade warning banner */}
+      {noTradeWarning && (
+        <div style={{ padding:'12px 16px', background:warnBg, border:`1.5px solid ${warnBorder}`, borderRadius:'var(--r)', marginBottom:'10px', display:'flex', alignItems:'flex-start', gap:'8px' }}>
+          <span style={{ fontSize:'13px', fontWeight:'700', color:warnColor, lineHeight:'1.4' }}>🚫 Non Trading Day</span>
+        </div>
+      )}
+
+      {/* Economic events card */}
+      <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
+        <div style={{ padding:'10px 16px', borderBottom: events.length > 0 ? '1px solid var(--border)' : 'none', background: noTradeWarning ? 'var(--red-bg)' : 'var(--surface2)', display:'flex', alignItems:'center', gap:'8px' }}>
+          <span style={{ fontSize:'12px' }}>{noTradeWarning ? '🚫' : events.length > 0 ? '📅' : '✅'}</span>
+          <span style={{ fontSize:'11px', fontWeight:'600', color: noTradeWarning ? 'var(--red)' : events.length > 0 ? 'var(--text2)' : 'var(--green)', letterSpacing:'.04em', textTransform:'uppercase' }}>
+            {noTradeWarning ? 'Non Trading Day' : events.length > 0 ? "Today's News" : 'No High-Impact Events Today'}
+          </span>
+          {events.length > 0 && <span style={{ fontSize:'11px', color:'var(--muted)', marginLeft:'auto' }}>{events.length} event{events.length > 1 ? 's' : ''}</span>}
+          {liveEvents.length === 0 && (savedEvents||[]).length > 0 && <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--muted2)', background:'var(--surface3)', padding:'2px 7px', borderRadius:'4px', letterSpacing:'.05em', marginLeft: events.length > 0 ? '8px' : 'auto' }}>SAVED</span>}
+        </div>
+        {events.length > 0 && (
+          <div style={{ display:'flex', flexDirection:'column' }}>
+            {events.map((e, i) => (
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 16px', borderBottom: i < events.length-1 ? '1px solid var(--border)' : 'none' }}>
+                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'var(--muted)', minWidth:'48px' }}>{e.isHoliday ? 'All Day' : (e.time || '—')}</span>
+                <span style={{ fontSize:'10px', fontWeight:'700', color:'#1E293B', background:'#F1F5F9', padding:'2px 8px', borderRadius:'4px' }}>{e.country}</span>
+                <div style={{ width:'11px', height:'11px', borderRadius:'3px', background: e.isHoliday ? '#94A3B8' : '#EF4444', flexShrink:0 }} />
+                <span style={{ fontSize:'12px', color:'var(--text)', flex:1 }}>{e.title}</span>
+                {!e.isHoliday && e.forecast && !e.actual && <span style={{ fontSize:'11px', color:'var(--muted)', fontFamily:"'JetBrains Mono',monospace" }}>F: {e.forecast}</span>}
+                {!e.isHoliday && e.actual && <span style={{ fontSize:'11px', color:'var(--green)', fontFamily:"'JetBrains Mono',monospace", fontWeight:'600' }}>A: {e.actual}</span>}
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </div>
   )
 }
 
-// ── TRADE FORM ───────────────────────────────────────────────────
-function TradeForm({ onSave, onCancel }) {
+
+function TradeForm({ onSave, onCancel, initialData }) {
   const [form, setForm] = useState(() => {
+    if (initialData) return { ...EMPTY_TRADE, ...initialData, r: initialData.r ?? initialData.r_multiple ?? initialData.pl ?? '' }
     try { const s = localStorage.getItem(TRADE_DRAFT); return s ? { ...EMPTY_TRADE, ...JSON.parse(s) } : EMPTY_TRADE } catch(e) { return EMPTY_TRADE }
   })
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
+  const isEdit = !!initialData
 
-  const set  = k => e => { const u = { ...form, [k]: e.target.value }; setForm(u); try { localStorage.setItem(TRADE_DRAFT, JSON.stringify(u)) } catch(e) {} }
-  const setV = (k, v) => { const u = { ...form, [k]: v }; setForm(u); try { localStorage.setItem(TRADE_DRAFT, JSON.stringify(u)) } catch(e) {} }
+  const set  = k => e => { const u = { ...form, [k]: e.target.value }; setForm(u); if (!isEdit) { try { localStorage.setItem(TRADE_DRAFT, JSON.stringify(u)) } catch(e) {} } }
+  const setV = (k, v) => { const u = { ...form, [k]: v }; setForm(u); if (!isEdit) { try { localStorage.setItem(TRADE_DRAFT, JSON.stringify(u)) } catch(e) {} } }
 
   function clear() { try { localStorage.removeItem(TRADE_DRAFT); sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }
 
@@ -109,7 +195,7 @@ function TradeForm({ onSave, onCancel }) {
     try {
       const rVal = parseFloat(form.r) || 0
       await onSave({ ...form, r_multiple: rVal, pl: rVal, risk: 1, mae: form.mae ? parseFloat(form.mae) : null, mfe: form.mfe ? parseFloat(form.mfe) : null })
-      clear(); setForm(EMPTY_TRADE)
+      clear(); if (!isEdit) setForm(EMPTY_TRADE)
     } catch(ex) { console.error('Trade save error:', ex); setErr('Error saving: ' + (ex.message || 'Unknown error')) }
     setSaving(false)
   }
@@ -132,11 +218,12 @@ function TradeForm({ onSave, onCancel }) {
 
   return (
     <form onSubmit={submit} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', padding:'18px', boxShadow:'var(--shadow)' }}>
-      <div style={{ fontSize:'13px', fontWeight:'600', color:'var(--text)', marginBottom:'16px' }}>Log Trade</div>
+      <div style={{ fontSize:'13px', fontWeight:'600', color:'var(--text)', marginBottom:'16px' }}>{isEdit ? 'Edit Trade' : 'Log Trade'}</div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:'11px', marginBottom:'12px' }}>
         {sel('time', 'Time (NY)', TIMES)}
         {sel('symbol', 'Symbol', SYMBOLS)}
         {sel('direction', 'Direction', ['Long','Short'])}
+        {sel('trade_type', 'Trade Type', ['Type 1 — SMR', 'Type 2 — Distribution', 'Not in Plan'])}
         {sel('bias', 'Bias', ['Bullish','Bearish'])}
         {sel('session', 'Session', ['London (02:00–05:00)','New York AM (06:00–10:00)'])}
         {sel('level', 'Key Level', LEVELS)}
@@ -166,22 +253,28 @@ function TradeForm({ onSave, onCancel }) {
             <select className="form-input" style={{ flex:'0 0 auto', width:'90px', padding:'4px 8px', fontSize:'11px' }}
               value={form.screenshot_tf||''} onChange={e => setForm(f=>({...f, screenshot_tf:e.target.value}))}>
               <option value="">Timeframe</option>
-              {['Daily','4H','1H','30M','15M','5M'].map(t=><option key={t}>{t}</option>)}
+              {['W','D','4H','1H','30M','15M','5M'].map(t=><option key={t}>{t}</option>)}
             </select>
             <span style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>Chart 1</span>
           </div>
           <input className="form-input" type="url" value={form.screenshot} onChange={set('screenshot')} placeholder="Paste TradingView snapshot URL..." />
+          {form.screenshot && form.screenshot.trim() && (
+            <div style={{ marginTop:'8px' }}><ChartImage url={form.screenshot.trim()} label={form.screenshot_tf || 'Chart 1'} large /></div>
+          )}
         </div>
         <div className="form-group">
           <div style={{ display:'flex', gap:'6px', marginBottom:'6px', alignItems:'center' }}>
             <select className="form-input" style={{ flex:'0 0 auto', width:'90px', padding:'4px 8px', fontSize:'11px' }}
               value={form.screenshot2_tf||''} onChange={e => setForm(f=>({...f, screenshot2_tf:e.target.value}))}>
               <option value="">Timeframe</option>
-              {['Daily','4H','1H','30M','15M','5M'].map(t=><option key={t}>{t}</option>)}
+              {['W','D','4H','1H','30M','15M','5M'].map(t=><option key={t}>{t}</option>)}
             </select>
             <span style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>Chart 2</span>
           </div>
           <input className="form-input" type="url" value={form.screenshot2||''} onChange={set('screenshot2')} placeholder="Paste TradingView snapshot URL..." />
+          {form.screenshot2 && form.screenshot2.trim() && (
+            <div style={{ marginTop:'8px' }}><ChartImage url={form.screenshot2.trim()} label={form.screenshot2_tf || 'Chart 2'} large /></div>
+          )}
         </div>
       </div>
       <div className="form-group" style={{ marginBottom:'14px' }}>
@@ -190,7 +283,7 @@ function TradeForm({ onSave, onCancel }) {
       </div>
       {err && <div style={{ color:'var(--red)', fontSize:'12px', marginBottom:'10px' }}>{err}</div>}
       <div style={{ display:'flex', gap:'8px' }}>
-        <button type="submit" className="btn btn-blue" disabled={saving}>{saving ? 'Saving...' : 'Save Trade'}</button>
+        <button type="submit" className="btn btn-blue" disabled={saving}>{saving ? 'Saving...' : isEdit ? 'Update Trade' : 'Save Trade'}</button>
         <button type="button" className="btn btn-outline" onClick={() => { clear(); onCancel() }}>Cancel</button>
       </div>
     </form>
@@ -198,7 +291,7 @@ function TradeForm({ onSave, onCancel }) {
 }
 
 // ── TRADE CARD ───────────────────────────────────────────────────
-function TradeCard({ t, onDelete }) {
+function TradeCard({ t, onDelete, onEdit }) {
   const up = (t.pl || t.r_multiple || 0) >= 0
   const rVal = t.pl || t.r_multiple || 0
   const ob = o => o==='Win' ? { bg:'#ECFDF5', col:'#065F46', border:'#BBF7D0' }
@@ -219,13 +312,19 @@ function TradeCard({ t, onDelete }) {
         {t.outcome && (
           <span style={{ fontSize:'11px', fontWeight:'700', padding:'3px 9px', borderRadius:'7px', background:oc.bg, color:oc.col, border:`1px solid ${oc.border}` }}>{t.outcome}</span>
         )}
-        <span style={{ marginLeft:'auto', fontFamily:"'JetBrains Mono',monospace", fontSize:'18px', fontWeight:'700', color: up ? '#10B981' : '#EF4444' }}>
-          {rVal >= 0 ? '+' : ''}{rVal.toFixed ? rVal.toFixed(2) : rVal}R
-        </span>
-        {onDelete && (
-          <button onClick={() => { if(window.confirm('Delete this trade?')) onDelete(t.id) }}
-            style={{ background:'none', border:'none', cursor:'pointer', color:'#CBD5E1', fontSize:'14px', padding:'0', lineHeight:1, fontWeight:'700' }}>✕</button>
-        )}
+        <div style={{ display:'flex', gap:'6px', marginLeft:'auto', alignItems:'center' }}>
+          <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'18px', fontWeight:'700', color: up ? '#10B981' : '#EF4444', marginRight:'4px' }}>
+            {rVal >= 0 ? '+' : ''}{rVal.toFixed ? rVal.toFixed(2) : rVal}R
+          </span>
+          {onEdit && (
+            <button onClick={() => onEdit(t)}
+              style={{ background:'none', border:'1px solid #E2E8F0', borderRadius:'7px', cursor:'pointer', color:'#64748B', fontSize:'11px', fontWeight:'600', padding:'4px 10px', fontFamily:'inherit' }}>Edit</button>
+          )}
+          {onDelete && (
+            <button onClick={() => { if(window.confirm('Delete this trade?')) onDelete(t.id) }}
+              style={{ background:'none', border:'none', cursor:'pointer', color:'#CBD5E1', fontSize:'14px', padding:'0 2px', lineHeight:1, fontWeight:'700' }}>✕</button>
+          )}
+        </div>
       </div>
 
       {/* Details grid */}
@@ -348,14 +447,170 @@ function AutoTextarea({ value, onChange, placeholder, style, minHeight = 80 }) {
   )
 }
 
+
+// ── DYNAMIC CHART LIST ───────────────────────────────────────────
+// Unlimited charts; Add button sits at the bottom so no scrolling up.
+function ChartList({ charts, setCharts, markDirty, isForecast }) {
+  const TFS = ['W','D','4H','1H','30M','15M','5M']
+
+  function update(i, patch) {
+    setCharts(prev => prev.map((c, idx) => idx === i ? { ...c, ...patch } : c))
+    markDirty()
+  }
+  function remove(i) {
+    setCharts(prev => prev.filter((_, idx) => idx !== i))
+    markDirty()
+  }
+  function add() {
+    setCharts(prev => [...prev, { url:'', tf:'', note:'', noteOpen:false }])
+    markDirty()
+  }
+
+  return (
+    <div>
+      {charts.map((c, i) => (
+        <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'12px', padding:'12px 14px', border:'1px solid #E2E8F0' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
+            <select value={c.tf} onChange={e => update(i, { tf: e.target.value })}
+              style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'5px 10px', fontSize:'12px', fontWeight:'600', color: c.tf ? '#0F172A' : '#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer', flex:1, maxWidth:'120px' }}>
+              <option value="">Timeframe</option>
+              {TFS.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <span style={{ fontSize:'10px', color:'#94A3B8', flex:1 }}>Chart {i+1}</span>
+            <button type="button" onClick={() => remove(i)}
+              style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'14px', padding:'0' }}>✕</button>
+          </div>
+          <input type="url" value={c.url} onChange={e => update(i, { url: e.target.value })}
+            placeholder="Paste TradingView snapshot URL..."
+            style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'9px 12px', fontSize:'12px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', marginBottom:'8px', transition:'border-color .15s' }}
+            onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+          {!c.noteOpen && !(c.note && c.note.trim()) && (
+            <button type="button" onClick={() => update(i, { noteOpen: true })}
+              style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', marginBottom: (c.url && c.url.trim()) ? '10px' : '0', display:'inline-flex', alignItems:'center', gap:'5px' }}>
+              <span>+</span> Add note
+            </button>
+          )}
+          {(c.noteOpen || (c.note && c.note.trim())) && (
+            <div style={{ marginBottom: (c.url && c.url.trim()) ? '10px' : '0' }}>
+              <AutoTextarea value={c.note} onChange={e => update(i, { note: e.target.value })}
+                placeholder={isForecast ? "What are you watching on this chart — key levels, bias, setup..." : "Chart analysis notes..."}
+                minHeight={60} style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px' }} />
+            </div>
+          )}
+          {c.url && c.url.trim() && <ChartImage url={c.url.trim()} label={c.tf || `Chart ${i+1}`} large />}
+        </div>
+      ))}
+      <button type="button" onClick={add}
+        style={{ width:'100%', background:'#F8FAFC', border:'1.5px dashed #CBD5E1', borderRadius:'10px', padding:'11px', fontSize:'12.5px', fontWeight:'600', color:'#475569', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px', transition:'all .15s' }}
+        onMouseEnter={e => { e.currentTarget.style.background='#EEF0FE'; e.currentTarget.style.borderColor='#4F46E5'; e.currentTarget.style.color='#4F46E5' }}
+        onMouseLeave={e => { e.currentTarget.style.background='#F8FAFC'; e.currentTarget.style.borderColor='#CBD5E1'; e.currentTarget.style.color='#475569' }}>
+        <span style={{ fontSize:'15px', lineHeight:1 }}>+</span> Add Chart
+      </button>
+    </div>
+  )
+}
+
+
+// ── WEEKLY ECON SNAPSHOT ─────────────────────────────────────────
+// Shows Mon-Fri high-impact events for the week being reviewed
+function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents }) {
+  const { eventsForDate, loading } = useEconomicCalendar()
+
+  const weekdays = React.useMemo(() => {
+    const days = []
+    let start
+    if (useNextWeek) {
+      const now = new Date()
+      const dow = now.getDay()
+      start = new Date(now)
+      start.setDate(now.getDate() + (dow === 0 ? 1 : 8 - dow))
+      start.setHours(0,0,0,0)
+    } else {
+      if (!weekRange) return []
+      start = new Date(weekRange.mon + 'T12:00:00')
+    }
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(start); d.setDate(start.getDate() + i)
+      const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0')
+      days.push(`${y}-${m}-${dd}`)
+    }
+    return days
+  }, [weekRange?.mon, useNextWeek])
+
+  const liveEvents = weekdays.flatMap(ds => eventsForDate(ds))
+  const events = liveEvents.length > 0 ? liveEvents : (savedEvents || [])
+
+  // Snapshot once loading is done — only when live events exist, so we never
+  // wipe a saved weekly snapshot when revisiting a past week.
+  const notified = React.useRef(false)
+  React.useEffect(() => {
+    if (!loading && weekdays.length > 0 && !notified.current) {
+      notified.current = true
+      if (liveEvents.length > 0) {
+        onEventsLoaded && onEventsLoaded(liveEvents)
+      }
+    }
+  }, [loading, weekdays.length])
+
+  if (loading) return null
+
+  // Group events by date
+  const grouped = {}
+  events.forEach(e => { if (!grouped[e.date]) grouped[e.date] = []; grouped[e.date].push(e) })
+
+  return (
+    <div style={{ background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+      <div style={{ padding:'14px 20px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+        <div style={{ width:'3px', height:'16px', borderRadius:'2px', background:'#EF4444', flexShrink:0 }} />
+        <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>
+          {useNextWeek ? "Coming Week's Events" : "Past Week's Events"}
+        </span>
+        <span style={{ marginLeft:'auto', fontSize:'11px', color:'#94A3B8' }}>
+          {events.length > 0 ? `${events.length} high-impact` : 'No high-impact events'} · USD · GBP · EUR
+        </span>
+      </div>
+      <div>
+        {weekdays.map(ds => {
+          const dayEvs = grouped[ds] || []
+          const d = new Date(ds + 'T12:00:00')
+          const dayLabel = d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' })
+          return (
+            <div key={ds} style={{ borderBottom:'1px solid #F8FAFC' }}>
+              <div style={{ padding:'8px 20px 4px', display:'flex', alignItems:'center', gap:'8px' }}>
+                <span style={{ fontSize:'10px', fontWeight:'700', color:'#94A3B8', letterSpacing:'.06em', textTransform:'uppercase' }}>{dayLabel}</span>
+                {dayEvs.length === 0 && <span style={{ fontSize:'10px', color:'#94A3B8', fontStyle:'italic' }}>No high-impact events</span>}
+              </div>
+              {dayEvs.map((e, i) => (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'6px 20px', borderTop: i > 0 ? '1px solid #F8FAFC' : 'none' }}>
+                  <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#64748B', minWidth:'40px' }}>{e.isHoliday ? 'All Day' : (e.time || '—')}</span>
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'1px 6px', borderRadius:'4px', background:'#F1F5F9', fontSize:'10px', fontWeight:'700', color:'#1E293B', flexShrink:0 }}>
+                    {e.country}
+                  </span>
+                  <div style={{ width:'11px', height:'11px', borderRadius:'3px', background: e.isHoliday ? '#94A3B8' : '#EF4444', flexShrink:0 }} />
+                  <span style={{ fontSize:'12px', fontWeight:'600', color:'#334155', flex:1 }}>{e.title}</span>
+                  {!e.isHoliday && e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'700', color:'#10B981' }}>{e.actual}</span>}
+                  {!e.isHoliday && e.forecast && !e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#64748B' }}>{e.forecast}</span>}
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+
 // ── MAIN COMPONENT ───────────────────────────────────────────────
-export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast, dateStr: propDateStr, isWeekly: propIsWeekly }) {
+export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onEditTrade, onDeleteTrade, toast, dateStr: propDateStr, isWeekly: propIsWeekly }) {
   const today = toDateStr(new Date())
   const [dateStr, setDateStr] = useState(propDateStr || today)
-  const isWeekly = propIsWeekly || false
+  const isWeekly   = propIsWeekly === true
+  const isForecast  = propIsWeekly === 'forecast'
   const [showTradeForm, setShowTradeForm] = useState(() => {
     try { return sessionStorage.getItem(FORM_OPEN) === 'true' } catch { return false }
   })
+  const [editingTrade, setEditingTrade] = useState(null)
   const [saving, setSaving] = useState(false)
 
   // When propDateStr changes (from calendar click), update local date
@@ -366,7 +621,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const dayTrades = trades.filter(t => t.date === dateStr)
 
   // Week trades (Mon-Sun of the Sunday selected)
-  const weekRange = isWeekly ? getWeekRange(dateStr) : null
+  const weekRange = (isWeekly || isForecast) ? getWeekRange(dateStr) : null
   const weekTrades = isWeekly && weekRange
     ? trades.filter(t => t.date >= weekRange.mon && t.date <= weekRange.sun).sort((a,b) => a.date.localeCompare(b.date))
     : []
@@ -393,9 +648,13 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [chartTf3,   setChartTf3]   = useState('')
   const [chartTf4,   setChartTf4]   = useState('')
   const [noteOpen1,  setNoteOpen1]  = useState(false)
+  const [charts,     setCharts]     = useState([])  // dynamic chart list: {url, tf, note, noteOpen}
+  const [checklist,  setChecklist]  = useState([])
+  const [tradeType,   setTradeType]   = useState('')
   const [noteOpen2,  setNoteOpen2]  = useState(false)
   const [noteOpen3,  setNoteOpen3]  = useState(false)
   const [noteOpen4,  setNoteOpen4]  = useState(false)
+  const [econSnapshot, setEconSnapshot] = useState([])
   const [eodReview,  setEodReview]  = useState('')
   const [followedPlan, setFollowedPlan] = useState('')
   const [wentWell,   setWentWell]   = useState('')
@@ -415,24 +674,45 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   }, [noteDirty, mood, bias, plan, chart1, chart2, chart3, chart4,
       chartNote1, chartNote2, chartNote3, chartNote4,
       chartTf1, chartTf2, chartTf3, chartTf4,
-      eodReview, followedPlan, wentWell, improve])
+      eodReview, followedPlan, wentWell, improve, checklist, tradeType, charts])
 
   // Load note data when date changes
   useEffect(() => {
     if (existingNote) {
       setMood(existingNote.mood || '')
-      setBias(existingNote.htf_bias || '')
-      setPlan(existingNote.market_conditions || '')
+      // htf_bias stores TF JSON, so only use it for TFs not for bias text
+      setPlan(existingNote.market_conditions && !existingNote.market_conditions.startsWith('[') ? existingNote.market_conditions : '')
       setChart1(existingNote.observations || '')
       setChart2(existingNote.execution_review || '')
       setChart3(existingNote.week_summary || '')
-      setChart4(existingNote.top_mistake || '')
-      try { const notes = JSON.parse(existingNote.improvements||'[]'); setChartNote1(notes[0]||''); setChartNote2(notes[1]||''); setChartNote3(notes[2]||''); setChartNote4(notes[3]||'') } catch(e) {}
-      try { const tfs = JSON.parse(existingNote.trading_errors||'[]'); setChartTf1(tfs[0]||''); setChartTf2(tfs[1]||''); setChartTf3(tfs[2]||''); setChartTf4(tfs[3]||'') } catch(e) {}
-      setEodReview(existingNote.trading_errors || '')
+      try { const notes = JSON.parse(existingNote.top_mistake||'[]'); setChartNote1(notes[0]||''); setChartNote2(notes[1]||''); setChartNote3(notes[2]||''); setChartNote4(notes[3]||''); setNoteOpen1(!!notes[0]); setNoteOpen2(!!notes[1]); setNoteOpen3(!!notes[2]); setNoteOpen4(!!notes[3]) } catch(e) { setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('') }
+      try { const tfs = JSON.parse(existingNote.htf_bias||'[]'); setChartTf1(tfs[0]||''); setChartTf2(tfs[1]||''); setChartTf3(tfs[2]||''); setChartTf4(tfs[3]||'') } catch(e) { setChartTf1(''); setChartTf2(''); setChartTf3(''); setChartTf4('') }
+      // Dynamic charts: prefer chart_groups JSON, else migrate from old 4-slot columns
+      try {
+        const cg = JSON.parse(existingNote.chart_groups || '[]')
+        if (Array.isArray(cg) && cg.length > 0) {
+          setCharts(cg.map(c => ({ url: c.url||'', tf: c.tf||'', note: c.note||'', noteOpen: !!(c.note && c.note.trim()) })))
+        } else {
+          const urls  = [existingNote.observations||'', existingNote.execution_review||'', existingNote.week_summary||'']
+          let notes = [], tfs = []
+          try { notes = JSON.parse(existingNote.top_mistake||'[]') } catch(e) {}
+          try { tfs   = JSON.parse(existingNote.htf_bias||'[]') } catch(e) {}
+          const migrated = []
+          for (let i=0;i<4;i++){
+            const u = (urls[i]||'').trim()
+            const n = (notes[i]||'').trim()
+            if (u || n) migrated.push({ url: urls[i]||'', tf: tfs[i]||'', note: notes[i]||'', noteOpen: !!n })
+          }
+          setCharts(migrated)
+        }
+      } catch(e) { setCharts([]) }
+      try { setEconSnapshot(JSON.parse(existingNote.econ_snapshot||'[]')) } catch(e) { setEconSnapshot([]) }
+      try { const cd = JSON.parse(existingNote.checklist_data||'{}'); setChecklist(cd.checks||[]); setTradeType(cd.type||'') } catch(e) { setChecklist([]); setTradeType('') }
+      setEodReview(existingNote.trading_errors && !existingNote.trading_errors.startsWith('[') ? existingNote.trading_errors : '')
       setFollowedPlan(existingNote.consistency || '')
       setWentWell(existingNote.what_worked || '')
-      setImprove(existingNote.improvements || '')
+      setImprove(existingNote.improvements && !existingNote.improvements.startsWith('[') ? existingNote.improvements : '')
+      setBias('')  // bias field separate from TF JSON
     } else {
       setMood(''); setBias(''); setPlan(''); setChart1(''); setChart2('')
       setEodReview(''); setFollowedPlan(''); setWentWell(''); setImprove('')
@@ -440,6 +720,9 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('')
       setChartTf1(''); setChartTf2(''); setChartTf3(''); setChartTf4('')
       setNoteOpen1(false); setNoteOpen2(false); setNoteOpen3(false); setNoteOpen4(false)
+      setCharts([])
+      setChecklist([])
+      setTradeType('')
     }
     setNoteDirty(false)
   }, [dateStr, existingNote?.id])
@@ -447,12 +730,20 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   function markDirty() { setNoteDirty(true) }
 
   async function saveNote() {
+    // Don't save if there's no actual content (prevents ghost note icons)
+    const hasContent = [mood, plan, eodReview, wentWell, improve, followedPlan,
+      chart1, chart2, chart3, chart4, chartNote1, chartNote2, chartNote3, chartNote4
+    ].some(v => v && v.trim().length > 0) || checklist.some(v => v) || !!tradeType
+      || charts.some(c => (c.url && c.url.trim()) || (c.note && c.note.trim()))
+      || (Array.isArray(econSnapshot) && econSnapshot.length > 0)
+    if (!hasContent && !existingNote) { setNoteDirty(false); return }
+
     setSaving(true)
     try {
       await onSaveNote({
         id:               existingNote?.id,
         date:             dateStr,
-        note_type:        isWeekly ? 'week' : 'day',
+        note_type:        isWeekly ? 'week' : isForecast ? 'forecast' : 'day',
         note:             plan,
         mood,
         htf_bias:         bias,
@@ -461,12 +752,15 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         execution_review: chart2,
         week_summary:     chart3,
         top_mistake:      chart4,
-        improvements:     JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
-        trading_errors:   JSON.stringify([chartTf1,chartTf2,chartTf3,chartTf4]),
-        trading_errors:   eodReview,
-        consistency:      followedPlan,
-        what_worked:      wentWell,
         improvements:     improve,
+        what_worked:      wentWell,
+        consistency:      followedPlan,
+        trading_errors:   eodReview,
+        htf_bias:         JSON.stringify([chartTf1,chartTf2,chartTf3,chartTf4]),
+        top_mistake:      JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
+        econ_snapshot:    JSON.stringify(econSnapshot),
+        chart_groups:     JSON.stringify(charts.filter(c => (c.url && c.url.trim()) || (c.note && c.note.trim())).map(c => ({ url: c.url||'', tf: c.tf||'', note: c.note||'' }))),
+        checklist_data:   JSON.stringify({ type: tradeType, checks: checklist }),
       })
       setNoteDirty(false)
       toast('Day saved ✓')
@@ -476,10 +770,16 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
 
   async function handleAddTrade(tradeData) {
     try {
-      await onAddTrade({ ...tradeData, date: dateStr })
+      if (editingTrade) {
+        await onEditTrade(editingTrade.id, { ...tradeData })
+        setEditingTrade(null)
+        toast('Trade updated ✓')
+      } else {
+        await onAddTrade({ ...tradeData, date: dateStr })
+        toast('Trade logged ✓')
+      }
       setShowTradeForm(false)
       try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {}
-      toast('Trade logged ✓')
     } catch(err) {
       toast('Error saving trade: ' + err.message)
     }
@@ -503,7 +803,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'24px', flexWrap:'wrap', gap:'12px' }}>
         <div>
           <div style={{ fontSize:'11px', fontWeight:'600', color:'#94A3B8', letterSpacing:'.1em', textTransform:'uppercase', marginBottom:'6px' }}>
-            {isWeekly ? 'Weekly Review' : isToday ? 'Today' : 'Daily Journal'}
+            {isWeekly ? 'Weekly Review' : isForecast ? 'Weekly Forecast' : isToday ? 'Today' : 'Daily Journal'}
           </div>
           <h1 style={{ fontSize:'26px', fontWeight:'700', color:'#0F172A', letterSpacing:'-.03em', lineHeight:1.1 }}>
             {isWeekly
@@ -515,7 +815,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         </div>
         <button onClick={saveNote} disabled={saving}
           style={{ background: saving ? '#E2E8F0' : '#0F172A', color: saving ? '#94A3B8' : '#FFFFFF', border:'none', borderRadius:'12px', padding:'10px 20px', fontSize:'13px', fontWeight:'600', cursor: saving ? 'default' : 'pointer', fontFamily:'inherit', letterSpacing:'-.01em', transition:'all .15s', boxShadow: saving ? 'none' : '0 4px 14px rgba(15,23,42,.25)' }}>
-          {saving ? 'Saving...' : autoSaving ? 'Auto-saving...' : isWeekly ? 'Save Week' : 'Save Day'}
+          {saving ? 'Saving...' : autoSaving ? 'Auto-saving...' : isWeekly ? 'Save Review' : isForecast ? 'Save Forecast' : 'Save Day'}
         </button>
       </div>
 
@@ -553,224 +853,258 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         </div>
       )}
 
-      {/* ── TODAY'S NEWS ── */}
-      <DayNews dateStr={dateStr} />
+      {/* ── ECONOMIC EVENTS ── */}
+      {!isWeekly && !isForecast && (
+        <DayNews dateStr={dateStr} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} />
+      )}
+      {isWeekly && weekRange && (
+        <WeeklyEconNews weekRange={weekRange} useNextWeek={false} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} />
+      )}
+      {isForecast && weekRange && (
+        <WeeklyEconNews weekRange={weekRange} useNextWeek={true} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} />
+      )}
 
       {/* ── DAY PLAN CARD ── */}
-      <div style={{ order: isWeekly ? 3 : 1, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
-        <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background: isWeekly ? '#F3E8FF' : '#EFF6FF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>
-              {isWeekly ? '📋' : '📋'}
+      {!isWeekly && !isForecast && (
+        <div style={{ order:1, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+          <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+              <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#EFF6FF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>📋</div>
+              <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>Day Plan</span>
             </div>
-            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>{isWeekly ? 'Weekly Plan' : 'Day Plan'}</span>
+            {noteDirty && <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>Unsaved changes</span>}
           </div>
-          {noteDirty && <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>Unsaved changes</span>}
-        </div>
-
-        <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
-
-          {/* ── DAILY ONLY FIELDS ── */}
-          {!isWeekly && (<>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
-              <div>
-                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Feeling</label>
-                <AutoTextarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }}
-                  placeholder="How are you feeling going into today's session?" minHeight={70} />
-              </div>
-              <div>
-                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Bias Today</label>
-                <input value={bias} onChange={e => { setBias(e.target.value); markDirty() }}
-                  placeholder="e.g. Bearish NQ, Bullish GBP/USD..."
-                  style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'12px 14px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', transition:'border-color .15s', boxSizing:'border-box' }}
-                  onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
-              </div>
+          <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
+            <div>
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Mindset Going Into the Day</label>
+              <AutoTextarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }} placeholder="How are you feeling mentally? Focused, patient, distracted, emotional..." minHeight={70} />
             </div>
             <div>
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Trading Plan</label>
-              <AutoTextarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }}
-                placeholder="What are you watching? Key levels, bias read, what needs to happen for you to take a trade..." minHeight={110} />
+              <AutoTextarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }} placeholder="What are you watching? Key levels, bias read, what needs to happen for you to take a trade..." minHeight={110} />
             </div>
-          </>)}
+            {/* Chart Images */}
+            <div>
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'12px' }}>Chart Images</label>
+              <ChartList charts={charts} setCharts={setCharts} markDirty={markDirty} isForecast={false} />
+            </div>
+          </div>
+        </div>
+      )}
 
-          {/* ── WEEKLY ONLY FIELDS ── */}
-          {isWeekly && (<>
+      {/* ── PRE-TRADE CHECKLIST CARD — daily only ── */}
+      {!isWeekly && !isForecast && (
+        <div style={{ order:2, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+          <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#F0FDF4', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>✓</div>
+            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>Pre-Trade Checklist</span>
+          </div>
+          <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'14px' }}>
+            {/* Trade type selector */}
+            <div style={{ display:'flex', gap:'8px' }}>
+              {[['type1','Type 1','SMR','#6366F1','#EEF2FF'],['type2','Type 2','Distribution','#0EA5E9','#F0F9FF']].map(([val,label,sub,col,bg]) => (
+                <div key={val} onClick={() => { setTradeType(tradeType===val?'':val); setChecklist([]); markDirty() }}
+                  style={{ flex:1, padding:'10px 14px', borderRadius:'12px', border:`1.5px solid ${tradeType===val?col:'#E2E8F0'}`, background:tradeType===val?bg:'#F8FAFC', cursor:'pointer', transition:'all .15s', userSelect:'none' }}>
+                  <div style={{ fontSize:'13px', fontWeight:'700', color:tradeType===val?col:'#475569' }}>{label}</div>
+                  <div style={{ fontSize:'11px', color:tradeType===val?col:'#94A3B8', marginTop:'1px' }}>{sub}</div>
+                </div>
+              ))}
+            </div>
+            {tradeType && (() => {
+              const questions = tradeType === 'type1' ? [
+                'Is there a clear and obvious DOL on the weekly and daily?',
+                'Is price at or near the key level where the SMR should occur?',
+                'Between 3am–10am NY has price formed a clean 15m breaker block at that level signalling the SMR is in?',
+              ] : [
+                'Is there a clear and obvious DOL on the weekly and daily?',
+                'Is the SMR confirmed — is the high or low of the week in?',
+                'Is the 4H showing clean expansion and retracement toward the DOL — not consolidation or chop?',
+                'Is there one obvious level overlapping with premium or discount within the 4H range?',
+                'Between 3am–10am NY has price formed a clean 15m breaker block rejection at that level?',
+              ]
+              const allDone = checklist.length === questions.length && checklist.every(v=>v)
+              return (
+                <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                  {questions.map((q, i) => {
+                    const checked = !!checklist[i]
+                    return (
+                      <div key={i} onClick={() => { const n=[...checklist]; n[i]=!n[i]; setChecklist(n); markDirty() }}
+                        style={{ display:'flex', alignItems:'flex-start', gap:'10px', padding:'10px 14px', background:checked?'#F0FDF4':'#F8FAFC', border:`1.5px solid ${checked?'#86EFAC':'#E2E8F0'}`, borderRadius:'10px', cursor:'pointer', transition:'all .15s', userSelect:'none' }}>
+                        <div style={{ width:'18px', height:'18px', borderRadius:'5px', border:`2px solid ${checked?'#10B981':'#CBD5E1'}`, background:checked?'#10B981':'#FFFFFF', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:'1px', transition:'all .15s' }}>
+                          {checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        <span style={{ fontSize:'12px', fontWeight:'500', color:checked?'#166534':'#475569', lineHeight:'1.5' }}>{q}</span>
+                      </div>
+                    )
+                  })}
+                  {allDone && (
+                    <div style={{ padding:'10px 14px', background:'#DCFCE7', border:'1.5px solid #86EFAC', borderRadius:'10px', textAlign:'center', fontSize:'12px', fontWeight:'700', color:'#166534' }}>
+                      ✓ All conditions met — valid {tradeType==='type1'?'Type 1 SMR':'Type 2 Distribution'} setup
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ── FORECAST CARD (Sunday) ── */}
+      {isForecast && (
+        <div style={{ order:1, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+          <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+              <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#F3E8FF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>📋</div>
+              <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>Weekly Forecast</span>
+            </div>
+            {noteDirty && <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>Unsaved changes</span>}
+          </div>
+          <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
             <div>
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Plan for the Week</label>
-              <AutoTextarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }}
-                placeholder="Macro backdrop, key themes, currencies to focus on, what you need to see to trade..." minHeight={120} />
+              <AutoTextarea value={plan} onChange={e => { setPlan(e.target.value); markDirty() }} placeholder="Macro backdrop, key themes, currencies to focus on, what you need to see to trade..." minHeight={120} />
             </div>
-          </>)}
-
-          {/* ── CHART IMAGES (both daily and weekly) ── */}
-          <div>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
-              <label style={{ fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase' }}>
-                {isWeekly ? 'Charts to Watch' : 'Chart Images'}
-              </label>
-              {[chart1,chart2,chart3,chart4].filter(v=>v&&v.trim()).length < 4 && (
-                <button type="button" onClick={() => {
-                  if (!chart1) { setChart1(' '); markDirty() }
-                  else if (!chart2) { setChart2(' '); markDirty() }
-                  else if (!chart3) { setChart3(' '); markDirty() }
-                  else if (!chart4) { setChart4(' '); markDirty() }
-                }}
-                  style={{ background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'6px 12px', fontSize:'12px', fontWeight:'600', color:'#475569', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'5px' }}>
-                  <span style={{ fontSize:'14px', lineHeight:1 }}>+</span> Add Chart
-                </button>
-              )}
+            <div>
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'12px' }}>Charts to Watch</label>
+              <ChartList charts={charts} setCharts={setCharts} markDirty={markDirty} isForecast={true} />
             </div>
-            {[[chart1,setChart1,chartNote1,setChartNote1,chartTf1,setChartTf1,noteOpen1,setNoteOpen1],[chart2,setChart2,chartNote2,setChartNote2,chartTf2,setChartTf2,noteOpen2,setNoteOpen2],[chart3,setChart3,chartNote3,setChartNote3,chartTf3,setChartTf3,noteOpen3,setNoteOpen3],[chart4,setChart4,chartNote4,setChartNote4,chartTf4,setChartTf4,noteOpen4,setNoteOpen4]].map(([val,setter,note,setNote,tf,setTf,noteOpen,setNoteOpen],i) => val ? (
-              <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'12px', padding:'12px 14px', border:'1px solid #E2E8F0' }}>
-                {/* Header: TF dropdown + remove */}
-                <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
-                  <select value={tf} onChange={e => { setTf(e.target.value); markDirty() }}
-                    style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'5px 10px', fontSize:'12px', fontWeight:'600', color: tf ? '#0F172A' : '#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer', flex:1, maxWidth:'120px' }}>
-                    <option value="">Timeframe</option>
-                    {['Daily','4H','1H','30M','15M','5M'].map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <span style={{ fontSize:'10px', color:'#94A3B8', flex:1 }}>Chart {i+1}</span>
-                  <button type="button" onClick={() => { setter(''); setNote(''); setTf(''); setNoteOpen(false); markDirty() }}
-                    style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'14px', padding:'0', lineHeight:1, fontWeight:'700' }}>✕</button>
-                </div>
-                {/* URL input */}
-                <input type="url" value={val.trim()} onChange={e => { setter(e.target.value); markDirty() }}
-                  placeholder="Paste TradingView snapshot URL..."
-                  style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'9px 12px', fontSize:'12px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', marginBottom:'8px', transition:'border-color .15s' }}
-                  onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
-                {/* Note toggle button */}
-                {!noteOpen && (
-                  <button type="button" onClick={() => setNoteOpen(true)}
-                    style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', marginBottom: val.trim() ? '10px' : '0', display:'inline-flex', alignItems:'center', gap:'5px' }}>
-                    <span style={{ fontSize:'13px' }}>+</span> Add note
-                  </button>
-                )}
-                {noteOpen && (
-                  <div style={{ marginBottom: val.trim() ? '10px' : '0', position:'relative' }}>
-                    <AutoTextarea value={note} onChange={e => { setNote(e.target.value); markDirty() }}
-                      placeholder={isWeekly ? "What are you watching on this chart — key levels, bias, setup..." : "Chart analysis notes..."}
-                      minHeight={60} />
-                    {!note && <button type="button" onClick={() => setNoteOpen(false)}
-                      style={{ position:'absolute', top:'6px', right:'8px', background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'12px', padding:'0' }}>✕</button>}
-                  </div>
-                )}
-                {/* Chart image */}
-                {val.trim() && <ChartImage url={val.trim()} label={tf || `Chart ${i+1}`} large />}
-              </div>
-            ) : null)}
+            <button onClick={saveNote} disabled={saving}
+              style={{ alignSelf:'flex-start', background:saving?'#E2E8F0':'#0F172A', color:saving?'#94A3B8':'#FFFFFF', border:'none', borderRadius:'12px', padding:'11px 24px', fontSize:'13px', fontWeight:'600', cursor:saving?'default':'pointer', fontFamily:'inherit', letterSpacing:'-.01em', boxShadow:saving?'none':'0 4px 14px rgba(15,23,42,.25)', transition:'all .15s' }}>
+              {saving?'Saving...':autoSaving?'Auto-saving...':'Save Forecast'}
+            </button>
           </div>
-
         </div>
-      </div>
+      )}
 
       {/* ── TRADES ── */}
       <div style={{ order: isWeekly ? 2 : 3, marginBottom:'16px' }}>
-        {!isWeekly && (
-          <>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
-              <div style={{ fontSize:'11px', fontWeight:'600', color:'#94A3B8', letterSpacing:'.08em', textTransform:'uppercase' }}>
-                Trades {dayTrades.length > 0 && <span style={{ background:'#F1F5F9', color:'#475569', borderRadius:'6px', padding:'1px 7px', marginLeft:'4px', fontSize:'10px' }}>{dayTrades.length}</span>}
-              </div>
-              {!showTradeForm && (
-                <button onClick={openTradeForm}
-                  style={{ background:'#0F172A', color:'#FFFFFF', border:'none', borderRadius:'10px', padding:'8px 16px', fontSize:'12px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', letterSpacing:'-.01em', boxShadow:'0 2px 8px rgba(15,23,42,.2)' }}>
-                  + Log Trade
-                </button>
-              )}
-            </div>
-            {showTradeForm && (
-              <div style={{ marginBottom:'14px' }}>
-                <TradeForm onSave={handleAddTrade} onCancel={() => { setShowTradeForm(false); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
-              </div>
-            )}
-            {dayTrades.length === 0 && !showTradeForm && (
-              <div style={{ padding:'32px', textAlign:'center', background:'#FFFFFF', borderRadius:'16px', border:'1.5px dashed #E2E8F0', color:'#94A3B8', fontSize:'13px' }}>
-                No trades logged for this day
-              </div>
-            )}
-            {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={isToday ? onDeleteTrade : null} />)}
-          </>
+        {!isWeekly && !isForecast && (
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'12px' }}>
+            <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>Trades</span>
+            <button onClick={openTradeForm}
+              style={{ background:'#6366F1', color:'#fff', border:'none', borderRadius:'10px', padding:'8px 16px', fontSize:'12px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'6px' }}>
+              <span style={{ fontSize:'15px', lineHeight:1 }}>+</span> Log Trade
+            </button>
+          </div>
         )}
-        {isWeekly && (
+        {isWeekly && weekTrades.length > 0 && (
+          <div>
+            <div style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A', marginBottom:'12px' }}>Week's Trades</div>
+            {showTradeForm && editingTrade && (
+              <TradeForm key={editingTrade.id} onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
+            )}
+            {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={tr => { setEditingTrade(tr); setShowTradeForm(true); try { sessionStorage.setItem(FORM_OPEN,'true') } catch(e) {} window.scrollTo({top:0,behavior:'smooth'}) }} />)}
+          </div>
+        )}
+        {!isWeekly && !isForecast && (
           <>
-            <div style={{ fontSize:'11px', fontWeight:'600', color:'#94A3B8', letterSpacing:'.08em', textTransform:'uppercase', marginBottom:'12px' }}>
-              Week Trades {weekTrades.length > 0 && <span style={{ background:'#F1F5F9', color:'#475569', borderRadius:'6px', padding:'1px 7px', marginLeft:'4px', fontSize:'10px' }}>{weekTrades.length}</span>}
-            </div>
-            {weekTrades.length === 0
-              ? <div style={{ padding:'32px', textAlign:'center', background:'#FFFFFF', borderRadius:'16px', border:'1.5px dashed #E2E8F0', color:'#94A3B8', fontSize:'13px' }}>No trades logged this week</div>
-              : weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={null} />)
-            }
+            {showTradeForm && (
+              <TradeForm key={editingTrade ? editingTrade.id : 'new'} onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
+            )}
+            {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={tr => { setEditingTrade(tr); setShowTradeForm(true); try { sessionStorage.setItem(FORM_OPEN,'true') } catch(e) {} window.scrollTo({top:0,behavior:'smooth'}) }} />)}
           </>
         )}
       </div>
 
-      {/* ── END OF DAY / WEEK REVIEW ── */}
-      <div style={{ order: isWeekly ? 1 : 4, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
-        <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
-          <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#ECFDF5', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>
-            {isWeekly ? '📊' : '✍️'}
+      {/* ── WEEKLY REVIEW CARD (Saturday only) ── */}
+      {isWeekly && (
+        <div style={{ order:1, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+          <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#ECFDF5', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>📊</div>
+            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>End of Week Review</span>
           </div>
-          <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>{isWeekly ? 'End of Week Review' : 'End of Day Review'}</span>
-        </div>
-
-        <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
-          {/* Followed plan pills */}
-          <div>
-            <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'10px' }}>
-              {isWeekly ? 'Did you follow your rules this week?' : 'Did you follow your plan?'}
-            </label>
-            <div style={{ display:'flex', gap:'8px' }}>
+          <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
+            {/* Followed rules toggle */}
+            <div style={{ display:'flex', alignItems:'center', gap:'12px', padding:'12px 16px', background:'#F8FAFC', borderRadius:'12px', border:'1px solid #E2E8F0' }}>
+              <span style={{ fontSize:'13px', fontWeight:'600', color:'#334155', flex:1 }}>Did you follow your rules this week?</span>
               {['Yes','Mostly','No'].map(v => (
-                <button key={v} type="button" onClick={() => { setFollowedPlan(v); markDirty() }}
-                  style={{
-                    padding:'8px 18px', borderRadius:'10px', fontSize:'12px', fontWeight:'600',
-                    border:`1.5px solid ${followedPlan===v ? (v==='Yes'?'#10B981':v==='Mostly'?'#F59E0B':'#EF4444') : '#E2E8F0'}`,
-                    background: followedPlan===v ? (v==='Yes'?'#ECFDF5':v==='Mostly'?'#FFFBEB':'#FEF2F2') : '#F8FAFC',
-                    color: followedPlan===v ? (v==='Yes'?'#065F46':v==='Mostly'?'#92400E':'#7F1D1D') : '#94A3B8',
-                    cursor:'pointer', fontFamily:'inherit', transition:'all .15s'
-                  }}>
-                  {v==='Yes'?'✓ Yes':v==='Mostly'?'~ Mostly':'✗ No'}
+                <button key={v} onClick={() => { setFollowedPlan(v); markDirty() }}
+                  style={{ padding:'5px 14px', borderRadius:'8px', border:`1.5px solid ${followedPlan===v?'#6366F1':'#E2E8F0'}`, background: followedPlan===v?'#6366F1':'transparent', color: followedPlan===v?'#fff':'#64748B', fontSize:'12px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>
+                  {v}
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* How did it go */}
-          <div>
-            <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>
-              {isWeekly ? 'How did the week go?' : 'How did the session go?'}
-            </label>
-            <AutoTextarea value={eodReview} onChange={e => { setEodReview(e.target.value); markDirty() }}
-              placeholder={isWeekly ? "Overall feel of the week — market conditions, your execution, what stood out..." : "Overall feel of the session — how price moved, your execution, anything notable..."}
-              minHeight={90}
-              style={{ background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px' }} />
-          </div>
-
-          {/* Went well / Improve */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+            {/* How did week go */}
             <div>
-              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#10B981', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>What went well</label>
-              <AutoTextarea value={wentWell} onChange={e => { setWentWell(e.target.value); markDirty() }}
-                placeholder={isWeekly ? "Best decisions, good habits, what worked..." : "Execution, patience, market reads..."}
-                minHeight={80} style={{ background:'#F0FDF4', border:'1.5px solid #BBF7D0', borderRadius:'12px' }} />
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>How did the week go?</label>
+              <AutoTextarea value={eodReview} onChange={e => { setEodReview(e.target.value); markDirty() }}
+                placeholder="Overall feel of the week — market conditions, your execution, what stood out..."
+                minHeight={90} />
             </div>
+            {/* What went well / improve */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+              <div>
+                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#10B981', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>What went well</label>
+                <AutoTextarea value={wentWell} onChange={e => { setWentWell(e.target.value); markDirty() }}
+                  placeholder="Best decisions, good habits, what worked..."
+                  minHeight={80} style={{ background:'#F0FDF4', border:'1.5px solid #BBF7D0', borderRadius:'12px' }} />
+              </div>
+              <div>
+                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#EF4444', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>What to improve</label>
+                <AutoTextarea value={improve} onChange={e => { setImprove(e.target.value); markDirty() }}
+                  placeholder="One key focus for next week..."
+                  minHeight={80} style={{ background:'#FEF2F2', border:'1.5px solid #FECACA', borderRadius:'12px' }} />
+              </div>
+            </div>
+            {/* Charts for review */}
             <div>
-              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#EF4444', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>What to improve</label>
-              <AutoTextarea value={improve} onChange={e => { setImprove(e.target.value); markDirty() }}
-                placeholder={isWeekly ? "One key focus for next week..." : "One specific thing for tomorrow..."}
-                minHeight={80} style={{ background:'#FEF2F2', border:'1.5px solid #FECACA', borderRadius:'12px' }} />
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'12px' }}>Charts</label>
+              <ChartList charts={charts} setCharts={setCharts} markDirty={markDirty} isForecast={false} />
             </div>
+            {/* Save */}
+            <button onClick={saveNote} disabled={saving}
+              style={{ alignSelf:'flex-start', background: saving ? '#E2E8F0' : '#0F172A', color: saving ? '#94A3B8' : '#FFFFFF', border:'none', borderRadius:'12px', padding:'11px 24px', fontSize:'13px', fontWeight:'600', cursor: saving ? 'default' : 'pointer', fontFamily:'inherit', letterSpacing:'-.01em', boxShadow: saving ? 'none' : '0 4px 14px rgba(15,23,42,.25)', transition:'all .15s' }}>
+              {saving ? 'Saving...' : autoSaving ? 'Auto-saving...' : 'Save Review'}
+            </button>
           </div>
-
-          {/* Save */}
-          <button onClick={saveNote} disabled={saving}
-            style={{ alignSelf:'flex-start', background: saving ? '#E2E8F0' : '#0F172A', color: saving ? '#94A3B8' : '#FFFFFF', border:'none', borderRadius:'12px', padding:'11px 24px', fontSize:'13px', fontWeight:'600', cursor: saving ? 'default' : 'pointer', fontFamily:'inherit', letterSpacing:'-.01em', boxShadow: saving ? 'none' : '0 4px 14px rgba(15,23,42,.25)', transition:'all .15s' }}>
-            {saving ? 'Saving...' : autoSaving ? 'Auto-saving...' : isWeekly ? 'Save Week' : 'Save Day'}
-          </button>
         </div>
-      </div>
+      )}
 
-      <div style={{ height:'20px' }} />
+      {/* ── EOD REVIEW CARD (daily only) ── */}
+      {!isWeekly && !isForecast && (
+        <div style={{ order:4, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+          <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#FFF7ED', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>✍️</div>
+            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>End of Day Review</span>
+          </div>
+          <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'16px' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'12px', padding:'12px 16px', background:'#F8FAFC', borderRadius:'12px', border:'1px solid #E2E8F0' }}>
+              <span style={{ fontSize:'13px', fontWeight:'600', color:'#334155', flex:1 }}>Did you follow your plan?</span>
+              {['Yes','Mostly','No'].map(v => (
+                <button key={v} onClick={() => { setFollowedPlan(v); markDirty() }}
+                  style={{ padding:'5px 14px', borderRadius:'8px', border:`1.5px solid ${followedPlan===v?'#6366F1':'#E2E8F0'}`, background: followedPlan===v?'#6366F1':'transparent', color: followedPlan===v?'#fff':'#64748B', fontSize:'12px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>
+                  {v}
+                </button>
+              ))}
+            </div>
+            <div>
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>How did the session go?</label>
+              <AutoTextarea value={eodReview} onChange={e => { setEodReview(e.target.value); markDirty() }}
+                placeholder="Overall feel of the session — how price moved, your execution, anything notable..."
+                minHeight={90} />
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+              <div>
+                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#10B981', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>What went well</label>
+                <AutoTextarea value={wentWell} onChange={e => { setWentWell(e.target.value); markDirty() }}
+                  placeholder="Execution, patience, market reads..."
+                  minHeight={80} style={{ background:'#F0FDF4', border:'1.5px solid #BBF7D0', borderRadius:'12px' }} />
+              </div>
+              <div>
+                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#EF4444', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>What to improve</label>
+                <AutoTextarea value={improve} onChange={e => { setImprove(e.target.value); markDirty() }}
+                  placeholder="One specific thing for tomorrow..."
+                  minHeight={80} style={{ background:'#FEF2F2', border:'1.5px solid #FECACA', borderRadius:'12px' }} />
+              </div>
+            </div>
+            <button onClick={saveNote} disabled={saving}
+              style={{ alignSelf:'flex-start', background: saving ? '#E2E8F0' : '#0F172A', color: saving ? '#94A3B8' : '#FFFFFF', border:'none', borderRadius:'12px', padding:'11px 24px', fontSize:'13px', fontWeight:'600', cursor: saving ? 'default' : 'pointer', fontFamily:'inherit', letterSpacing:'-.01em', boxShadow: saving ? 'none' : '0 4px 14px rgba(15,23,42,.25)', transition:'all .15s' }}>
+              {saving ? 'Saving...' : autoSaving ? 'Auto-saving...' : 'Save Day'}
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

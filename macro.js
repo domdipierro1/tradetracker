@@ -46,7 +46,8 @@ export default async function handler(req, res) {
     }
     return {
       title: e.title||'', country: e.country||'', date, time,
-      forecast: e.forecast||null, previous: e.previous||null, actual: e.actual||null
+      forecast: e.forecast||null, previous: e.previous||null, actual: e.actual||null,
+      isHoliday: e.impact === 'Holiday'
     }
   }
 
@@ -60,7 +61,7 @@ export default async function handler(req, res) {
       const data = await r.json()
       if (!Array.isArray(data) || !data.length) { console.log(`${url}: empty`); continue }
       const events = data
-        .filter(e => e.impact === 'High' && TARGET.includes(e.country))
+        .filter(e => (e.impact === 'High' || e.impact === 'Holiday') && TARGET.includes(e.country))
         .map(parseEvent)
       console.log(`${url}: ${events.length} events, isSunday=${isEST_Sunday}`)
       return res.status(200).json({ ok: true, events, source: url, isSunday: isEST_Sunday })

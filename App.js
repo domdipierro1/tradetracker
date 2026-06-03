@@ -8,17 +8,27 @@ const DOW   = ['Monday','Tuesday','Wednesday','Thursday','Friday']
 function SectionHeader({ title, sub }) {
   return (
     <div style={{ marginBottom:'16px' }}>
-      <h2 style={{ fontSize:'17px', fontWeight:'700', color:'#0F172A', letterSpacing:'-.02em', marginBottom:'2px' }}>{title}</h2>
-      {sub && <p style={{ fontSize:'12px', color:'#94A3B8', margin:0 }}>{sub}</p>}
+      <h2 style={{ fontSize:'17px', fontWeight:'700', color:'#14181F', letterSpacing:'-.02em', marginBottom:'2px' }}>{title}</h2>
+      {sub && <p style={{ fontSize:'12px', color:'#717A88', margin:0 }}>{sub}</p>}
     </div>
   )
 }
 
 // ── BREAKDOWN TABLE ───────────────────────────────────────────────
-function BreakdownTable({ title, k, items, trades, accent = '#6366F1' }) {
+function BreakdownTable({ title, k, items, trades, accent = '#4F46E5' }) {
+  const kzOf = (time) => {
+    if (!time) return null
+    const h = parseInt(String(time).slice(0,2), 10)
+    if (isNaN(h)) return null
+    if (h >= 2 && h < 5)  return 'London (02–05)'
+    if (h >= 5 && h < 8)  return 'Overlap (05–08)'
+    if (h >= 8 && h < 11) return 'NY AM (08–11)'
+    return 'Other'
+  }
   const withDow = trades.map(t => ({
     ...t,
-    dow: t.date ? ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(t.date).getDay()] : null
+    dow: t.date ? ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(t.date).getDay()] : null,
+    killzone: kzOf(t.time)
   }))
 
   const rows = items.map(item => {
@@ -33,36 +43,36 @@ function BreakdownTable({ title, k, items, trades, accent = '#6366F1' }) {
   const G = '1fr 36px 50px 36px 76px 50px'
 
   return (
-    <div style={{ background:'#FFFFFF', borderRadius:'20px', overflow:'hidden', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)' }}>
-      <div style={{ padding:'14px 18px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+    <div style={{ background:'#FFFFFF', borderRadius:'20px', overflow:'hidden', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)' }}>
+      <div style={{ padding:'14px 18px', borderBottom:'1px solid #E9ECF1', display:'flex', alignItems:'center', gap:'10px' }}>
         <div style={{ width:'3px', height:'16px', borderRadius:'2px', background: accent, flexShrink:0 }} />
-        <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>{title}</span>
-        <span style={{ marginLeft:'auto', fontSize:'11px', color:'#94A3B8' }}>{rows.length} categor{rows.length===1?'y':'ies'}</span>
+        <span style={{ fontSize:'13px', fontWeight:'700', color:'#14181F' }}>{title}</span>
+        <span style={{ marginLeft:'auto', fontSize:'11px', color:'#717A88' }}>{rows.length} categor{rows.length===1?'y':'ies'}</span>
       </div>
       <div style={{ padding:'0 18px' }}>
-        <div style={{ display:'grid', gridTemplateColumns:G, padding:'8px 0 6px', borderBottom:'1px solid #F1F5F9' }}>
+        <div style={{ display:'grid', gridTemplateColumns:G, padding:'8px 0 6px', borderBottom:'1px solid #E9ECF1' }}>
           {['','Tr','Win%','W','Total R','Exp'].map((h,i) => (
-            <div key={i} style={{ fontSize:'9px', fontWeight:'700', color:'#94A3B8', letterSpacing:'.06em', textTransform:'uppercase', textAlign:i===0?'left':'right' }}>{h}</div>
+            <div key={i} style={{ fontSize:'9px', fontWeight:'700', color:'#717A88', letterSpacing:'.06em', textTransform:'uppercase', textAlign:i===0?'left':'right' }}>{h}</div>
           ))}
         </div>
         {rows.map((r, i) => {
           const barPct = Math.min(100, Math.abs(r.totalR||0) / maxR * 100)
-          const rCol = (r.totalR||0) >= 0 ? '#10B981' : '#EF4444'
+          const rCol = (r.totalR||0) >= 0 ? '#059669' : '#E11D48'
           return (
-            <div key={r.label} style={{ display:'grid', gridTemplateColumns:G, padding:'9px 0', borderBottom: i<rows.length-1?'1px solid #F8FAFC':'none', transition:'background .1s', margin:'0 -18px', padding:'9px 18px' }}
+            <div key={r.label} style={{ display:'grid', gridTemplateColumns:G, padding:'9px 0', borderBottom: i<rows.length-1?'1px solid #F4F6F8':'none', transition:'background .1s', margin:'0 -18px', padding:'9px 18px' }}
               onMouseEnter={e=>e.currentTarget.style.background='#F8FAFC'}
               onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
               <div style={{ fontWeight:'600', color:'#334155', fontSize:'12px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', paddingRight:'6px' }} title={r.label}>{r.label}</div>
               <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", color:'#64748B', fontSize:'11px' }}>{r.n}</div>
-              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color: r.winRate>=.5?'#10B981':'#EF4444' }}>{fP(r.winRate)}</div>
-              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#10B981', fontWeight:'500' }}>{r.wins||0}</div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color: r.winRate>=.5?'#059669':'#E11D48' }}>{fP(r.winRate)}</div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#059669', fontWeight:'500' }}>{r.wins||0}</div>
               <div style={{ display:'flex', alignItems:'center', gap:'4px', justifyContent:'flex-end' }}>
                 <div style={{ width:'28px', height:'3px', background:'#F1F5F9', borderRadius:'2px', overflow:'hidden', flexShrink:0 }}>
                   <div style={{ width:barPct+'%', height:'100%', background:rCol, borderRadius:'2px' }} />
                 </div>
                 <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'700', color:rCol, minWidth:'30px', textAlign:'right' }}>{f1(r.totalR||0)}</span>
               </div>
-              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color:(r.expectancy||0)>0?'#10B981':'#EF4444' }}>{r.expectancy?f2(r.expectancy):'—'}</div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color:(r.expectancy||0)>0?'#059669':'#E11D48' }}>{r.expectancy?f2(r.expectancy):'—'}</div>
             </div>
           )
         })}
@@ -105,15 +115,15 @@ export default function Analysis({ trades }) {
     <div style={{ padding:'24px', maxWidth:'1100px', margin:'0 auto' }}>
 
       {/* Page title */}
-      <div style={{ marginBottom:'28px' }}>
-        <h1 style={{ fontSize:'22px', fontWeight:'700', color:'#0F172A', letterSpacing:'-.03em', marginBottom:'3px' }}>Analysis</h1>
-        <p style={{ fontSize:'13px', color:'#94A3B8' }}>
-          {isEmpty ? 'Log trades to see performance breakdowns' : `${trades.length} trade${trades.length>1?'s':''} analysed`}
+      <div style={{ marginBottom:'30px' }}>
+        <h1 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:'30px', fontWeight:'800', color:'#14181F', letterSpacing:'-.04em', marginBottom:'4px', lineHeight:1.05 }}>Analysis</h1>
+        <p style={{ fontSize:'13.5px', color:'#717A88' }}>
+          {isEmpty ? 'Log trades to see performance breakdowns' : `${trades.length} trade${trades.length>1?'s':''} analysed across every dimension`}
         </p>
       </div>
 
       {isEmpty && (
-        <div style={{ padding:'48px', textAlign:'center', background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', color:'#94A3B8', fontSize:'14px' }}>
+        <div style={{ padding:'48px', textAlign:'center', background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)', color:'#717A88', fontSize:'14px' }}>
           No trades logged yet. Start journalling to see your analysis.
         </div>
       )}
@@ -123,9 +133,9 @@ export default function Analysis({ trades }) {
           {/* ── COMBO TABLE ── */}
           <div style={{ marginBottom:'32px' }}>
             <SectionHeader title="Best Setup Combinations" sub="Level · Session · Direction — sorted by expectancy · min 2 trades" />
-            <div style={{ background:'#FFFFFF', borderRadius:'20px', overflow:'hidden', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)' }}>
+            <div style={{ background:'#FFFFFF', borderRadius:'20px', overflow:'hidden', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)' }}>
               {combos.length === 0 ? (
-                <div style={{ padding:'32px', textAlign:'center', color:'#94A3B8', fontSize:'13px' }}>
+                <div style={{ padding:'32px', textAlign:'center', color:'#717A88', fontSize:'13px' }}>
                   Need trades with Level + Session + Direction filled in (min. 2 per combination)
                 </div>
               ) : (
@@ -134,19 +144,19 @@ export default function Analysis({ trades }) {
                     <thead>
                       <tr style={{ background:'#F8FAFC' }}>
                         {['#','Combination','Trades','Win %','Avg Win','Avg Loss','Exp/R','Total R'].map((h,i) => (
-                          <th key={i} style={{ padding:'10px 14px', textAlign: i<=1?'left':'right', fontSize:'10px', fontWeight:'600', color:'#94A3B8', letterSpacing:'.07em', textTransform:'uppercase', borderBottom:'1px solid #F1F5F9', whiteSpace:'nowrap' }}>{h}</th>
+                          <th key={i} style={{ padding:'10px 14px', textAlign: i<=1?'left':'right', fontSize:'10px', fontWeight:'600', color:'#717A88', letterSpacing:'.07em', textTransform:'uppercase', borderBottom:'1px solid #E9ECF1', whiteSpace:'nowrap' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {combos.map((c,i) => (
-                        <tr key={c.key} style={{ borderBottom: i<combos.length-1?'1px solid #F8FAFC':'none', transition:'background .1s' }}
+                        <tr key={c.key} style={{ borderBottom: i<combos.length-1?'1px solid #F4F6F8':'none', transition:'background .1s' }}
                           onMouseEnter={e => e.currentTarget.style.background='#F8FAFC'}
                           onMouseLeave={e => e.currentTarget.style.background='transparent'}>
                           <td style={{ padding:'12px 14px', width:'36px' }}>
                             {i === 0
                               ? <span style={{ background:'#FEF9C3', color:'#854D0E', fontSize:'10px', fontWeight:'700', padding:'2px 7px', borderRadius:'6px' }}>🏆 #1</span>
-                              : <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#CBD5E1' }}>#{i+1}</span>
+                              : <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#A4ABB7' }}>#{i+1}</span>
                             }
                           </td>
                           <td style={{ padding:'12px 14px' }}>
@@ -154,12 +164,12 @@ export default function Analysis({ trades }) {
                           </td>
                           <td style={{ padding:'12px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", color:'#475569', fontSize:'12px' }}>{c.n}</td>
                           <td style={{ padding:'12px 14px', textAlign:'right' }}>
-                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'600', color: c.winRate>=.5?'#10B981':'#EF4444' }}>{fP(c.winRate)}</span>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'600', color: c.winRate>=.5?'#059669':'#E11D48' }}>{fP(c.winRate)}</span>
                           </td>
-                          <td style={{ padding:'12px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#10B981', fontWeight:'500' }}>{c.avgWin ? f2(c.avgWin) : '—'}</td>
-                          <td style={{ padding:'12px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#EF4444', fontWeight:'500' }}>{c.avgLoss ? f2(c.avgLoss) : '—'}</td>
-                          <td style={{ padding:'12px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color: (c.expectancy||0)>0?'#10B981':'#EF4444' }}>{c.expectancy ? f2(c.expectancy) : '—'}</td>
-                          <td style={{ padding:'12px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color: (c.totalR||0)>=0?'#10B981':'#EF4444' }}>{f2(c.totalR||0)}</td>
+                          <td style={{ padding:'12px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#059669', fontWeight:'500' }}>{c.avgWin ? f2(c.avgWin) : '—'}</td>
+                          <td style={{ padding:'12px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#E11D48', fontWeight:'500' }}>{c.avgLoss ? f2(c.avgLoss) : '—'}</td>
+                          <td style={{ padding:'12px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color: (c.expectancy||0)>0?'#059669':'#E11D48' }}>{c.expectancy ? f2(c.expectancy) : '—'}</td>
+                          <td style={{ padding:'12px 14px', textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color: (c.totalR||0)>=0?'#059669':'#E11D48' }}>{f2(c.totalR||0)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -173,14 +183,16 @@ export default function Analysis({ trades }) {
           <div style={{ marginBottom:'32px' }}>
             <SectionHeader title="Breakdown by Category" sub="Only categories with at least one trade are shown" />
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))', gap:'14px' }}>
-              <BreakdownTable title="By Symbol"    k="symbol"    items={['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','Gold','Silver']} trades={trades} accent="#6366F1" />
-              <BreakdownTable title="By Key Level" k="level"     items={['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']} trades={trades} accent="#8B5CF6" />
-              <BreakdownTable title="By Direction" k="direction" items={['Long','Short']} trades={trades} accent="#10B981" />
-              <BreakdownTable title="By Session"   k="session"   items={['London (02:00–05:00)','New York AM (06:00–10:00)']} trades={trades} accent="#0EA5E9" />
-              <BreakdownTable title="By Day"       k="dow"       items={DOW} trades={trades} accent="#F59E0B" />
-              <BreakdownTable title="By Bias"      k="bias"      items={['Bullish','Bearish']} trades={trades} accent="#EF4444" />
-              <BreakdownTable title="By P/D Array" k="pd_array"  items={['Premium','Discount']} trades={trades} accent="#6366F1" />
-              <BreakdownTable title="By Entry TF"  k="entry_tf"  items={['5m','15m','30m']} trades={trades} accent="#10B981" />
+              <BreakdownTable title="By Symbol"    k="symbol"    items={[...new Set(trades.map(t=>t.symbol).filter(Boolean))].sort()} trades={trades} accent="#4F46E5" />
+              <BreakdownTable title="By Key Level" k="level"     items={['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']} trades={trades} accent="#7C3AED" />
+              <BreakdownTable title="By Trade Type" k="trade_type" items={['Type 1 — SMR','Type 2 — Distribution','Not in Plan']} trades={trades} accent="#4F46E5" />
+  <BreakdownTable title="By Direction" k="direction" items={['Long','Short']} trades={trades} accent="#059669" />
+              <BreakdownTable title="By Session"   k="session"   items={['London (02:00–05:00)','New York AM (06:00–10:00)']} trades={trades} accent="#0D9488" />
+              <BreakdownTable title="By Killzone"  k="killzone"  items={['London (02–05)','Overlap (05–08)','NY AM (08–11)','Other']} trades={trades} accent="#0D9488" />
+              <BreakdownTable title="By Day"       k="dow"       items={DOW} trades={trades} accent="#D97706" />
+              <BreakdownTable title="By Bias"      k="bias"      items={['Bullish','Bearish']} trades={trades} accent="#E11D48" />
+              <BreakdownTable title="By P/D Array" k="pd_array"  items={['Premium','Discount']} trades={trades} accent="#4F46E5" />
+              <BreakdownTable title="By Entry TF"  k="entry_tf"  items={['5m','15m','30m']} trades={trades} accent="#059669" />
             </div>
           </div>
 
@@ -191,10 +203,10 @@ export default function Analysis({ trades }) {
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))', gap:'14px' }}>
 
                 {/* MAE summary */}
-                <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)' }}>
+                <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'16px' }}>
-                    <div style={{ width:'3px', height:'18px', borderRadius:'2px', background:'#EF4444' }} />
-                    <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>MAE — Max Against You</span>
+                    <div style={{ width:'3px', height:'18px', borderRadius:'2px', background:'#E11D48' }} />
+                    <span style={{ fontSize:'13px', fontWeight:'700', color:'#14181F' }}>MAE — Max Against You</span>
                   </div>
                   {(() => {
                     const wins = trades.filter(t => t.outcome==='Win' && t.mae!=null)
@@ -206,16 +218,16 @@ export default function Analysis({ trades }) {
                         {avgWinMAE && (
                           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'#F0FDF4', borderRadius:'10px', border:'1px solid #BBF7D0' }}>
                             <span style={{ fontSize:'12px', color:'#065F46', fontWeight:'500' }}>Avg MAE on Winners</span>
-                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#10B981' }}>{avgWinMAE}R</span>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#059669' }}>{avgWinMAE}R</span>
                           </div>
                         )}
                         {avgLossMAE && (
                           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'#FEF2F2', borderRadius:'10px', border:'1px solid #FECACA' }}>
                             <span style={{ fontSize:'12px', color:'#7F1D1D', fontWeight:'500' }}>Avg MAE on Losers</span>
-                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#EF4444' }}>{avgLossMAE}R</span>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#E11D48' }}>{avgLossMAE}R</span>
                           </div>
                         )}
-                        <div style={{ fontSize:'11px', color:'#94A3B8', padding:'8px 12px', background:'#F8FAFC', borderRadius:'8px', lineHeight:'1.6' }}>
+                        <div style={{ fontSize:'11px', color:'#717A88', padding:'8px 12px', background:'#F8FAFC', borderRadius:'8px', lineHeight:'1.6' }}>
                           {avgWinMAE && parseFloat(avgWinMAE) < 0.5 ? '✓ Winners barely move against you — stop placement is good' :
                            avgWinMAE && parseFloat(avgWinMAE) > 1 ? '⚠ Winners going deep before turning — consider tighter stops' :
                            'Keep tracking to build a meaningful sample'}
@@ -226,10 +238,10 @@ export default function Analysis({ trades }) {
                 </div>
 
                 {/* MFE summary */}
-                <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)' }}>
+                <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'16px' }}>
-                    <div style={{ width:'3px', height:'18px', borderRadius:'2px', background:'#10B981' }} />
-                    <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>MFE — Max In Your Favour</span>
+                    <div style={{ width:'3px', height:'18px', borderRadius:'2px', background:'#059669' }} />
+                    <span style={{ fontSize:'13px', fontWeight:'700', color:'#14181F' }}>MFE — Max In Your Favour</span>
                   </div>
                   {(() => {
                     const wins = trades.filter(t => t.outcome==='Win' && t.mfe!=null)
@@ -243,13 +255,13 @@ export default function Analysis({ trades }) {
                         {avgWinMFE && (
                           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'#F0FDF4', borderRadius:'10px', border:'1px solid #BBF7D0' }}>
                             <span style={{ fontSize:'12px', color:'#065F46', fontWeight:'500' }}>Avg MFE on Winners</span>
-                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#10B981' }}>{avgWinMFE}R</span>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#059669' }}>{avgWinMFE}R</span>
                           </div>
                         )}
                         {avgLossMFE && (
                           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'#FEF2F2', borderRadius:'10px', border:'1px solid #FECACA' }}>
                             <span style={{ fontSize:'12px', color:'#7F1D1D', fontWeight:'500' }}>Avg MFE on Losers</span>
-                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#EF4444' }}>{avgLossMFE}R</span>
+                            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:'#E11D48' }}>{avgLossMFE}R</span>
                           </div>
                         )}
                         {earlyExits.length > 0 && (
@@ -258,7 +270,7 @@ export default function Analysis({ trades }) {
                           </div>
                         )}
                         {!earlyExits.length && avgWinMFE && (
-                          <div style={{ fontSize:'11px', color:'#94A3B8', padding:'8px 12px', background:'#F8FAFC', borderRadius:'8px', lineHeight:'1.6' }}>
+                          <div style={{ fontSize:'11px', color:'#717A88', padding:'8px 12px', background:'#F8FAFC', borderRadius:'8px', lineHeight:'1.6' }}>
                             {parseFloat(avgWinMFE) <= 2.3 ? '✓ Trades reaching target without much overshoot — 2R target is well calibrated' : 'Keep tracking to build a meaningful sample'}
                           </div>
                         )}
@@ -273,7 +285,7 @@ export default function Analysis({ trades }) {
           {/* ── TIME HEATMAP ── */}
           <div style={{ marginBottom:'20px' }}>
             <SectionHeader title="Time of Day" sub="R performance by NY session hour · 02:00–10:00" />
-            <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)' }}>
+            <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)' }}>
               <div style={{ display:'flex', gap:'10px', flexWrap:'wrap' }}>
                 {HOURS.map(h => {
                   const ht  = trades.filter(t => t.time === h)
@@ -287,9 +299,9 @@ export default function Analysis({ trades }) {
                     <div key={h} style={{ background:bg, borderRadius:'14px', padding:'12px 14px', minWidth:'72px', textAlign:'center', border:`1.5px solid ${border}`, transition:'transform .15s', cursor:'default', flex:'1' }}
                       onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'}
                       onMouseLeave={e => e.currentTarget.style.transform=''}>
-                      <div style={{ fontSize:'10px', fontWeight:'600', color:'#94A3B8', marginBottom:'5px', letterSpacing:'.05em' }}>{h}</div>
+                      <div style={{ fontSize:'10px', fontWeight:'600', color:'#717A88', marginBottom:'5px', letterSpacing:'.05em' }}>{h}</div>
                       <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:tc, lineHeight:1, marginBottom:'4px' }}>{has ? f1(pl) : '—'}</div>
-                      <div style={{ fontSize:'10px', color:'#94A3B8' }}>{ht.length}t</div>
+                      <div style={{ fontSize:'10px', color:'#717A88' }}>{ht.length}t</div>
                     </div>
                   )
                 })}
