@@ -4,7 +4,7 @@ import { useEconomicCalendar, currencyFlag, formatFFTime } from '../lib/useEcono
 
 // ── CONSTANTS ────────────────────────────────────────────────────
 const TIMES   = ['02:00','02:30','03:00','03:30','04:00','04:30','05:00','05:30','06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00']
-const SYMBOLS = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','Gold','Silver']
+const SYMBOLS = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','DAX','Gold','Silver']
 const LEVELS  = ['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']
 const MISTAKES= ['No mistake','Wrong bias','Level not aligned with bias','Entered outside killzone','No breaker block formed','Entered before breaker closed','Premature entry — no confirmation','Moved stop too early','Took partial too early','Revenge trade','Overtraded']
 
@@ -230,7 +230,7 @@ function TradeForm({ onSave, onCancel, initialData }) {
         {sel('time', 'Time (NY)', TIMES)}
         {sel('symbol', 'Symbol', SYMBOLS)}
         {sel('direction', 'Direction', ['Long','Short'])}
-        {sel('trade_type', 'Trade Type', ['Type 1 — SMR', 'Type 2 — Distribution'])}
+        {sel('trade_type', 'Trade Type', ['Type 1 — SMR', 'Type 2 — Distribution', 'Not in Plan'])}
         {sel('bias', 'Bias', ['Bullish','Bearish'])}
         {sel('session', 'Session', ['London (02:00–05:00)','New York AM (06:00–10:00)'])}
         {sel('level', 'Key Level', LEVELS)}
@@ -885,18 +885,9 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             {noteDirty && <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>Unsaved changes</span>}
           </div>
           <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'18px' }}>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
-              <div>
-                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Feeling</label>
-                <AutoTextarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }} placeholder="How are you feeling going into today's session?" minHeight={70} />
-              </div>
-              <div>
-                <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Bias Today</label>
-                <input value={bias} onChange={e => { setBias(e.target.value); markDirty() }}
-                  placeholder="e.g. Bearish NQ, Bullish GBP/USD..."
-                  style={{ width:'100%', background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'12px', padding:'12px 14px', fontSize:'13px', color:'#0F172A', fontFamily:'inherit', outline:'none', transition:'border-color .15s', boxSizing:'border-box' }}
-                  onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
-              </div>
+            <div>
+              <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Mindset Going Into the Day</label>
+              <AutoTextarea value={mood} onChange={e => { setMood(e.target.value); markDirty() }} placeholder="How are you feeling mentally? Focused, patient, distracted, emotional..." minHeight={70} />
             </div>
             <div>
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>Trading Plan</label>

@@ -14,7 +14,7 @@ export default function EconomicCalendar() {
   const weekLabel = `${weekDays[0].month} ${weekDays[0].dayNum} – ${weekDays[6].month} ${weekDays[6].dayNum}`
 
   function refresh() {
-    sessionStorage.removeItem('tt_econ_v21')
+    sessionStorage.removeItem('tt_econ_v27')
     window.location.reload()
   }
 
@@ -84,15 +84,15 @@ export default function EconomicCalendar() {
                   {/* Events */}
                   {dayEvs.map((e, ei) => (
                     <div key={ei} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 20px', borderTop: ei > 0 ? '1px solid #F8FAFC' : 'none' }}>
-                      <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#64748B', minWidth:'44px' }}>{e.time||'—'}</span>
-                      <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'2px 8px', borderRadius:'4px', background:CCY_BG[e.country]||'#F1F5F9', fontSize:'10px', fontWeight:'800', color:CCY_COL[e.country]||'#64748B', flexShrink:0 }}>
+                      <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#64748B', minWidth:'44px' }}>{e.isHoliday ? 'All Day' : (e.time||'—')}</span>
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'2px 8px', borderRadius:'4px', background:'#F1F5F9', fontSize:'10px', fontWeight:'700', color:'#1E293B', flexShrink:0 }}>
                         {e.country}
                       </span>
-                      <div style={{ width:'8px', height:'8px', borderRadius:'2px', background:'#EF4444', flexShrink:0 }} />
+                      <div style={{ width:'11px', height:'11px', borderRadius:'3px', background: e.isHoliday ? '#94A3B8' : '#EF4444', flexShrink:0 }} />
                       <span style={{ fontSize:'13px', fontWeight:'600', color:'#334155', flex:1 }}>{e.title}</span>
-                      {e.actual   && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color:'#10B981' }}>{e.actual}</span>}
-                      {e.forecast && !e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#64748B' }}>{e.forecast}</span>}
-                      {e.previous && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#94A3B8' }}>{e.previous}</span>}
+                      {!e.isHoliday && e.actual   && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color:'#10B981' }}>{e.actual}</span>}
+                      {!e.isHoliday && e.forecast && !e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#64748B' }}>{e.forecast}</span>}
+                      {!e.isHoliday && e.previous && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#94A3B8' }}>{e.previous}</span>}
                     </div>
                   ))}
                 </div>

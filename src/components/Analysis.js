@@ -183,9 +183,9 @@ export default function Analysis({ trades }) {
           <div style={{ marginBottom:'32px' }}>
             <SectionHeader title="Breakdown by Category" sub="Only categories with at least one trade are shown" />
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))', gap:'14px' }}>
-              <BreakdownTable title="By Symbol"    k="symbol"    items={['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','Gold','Silver']} trades={trades} accent="#4F46E5" />
+              <BreakdownTable title="By Symbol"    k="symbol"    items={[...new Set(trades.map(t=>t.symbol).filter(Boolean))].sort()} trades={trades} accent="#4F46E5" />
               <BreakdownTable title="By Key Level" k="level"     items={['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']} trades={trades} accent="#7C3AED" />
-              <BreakdownTable title="By Trade Type" k="trade_type" items={['Type 1 — SMR','Type 2 — Distribution']} trades={trades} accent="#4F46E5" />
+              <BreakdownTable title="By Trade Type" k="trade_type" items={['Type 1 — SMR','Type 2 — Distribution','Not in Plan']} trades={trades} accent="#4F46E5" />
   <BreakdownTable title="By Direction" k="direction" items={['Long','Short']} trades={trades} accent="#059669" />
               <BreakdownTable title="By Session"   k="session"   items={['London (02:00–05:00)','New York AM (06:00–10:00)']} trades={trades} accent="#0D9488" />
               <BreakdownTable title="By Killzone"  k="killzone"  items={['London (02–05)','Overlap (05–08)','NY AM (08–11)','Other']} trades={trades} accent="#0D9488" />
