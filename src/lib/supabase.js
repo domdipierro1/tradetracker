@@ -45,9 +45,10 @@ export async function insertTrade(trade) {
 }
 
 export async function updateTrade(id, updates) {
+  const { r, ...rest } = updates  // r is mapped to r_multiple/pl, not a DB column
   const { data, error } = await supabase
     .from('trades')
-    .update(updates)
+    .update(rest)
     .eq('id', id)
     .select()
     .single()

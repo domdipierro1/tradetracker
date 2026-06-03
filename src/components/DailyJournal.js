@@ -180,15 +180,17 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
 }
 
 
-function TradeForm({ onSave, onCancel }) {
+function TradeForm({ onSave, onCancel, initialData }) {
   const [form, setForm] = useState(() => {
+    if (initialData) return { ...EMPTY_TRADE, ...initialData, r: initialData.r ?? initialData.r_multiple ?? initialData.pl ?? '' }
     try { const s = localStorage.getItem(TRADE_DRAFT); return s ? { ...EMPTY_TRADE, ...JSON.parse(s) } : EMPTY_TRADE } catch(e) { return EMPTY_TRADE }
   })
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
+  const isEdit = !!initialData
 
-  const set  = k => e => { const u = { ...form, [k]: e.target.value }; setForm(u); try { localStorage.setItem(TRADE_DRAFT, JSON.stringify(u)) } catch(e) {} }
-  const setV = (k, v) => { const u = { ...form, [k]: v }; setForm(u); try { localStorage.setItem(TRADE_DRAFT, JSON.stringify(u)) } catch(e) {} }
+  const set  = k => e => { const u = { ...form, [k]: e.target.value }; setForm(u); if (!isEdit) { try { localStorage.setItem(TRADE_DRAFT, JSON.stringify(u)) } catch(e) {} } }
+  const setV = (k, v) => { const u = { ...form, [k]: v }; setForm(u); if (!isEdit) { try { localStorage.setItem(TRADE_DRAFT, JSON.stringify(u)) } catch(e) {} } }
 
   function clear() { try { localStorage.removeItem(TRADE_DRAFT); sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }
 
@@ -200,7 +202,7 @@ function TradeForm({ onSave, onCancel }) {
     try {
       const rVal = parseFloat(form.r) || 0
       await onSave({ ...form, r_multiple: rVal, pl: rVal, risk: 1, mae: form.mae ? parseFloat(form.mae) : null, mfe: form.mfe ? parseFloat(form.mfe) : null })
-      clear(); setForm(EMPTY_TRADE)
+      clear(); if (!isEdit) setForm(EMPTY_TRADE)
     } catch(ex) { console.error('Trade save error:', ex); setErr('Error saving: ' + (ex.message || 'Unknown error')) }
     setSaving(false)
   }
@@ -223,7 +225,7 @@ function TradeForm({ onSave, onCancel }) {
 
   return (
     <form onSubmit={submit} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', padding:'18px', boxShadow:'var(--shadow)' }}>
-      <div style={{ fontSize:'13px', fontWeight:'600', color:'var(--text)', marginBottom:'16px' }}>Log Trade</div>
+      <div style={{ fontSize:'13px', fontWeight:'600', color:'var(--text)', marginBottom:'16px' }}>{isEdit ? 'Edit Trade' : 'Log Trade'}</div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:'11px', marginBottom:'12px' }}>
         {sel('time', 'Time (NY)', TIMES)}
         {sel('symbol', 'Symbol', SYMBOLS)}
@@ -263,6 +265,9 @@ function TradeForm({ onSave, onCancel }) {
             <span style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>Chart 1</span>
           </div>
           <input className="form-input" type="url" value={form.screenshot} onChange={set('screenshot')} placeholder="Paste TradingView snapshot URL..." />
+          {form.screenshot && form.screenshot.trim() && (
+            <div style={{ marginTop:'8px' }}><ChartImage url={form.screenshot.trim()} label={form.screenshot_tf || 'Chart 1'} large /></div>
+          )}
         </div>
         <div className="form-group">
           <div style={{ display:'flex', gap:'6px', marginBottom:'6px', alignItems:'center' }}>
@@ -274,6 +279,9 @@ function TradeForm({ onSave, onCancel }) {
             <span style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>Chart 2</span>
           </div>
           <input className="form-input" type="url" value={form.screenshot2||''} onChange={set('screenshot2')} placeholder="Paste TradingView snapshot URL..." />
+          {form.screenshot2 && form.screenshot2.trim() && (
+            <div style={{ marginTop:'8px' }}><ChartImage url={form.screenshot2.trim()} label={form.screenshot2_tf || 'Chart 2'} large /></div>
+          )}
         </div>
       </div>
       <div className="form-group" style={{ marginBottom:'14px' }}>
@@ -282,7 +290,7 @@ function TradeForm({ onSave, onCancel }) {
       </div>
       {err && <div style={{ color:'var(--red)', fontSize:'12px', marginBottom:'10px' }}>{err}</div>}
       <div style={{ display:'flex', gap:'8px' }}>
-        <button type="submit" className="btn btn-blue" disabled={saving}>{saving ? 'Saving...' : 'Save Trade'}</button>
+        <button type="submit" className="btn btn-blue" disabled={saving}>{saving ? 'Saving...' : isEdit ? 'Update Trade' : 'Save Trade'}</button>
         <button type="button" className="btn btn-outline" onClick={() => { clear(); onCancel() }}>Cancel</button>
       </div>
     </form>
@@ -290,7 +298,7 @@ function TradeForm({ onSave, onCancel }) {
 }
 
 // ── TRADE CARD ───────────────────────────────────────────────────
-function TradeCard({ t, onDelete }) {
+function TradeCard({ t, onDelete, onEdit }) {
   const up = (t.pl || t.r_multiple || 0) >= 0
   const rVal = t.pl || t.r_multiple || 0
   const ob = o => o==='Win' ? { bg:'#ECFDF5', col:'#065F46', border:'#BBF7D0' }
@@ -311,13 +319,19 @@ function TradeCard({ t, onDelete }) {
         {t.outcome && (
           <span style={{ fontSize:'11px', fontWeight:'700', padding:'3px 9px', borderRadius:'7px', background:oc.bg, color:oc.col, border:`1px solid ${oc.border}` }}>{t.outcome}</span>
         )}
-        <span style={{ marginLeft:'auto', fontFamily:"'JetBrains Mono',monospace", fontSize:'18px', fontWeight:'700', color: up ? '#10B981' : '#EF4444' }}>
-          {rVal >= 0 ? '+' : ''}{rVal.toFixed ? rVal.toFixed(2) : rVal}R
-        </span>
-        {onDelete && (
-          <button onClick={() => { if(window.confirm('Delete this trade?')) onDelete(t.id) }}
-            style={{ background:'none', border:'none', cursor:'pointer', color:'#CBD5E1', fontSize:'14px', padding:'0', lineHeight:1, fontWeight:'700' }}>✕</button>
-        )}
+        <div style={{ display:'flex', gap:'6px', marginLeft:'auto', alignItems:'center' }}>
+          <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'18px', fontWeight:'700', color: up ? '#10B981' : '#EF4444', marginRight:'4px' }}>
+            {rVal >= 0 ? '+' : ''}{rVal.toFixed ? rVal.toFixed(2) : rVal}R
+          </span>
+          {onEdit && (
+            <button onClick={() => onEdit(t)}
+              style={{ background:'none', border:'1px solid #E2E8F0', borderRadius:'7px', cursor:'pointer', color:'#64748B', fontSize:'11px', fontWeight:'600', padding:'4px 10px', fontFamily:'inherit' }}>Edit</button>
+          )}
+          {onDelete && (
+            <button onClick={() => { if(window.confirm('Delete this trade?')) onDelete(t.id) }}
+              style={{ background:'none', border:'none', cursor:'pointer', color:'#CBD5E1', fontSize:'14px', padding:'0 2px', lineHeight:1, fontWeight:'700' }}>✕</button>
+          )}
+        </div>
       </div>
 
       {/* Details grid */}
@@ -598,7 +612,7 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents })
 
 
 // ── MAIN COMPONENT ───────────────────────────────────────────────
-export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast, dateStr: propDateStr, isWeekly: propIsWeekly }) {
+export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onEditTrade, onDeleteTrade, toast, dateStr: propDateStr, isWeekly: propIsWeekly }) {
   const today = toDateStr(new Date())
   const [dateStr, setDateStr] = useState(propDateStr || today)
   const isWeekly   = propIsWeekly === true
@@ -606,6 +620,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [showTradeForm, setShowTradeForm] = useState(() => {
     try { return sessionStorage.getItem(FORM_OPEN) === 'true' } catch { return false }
   })
+  const [editingTrade, setEditingTrade] = useState(null)
   const [saving, setSaving] = useState(false)
 
   // When propDateStr changes (from calendar click), update local date
@@ -765,10 +780,16 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
 
   async function handleAddTrade(tradeData) {
     try {
-      await onAddTrade({ ...tradeData, date: dateStr })
+      if (editingTrade) {
+        await onEditTrade(editingTrade.id, { ...tradeData })
+        setEditingTrade(null)
+        toast('Trade updated ✓')
+      } else {
+        await onAddTrade({ ...tradeData, date: dateStr })
+        toast('Trade logged ✓')
+      }
       setShowTradeForm(false)
       try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {}
-      toast('Trade logged ✓')
     } catch(err) {
       toast('Error saving trade: ' + err.message)
     }
@@ -988,15 +1009,18 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         {isWeekly && weekTrades.length > 0 && (
           <div>
             <div style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A', marginBottom:'12px' }}>Week's Trades</div>
-            {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} />)}
+            {showTradeForm && editingTrade && (
+              <TradeForm onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
+            )}
+            {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={tr => { setEditingTrade(tr); setShowTradeForm(true); try { sessionStorage.setItem(FORM_OPEN,'true') } catch(e) {} window.scrollTo({top:0,behavior:'smooth'}) }} />)}
           </div>
         )}
         {!isWeekly && !isForecast && (
           <>
             {showTradeForm && (
-              <TradeForm onSave={handleAddTrade} onCancel={() => { setShowTradeForm(false); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
+              <TradeForm onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
             )}
-            {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} />)}
+            {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={tr => { setEditingTrade(tr); setShowTradeForm(true); try { sessionStorage.setItem(FORM_OPEN,'true') } catch(e) {} window.scrollTo({top:0,behavior:'smooth'}) }} />)}
           </>
         )}
       </div>
