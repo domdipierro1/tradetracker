@@ -295,7 +295,7 @@ export default function App() {
 
   if (!user) return <AuthPage onAuth={u => { setUser(u); loadAll(u.id) }} />
 
-  const pageProps = { trades: accountTrades, toast: showToast, startingBalance, currency: activeAccount?.currency || 'USD' }
+  const pageProps = { trades: accountTrades, dailyNotes: accountNotes, toast: showToast, startingBalance, currency: activeAccount?.currency || 'USD' }
 
   return (
     <>

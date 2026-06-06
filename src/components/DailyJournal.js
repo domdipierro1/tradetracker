@@ -7,6 +7,16 @@ const TIMES   = ['02:00','02:30','03:00','03:30','04:00','04:30','05:00','05:30'
 const SYMBOLS = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','DAX','Gold','Silver']
 const LEVELS  = ['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']
 const MISTAKES= ['No mistake','Wrong bias','Level not aligned with bias','Entered outside killzone','No breaker block formed','Entered before breaker closed','Premature entry — no confirmation','Moved stop too early','Took partial too early','Revenge trade','Overtraded']
+const GRADE_ITEMS = [
+  'Followed checklist',
+  'Waited for A+ setup',
+  'Correct risk size (1%)',
+  'No lower-timeframe drift',
+  'Held to target',
+  'Stayed within loss limit',
+  'Was The Observer (calm/detached)',
+  'No revenge / overtrading',
+]
 
 const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', trade_type:'', r:'', mae:'', mfe:'', outcome:'', mistake:'No mistake', screenshot:'', screenshot2:'', journal:'' }
 const TRADE_DRAFT = 'tt26_trade_draft'
@@ -654,6 +664,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [noteOpen1,  setNoteOpen1]  = useState(false)
   const [charts,     setCharts]     = useState([])  // dynamic chart list: {url, tf, note, noteOpen}
   const [checklist,  setChecklist]  = useState([])
+  const [grades,     setGrades]     = useState([])  // 1-5 rating per GRADE_ITEM
   const [tradeType,   setTradeType]   = useState('')
   const [noteOpen2,  setNoteOpen2]  = useState(false)
   const [noteOpen3,  setNoteOpen3]  = useState(false)
@@ -678,7 +689,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   }, [noteDirty, mood, bias, plan, chart1, chart2, chart3, chart4,
       chartNote1, chartNote2, chartNote3, chartNote4,
       chartTf1, chartTf2, chartTf3, chartTf4,
-      eodReview, followedPlan, wentWell, improve, checklist, tradeType, charts])
+      eodReview, followedPlan, wentWell, improve, checklist, tradeType, charts, grades])
 
   // Load note data when date changes
   useEffect(() => {
@@ -711,7 +722,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         }
       } catch(e) { setCharts([]) }
       try { setEconSnapshot(JSON.parse(existingNote.econ_snapshot||'[]')) } catch(e) { setEconSnapshot([]) }
-      try { const cd = JSON.parse(existingNote.checklist_data||'{}'); setChecklist(cd.checks||[]); setTradeType(cd.type||'') } catch(e) { setChecklist([]); setTradeType('') }
+      try { const cd = JSON.parse(existingNote.checklist_data||'{}'); setChecklist(cd.checks||[]); setTradeType(cd.type||''); setGrades(cd.grades||[]) } catch(e) { setChecklist([]); setTradeType(''); setGrades([]) }
       setEodReview(existingNote.trading_errors && !existingNote.trading_errors.startsWith('[') ? existingNote.trading_errors : '')
       setFollowedPlan(existingNote.consistency || '')
       setWentWell(existingNote.what_worked || '')
@@ -727,6 +738,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setCharts([])
       setChecklist([])
       setTradeType('')
+      setGrades([])
     }
     setNoteDirty(false)
   }, [dateStr, existingNote?.id])
@@ -740,6 +752,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
     ].some(v => v && v.trim().length > 0) || checklist.some(v => v) || !!tradeType
       || charts.some(c => (c.url && c.url.trim()) || (c.note && c.note.trim()))
       || (Array.isArray(econSnapshot) && econSnapshot.length > 0)
+      || grades.some(g => g > 0)
     if (!hasContent && !existingNote) { setNoteDirty(false); return }
 
     setSaving(true)
@@ -764,7 +777,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         top_mistake:      JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
         econ_snapshot:    JSON.stringify(econSnapshot),
         chart_groups:     JSON.stringify(charts.filter(c => (c.url && c.url.trim()) || (c.note && c.note.trim())).map(c => ({ url: c.url||'', tf: c.tf||'', note: c.note||'' }))),
-        checklist_data:   JSON.stringify({ type: tradeType, checks: checklist }),
+        checklist_data:   JSON.stringify({ type: tradeType, checks: checklist, grades }),
       })
       setNoteDirty(false)
       toast('Day saved ✓')
@@ -1112,6 +1125,60 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
           </div>
         </div>
       )}
+
+      {/* ── DAILY GRADING CARD — daily only ── */}
+      {!isWeekly && !isForecast && (() => {
+        const rated = grades.filter(g => g > 0)
+        const total = rated.reduce((s, g) => s + g, 0)
+        const maxTotal = GRADE_ITEMS.length * 5
+        const avg = rated.length ? (total / rated.length) : 0
+        const pct = Math.round((total / maxTotal) * 100)
+        const avgColor = avg >= 4 ? '#10B981' : avg >= 3 ? '#D97706' : avg > 0 ? '#EF4444' : '#94A3B8'
+        return (
+        <div style={{ order:5, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+          <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#EEF0FE', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>🎯</div>
+            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>Performance Grading</span>
+            <span style={{ fontSize:'11px', color:'#94A3B8', marginLeft:'auto' }}>Rate how you acted today, 1–5</span>
+          </div>
+          <div style={{ padding:'14px 24px 20px' }}>
+            {GRADE_ITEMS.map((item, i) => {
+              const val = grades[i] || 0
+              return (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 0', borderBottom: i < GRADE_ITEMS.length-1 ? '1px solid #F8FAFC' : 'none' }}>
+                  <span style={{ fontSize:'13px', fontWeight:'500', color:'#334155', flex:1 }}>{item}</span>
+                  <div style={{ display:'flex', gap:'4px' }}>
+                    {[1,2,3,4,5].map(n => (
+                      <button key={n} type="button" onClick={() => { const g=[...grades]; while(g.length<GRADE_ITEMS.length) g.push(0); g[i] = (g[i]===n ? 0 : n); setGrades(g); markDirty() }}
+                        style={{ width:'28px', height:'28px', borderRadius:'8px', border:`1.5px solid ${val>=n?'#4F46E5':'#E2E8F0'}`, background: val>=n?'#4F46E5':'transparent', color: val>=n?'#fff':'#CBD5E1', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:"'JetBrains Mono',monospace", transition:'all .12s', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+            {/* Total */}
+            <div style={{ marginTop:'16px', padding:'16px 18px', background:'#F8FAFC', borderRadius:'14px', border:'1px solid #E2E8F0', display:'flex', alignItems:'center', gap:'16px' }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:'10px', fontWeight:'700', color:'#64748B', letterSpacing:'.08em', textTransform:'uppercase', marginBottom:'4px' }}>Daily Score</div>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'26px', fontWeight:'700', color:avgColor, letterSpacing:'-.04em', lineHeight:1 }}>
+                  {total}<span style={{ fontSize:'15px', color:'#94A3B8' }}>/{maxTotal}</span>
+                </div>
+              </div>
+              <div style={{ textAlign:'right' }}>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'20px', fontWeight:'700', color:avgColor, letterSpacing:'-.03em' }}>{avg > 0 ? avg.toFixed(1) : '—'}</div>
+                <div style={{ fontSize:'10px', color:'#94A3B8', fontWeight:'600' }}>avg · {pct}%</div>
+              </div>
+            </div>
+            <button onClick={saveNote} disabled={saving}
+              style={{ marginTop:'16px', background: saving ? '#E2E8F0' : '#0F172A', color: saving ? '#94A3B8' : '#FFFFFF', border:'none', borderRadius:'12px', padding:'11px 24px', fontSize:'13px', fontWeight:'600', cursor: saving ? 'default' : 'pointer', fontFamily:'inherit', letterSpacing:'-.01em', boxShadow: saving ? 'none' : '0 4px 14px rgba(15,23,42,.25)', transition:'all .15s' }}>
+              {saving ? 'Saving...' : autoSaving ? 'Auto-saving...' : 'Save Grading'}
+            </button>
+          </div>
+        </div>
+        )
+      })()}
 
     </div>
   )

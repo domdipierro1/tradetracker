@@ -2,6 +2,83 @@ import { useEffect, useRef } from 'react'
 import { Chart } from 'chart.js/auto'
 import { computeStats, f2, fR, fP } from '../lib/stats'
 
+const GRADE_ITEMS = [
+  'Followed checklist',
+  'Waited for A+ setup',
+  'Correct risk size (1%)',
+  'No lower-timeframe drift',
+  'Held to target',
+  'Stayed within loss limit',
+  'Was The Observer (calm/detached)',
+  'No revenge / overtrading',
+]
+
+// ── THIS WEEK'S GRADING ───────────────────────────────────────────
+function WeeklyGrading({ dailyNotes }) {
+  // Current week Mon–Fri
+  const now = new Date()
+  const day = now.getDay() // 0=Sun
+  const monday = new Date(now)
+  const diff = day === 0 ? -6 : 1 - day
+  monday.setDate(now.getDate() + diff)
+  const weekDays = []
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday); d.setDate(monday.getDate() + i)
+    weekDays.push(d.toLocaleDateString('en-CA'))
+  }
+  const labels = ['Mon','Tue','Wed','Thu','Fri']
+
+  // Build per-day score from checklist_data.grades
+  const noteByDate = {}
+  ;(dailyNotes || []).forEach(n => { noteByDate[n.date] = n })
+
+  const dayScores = weekDays.map(ds => {
+    const n = noteByDate[ds]
+    if (!n || !n.checklist_data) return null
+    try {
+      const cd = JSON.parse(n.checklist_data)
+      const grades = (cd.grades || []).filter(g => g > 0)
+      if (!grades.length) return null
+      const total = grades.reduce((s, g) => s + g, 0)
+      return { total, avg: total / grades.length, count: grades.length }
+    } catch { return null }
+  })
+
+  const maxTotal = GRADE_ITEMS.length * 5
+  const graded = dayScores.filter(Boolean)
+  const weekAvg = graded.length ? (graded.reduce((s, d) => s + d.avg, 0) / graded.length) : 0
+  const col = v => v >= 4 ? '#059669' : v >= 3 ? '#D97706' : v > 0 ? '#E11D48' : '#A4ABB7'
+
+  return (
+    <div style={{ background:'#FFFFFF', border:'1px solid #E9ECF1', borderRadius:'16px', padding:'20px 22px', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)', marginBottom:'16px' }}>
+      <div style={{ display:'flex', alignItems:'center', marginBottom:'16px' }}>
+        <span style={{ fontSize:'11px', fontWeight:'700', color:'#717A88', letterSpacing:'.09em', textTransform:'uppercase' }}>This Week's Grading</span>
+        <span style={{ marginLeft:'auto', fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:col(weekAvg) }}>
+          {weekAvg > 0 ? weekAvg.toFixed(1) : '—'}<span style={{ fontSize:'10px', color:'#A4ABB7', fontWeight:'600' }}> avg</span>
+        </span>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:'10px' }}>
+        {dayScores.map((s, i) => {
+          const isToday = weekDays[i] === now.toLocaleDateString('en-CA')
+          return (
+            <div key={i} style={{ textAlign:'center', padding:'14px 6px', borderRadius:'12px', background: s ? '#F4F6F8' : '#FAFBFC', border: isToday ? '1.5px solid #4F46E5' : '1px solid #E9ECF1' }}>
+              <div style={{ fontSize:'10px', fontWeight:'700', color: isToday ? '#4F46E5' : '#A4ABB7', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>{labels[i]}</div>
+              {s ? (
+                <>
+                  <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'22px', fontWeight:'700', color:col(s.avg), lineHeight:1, letterSpacing:'-.04em' }}>{s.total}</div>
+                  <div style={{ fontSize:'9px', color:'#A4ABB7', marginTop:'3px' }}>/{maxTotal}</div>
+                </>
+              ) : (
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'20px', fontWeight:'600', color:'#D8DDE5', lineHeight:1, paddingBottom:'10px' }}>–</div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── PREMIUM STAT CARD ────────────────────────────────────────────
 function KPI({ label, value, sub, accent, positive, negative, wide }) {
   const col = positive ? '#059669' : negative ? '#E11D48' : accent || '#4F46E5'
@@ -79,7 +156,7 @@ function StreakDots({ trades }) {
   )
 }
 
-export default function Dashboard({ trades, startingBalance, currency }) {
+export default function Dashboard({ trades, dailyNotes, startingBalance, currency }) {
   const s = computeStats(trades, startingBalance || 100000)
 
   const equityRef  = useRef(null)
@@ -420,6 +497,9 @@ export default function Dashboard({ trades, startingBalance, currency }) {
         <div style={{ fontSize:'11px', fontWeight:'700', color:'#717A88', letterSpacing:'.09em', textTransform:'uppercase', marginBottom:'14px' }}>Last 20 Trades</div>
         <StreakDots trades={trades} />
       </div>
+
+      {/* ── THIS WEEK'S GRADING ── */}
+      <WeeklyGrading dailyNotes={dailyNotes} />
 
       {/* ── EQUITY CURVE ── */}
       <div style={{ background:'#FFFFFF', border:'1px solid #E9ECF1', borderRadius:'16px', padding:'20px 22px', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)', marginBottom:'16px' }}>
