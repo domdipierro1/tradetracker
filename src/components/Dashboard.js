@@ -3,14 +3,11 @@ import { Chart } from 'chart.js/auto'
 import { computeStats, f2, fR, fP } from '../lib/stats'
 
 const GRADE_ITEMS = [
-  'I checked my mental/emotional state before opening the platform',
-  'My bias and markup were built before the session, not during',
-  'Every trade had a written plan before I entered',
-  'I sat with inactivity without forcing a trade',
-  'I did not interfere with a trade once it was live',
-  'Wins and losses landed without triggering a reaction',
-  'I named any loop that appeared during the session',
-  'I stopped cleanly when my rules said stop',
+  'Preparation',
+  'Patience',
+  'Entry Quality',
+  'Risk',
+  'Exit Discipline',
 ]
 
 // ── THIS WEEK'S GRADING ───────────────────────────────────────────
@@ -50,6 +47,22 @@ function WeeklyGrading({ dailyNotes, onOpenJournal }) {
   const weekPct = graded.length ? Math.round(graded.reduce((s, d) => s + d.pct, 0) / graded.length) : 0
   const col = p => p >= 80 ? '#059669' : p >= 60 ? '#D97706' : p > 0 ? '#E11D48' : '#A4ABB7'
 
+  // Per-item breakdown for the week (avg score out of 5 + count of low days 1-3)
+  const itemStats = GRADE_ITEMS.map((label, idx) => {
+    let sum = 0, count = 0, lowDays = 0
+    weekDays.forEach(ds => {
+      const n = noteByDate[ds]
+      if (!n || !n.checklist_data) return
+      try {
+        const cd = JSON.parse(n.checklist_data)
+        const g = (cd.grades || [])[idx]
+        if (g > 0) { sum += g; count++; if (g <= 3) lowDays++ }
+      } catch {}
+    })
+    return { label, avg: count ? sum / count : 0, count, lowDays }
+  }).filter(s => s.count > 0).sort((a, b) => a.avg - b.avg) // weakest first
+  const colAvg = a => a >= 4 ? '#059669' : a >= 3 ? '#D97706' : a > 0 ? '#E11D48' : '#A4ABB7'
+
   return (
     <div style={{ background:'#FFFFFF', border:'1px solid #E9ECF1', borderRadius:'16px', padding:'20px 22px', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)', marginBottom:'16px' }}>
       <div style={{ display:'flex', alignItems:'center', marginBottom:'16px' }}>
@@ -77,6 +90,24 @@ function WeeklyGrading({ dailyNotes, onOpenJournal }) {
           )
         })}
       </div>
+      {/* Per-item breakdown */}
+      {itemStats.length > 0 && (
+        <div style={{ marginTop:'18px', paddingTop:'16px', borderTop:'1px solid #E9ECF1' }}>
+          <div style={{ fontSize:'10px', fontWeight:'700', color:'#A4ABB7', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'12px' }}>By Area · weakest first</div>
+          {itemStats.map((s, i) => (
+            <div key={s.label} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'8px 0', borderBottom: i < itemStats.length-1 ? '1px solid #F4F6F8' : 'none' }}>
+              <span style={{ fontSize:'12.5px', fontWeight:'600', color:'#334155', flex:1 }}>{s.label}</span>
+              {s.lowDays > 0 && (
+                <span style={{ fontSize:'10px', fontWeight:'600', color:'#E11D48', background:'#FDECEF', padding:'2px 8px', borderRadius:'20px' }}>low {s.lowDays} {s.lowDays === 1 ? 'day' : 'days'}</span>
+              )}
+              <div style={{ width:'90px', height:'5px', background:'#F1F5F9', borderRadius:'3px', overflow:'hidden' }}>
+                <div style={{ width:`${(s.avg/5)*100}%`, height:'100%', background:colAvg(s.avg), borderRadius:'3px' }} />
+              </div>
+              <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'13px', fontWeight:'700', color:colAvg(s.avg), minWidth:'34px', textAlign:'right' }}>{s.avg.toFixed(1)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

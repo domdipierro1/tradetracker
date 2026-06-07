@@ -45,14 +45,11 @@ function removeCustomPreset(cat, name) {
 }
 const MISTAKES= ['No mistake','Wrong bias','Level not aligned with bias','Entered outside killzone','No breaker block formed','Entered before breaker closed','Premature entry — no confirmation','Moved stop too early','Took partial too early','Revenge trade','Overtraded']
 const GRADE_ITEMS = [
-  'I checked my mental/emotional state before opening the platform',
-  'My bias and markup were built before the session, not during',
-  'Every trade had a written plan before I entered',
-  'I sat with inactivity without forcing a trade',
-  'I did not interfere with a trade once it was live',
-  'Wins and losses landed without triggering a reaction',
-  'I named any loop that appeared during the session',
-  'I stopped cleanly when my rules said stop',
+  'Preparation',
+  'Patience',
+  'Entry Quality',
+  'Risk',
+  'Exit Discipline',
 ]
 
 const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', trade_type:'', r:'', mae:'', mfe:'', outcome:'', mistake:'No mistake', emotions:'', mistake_tags:'', screenshot:'', screenshot2:'', journal:'' }
@@ -895,6 +892,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [charts,     setCharts]     = useState([])  // dynamic chart list: {url, tf, note, noteOpen}
   const [checklist,  setChecklist]  = useState([])
   const [grades,     setGrades]     = useState([])  // 1-5 rating per GRADE_ITEM
+  const [gradeReasons, setGradeReasons] = useState([])  // "why not a 5" per GRADE_ITEM
   const [tradeType,   setTradeType]   = useState('')
   const [noteOpen2,  setNoteOpen2]  = useState(false)
   const [noteOpen3,  setNoteOpen3]  = useState(false)
@@ -919,7 +917,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   }, [noteDirty, mood, bias, plan, chart1, chart2, chart3, chart4,
       chartNote1, chartNote2, chartNote3, chartNote4,
       chartTf1, chartTf2, chartTf3, chartTf4,
-      eodReview, followedPlan, wentWell, improve, checklist, tradeType, charts, grades])
+      eodReview, followedPlan, wentWell, improve, checklist, tradeType, charts, grades, gradeReasons])
 
   // Load note data when date changes
   useEffect(() => {
@@ -961,7 +959,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         }
       } catch(e) { setCharts([]) }
       try { setEconSnapshot(JSON.parse(existingNote.econ_snapshot||'[]')) } catch(e) { setEconSnapshot([]) }
-      try { const cd = JSON.parse(existingNote.checklist_data||'{}'); setChecklist(cd.checks||[]); setTradeType(cd.type||''); setGrades(cd.grades||[]) } catch(e) { setChecklist([]); setTradeType(''); setGrades([]) }
+      try { const cd = JSON.parse(existingNote.checklist_data||'{}'); setChecklist(cd.checks||[]); setTradeType(cd.type||''); setGrades(cd.grades||[]); setGradeReasons(cd.gradeReasons||[]) } catch(e) { setChecklist([]); setTradeType(''); setGrades([]); setGradeReasons([]) }
       setEodReview(existingNote.trading_errors && !existingNote.trading_errors.startsWith('[') ? existingNote.trading_errors : '')
       setFollowedPlan(existingNote.consistency || '')
       setWentWell(existingNote.what_worked || '')
@@ -978,6 +976,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setChecklist([])
       setTradeType('')
       setGrades([])
+      setGradeReasons([])
     }
     setNoteDirty(false)
   }, [dateStr, existingNote?.id])
@@ -1016,7 +1015,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         top_mistake:      JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
         econ_snapshot:    JSON.stringify(econSnapshot),
         chart_groups:     JSON.stringify(charts.map(g => ({ label: g.label||'', note: g.note||'', images: (g.images||[]).filter(im => im.url && im.url.trim()).map(im => ({ url: im.url, tf: im.tf||'' })) })).filter(g => g.images.length > 0 || (g.note && g.note.trim()) || (g.label && g.label.trim()))),
-        checklist_data:   JSON.stringify({ type: tradeType, checks: checklist, grades }),
+        checklist_data:   JSON.stringify({ type: tradeType, checks: checklist, grades, gradeReasons }),
       })
       setNoteDirty(false)
       toast('Day saved ✓')
@@ -1387,17 +1386,27 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
           <div style={{ padding:'14px 24px 20px' }}>
             {GRADE_ITEMS.map((item, i) => {
               const val = grades[i] || 0
+              const showWhy = val >= 1 && val <= 4
               return (
-                <div key={i} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 0', borderBottom: i < GRADE_ITEMS.length-1 ? '1px solid #F8FAFC' : 'none' }}>
-                  <span style={{ fontSize:'13px', fontWeight:'500', color:'#334155', flex:1 }}>{item}</span>
-                  <div style={{ display:'flex', gap:'4px' }}>
-                    {[1,2,3,4,5].map(n => (
-                      <button key={n} type="button" onClick={() => { const g=[...grades]; while(g.length<GRADE_ITEMS.length) g.push(0); g[i] = (g[i]===n ? 0 : n); setGrades(g); markDirty() }}
-                        style={{ width:'28px', height:'28px', borderRadius:'8px', border:`1.5px solid ${val>=n?'#4F46E5':'#E2E8F0'}`, background: val>=n?'#4F46E5':'transparent', color: val>=n?'#fff':'#CBD5E1', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:"'JetBrains Mono',monospace", transition:'all .12s', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                        {n}
-                      </button>
-                    ))}
+                <div key={i} style={{ padding:'12px 0', borderBottom: i < GRADE_ITEMS.length-1 ? '1px solid #F8FAFC' : 'none' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+                    <span style={{ fontSize:'13.5px', fontWeight:'600', color:'#334155', flex:1 }}>{item}</span>
+                    <div style={{ display:'flex', gap:'4px' }}>
+                      {[1,2,3,4,5].map(n => (
+                        <button key={n} type="button" onClick={() => { const g=[...grades]; while(g.length<GRADE_ITEMS.length) g.push(0); g[i] = (g[i]===n ? 0 : n); setGrades(g); markDirty() }}
+                          style={{ width:'28px', height:'28px', borderRadius:'8px', border:`1.5px solid ${val>=n?'#4F46E5':'#E2E8F0'}`, background: val>=n?'#4F46E5':'transparent', color: val>=n?'#fff':'#CBD5E1', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:"'JetBrains Mono',monospace", transition:'all .12s', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          {n}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                  {showWhy && (
+                    <div style={{ marginTop:'10px' }}>
+                      <AutoTextarea value={gradeReasons[i] || ''} onChange={e => { const r=[...gradeReasons]; while(r.length<GRADE_ITEMS.length) r.push(''); r[i]=e.target.value; setGradeReasons(r); markDirty() }}
+                        placeholder="Why not a 5?" minHeight={44}
+                        style={{ background:'#FEF9F4', border:'1.5px solid #FBE2C8', borderRadius:'10px', fontSize:'12.5px' }} />
+                    </div>
+                  )}
                 </div>
               )
             })}
