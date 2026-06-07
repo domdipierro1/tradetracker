@@ -70,29 +70,20 @@ function TradeForm({ initial, onSave, onCancel, title }) {
     <form onSubmit={submit}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: '12px', marginBottom: '12px' }}>
         {inp('date', 'Date', 'date')}
-        {sel('time', 'Time (NY)', TIMES)}
-        {sel('symbol', 'Symbol', ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','Gold','Silver'])}
+        <div className="form-group">
+          <label className="form-label">Time (EST)</label>
+          <input className="form-input" type="time" value={form.time} onChange={e => setVal('time', e.target.value)} step="60" />
+        </div>
+        {sel('symbol', 'Symbol', ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','DAX','Gold','Silver'])}
         {sel('direction', 'Direction', ['Long','Short'])}
+        {sel('trade_type', 'Trade Type', ['SMR Continuation','Not in Plan'])}
         {sel('bias', 'Bias', ['Bullish','Bearish'])}
         {sel('session', 'Session', ['London (02:00–05:00)','New York AM (06:00–10:00)'])}
-        {sel('level', 'Key Level', ['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block'])}
-        <div className="form-group">
-          <label className="form-label">Premium / Discount</label>
-          <div style={{ display:'flex', gap:'8px', paddingTop:'4px' }}>
-            {['Premium','Discount'].map(v => (
-              <label key={v} style={{ display:'flex', alignItems:'center', gap:'5px', cursor:'pointer', fontSize:'12px', fontWeight: form.pd_array===v ? '600' : '400', color: form.pd_array===v ? (v==='Premium' ? 'var(--red)' : 'var(--green)') : 'var(--muted)', background: form.pd_array===v ? (v==='Premium' ? 'var(--red-bg)' : 'var(--green-bg)') : 'var(--surface2)', border: `1px solid ${form.pd_array===v ? (v==='Premium' ? 'var(--red-dim)' : 'var(--green-dim)') : 'var(--border)'}`, padding:'6px 12px', borderRadius:'var(--r-xs)', transition:'all .12s' }}>
-                <input type="radio" name="pd_array" value={v} checked={form.pd_array===v} onChange={e => setVal('pd_array', e.target.value)} style={{ display:'none' }} />
-                {v==='Premium' ? '▲' : '▼'} {v}
-              </label>
-            ))}
-          </div>
-        </div>
         {sel('entry_tf', 'Entry TF', ['5m','15m','30m'])}
         {inp('risk', 'Risk %', 'number', '1')}
         {inp('r_multiple', 'R-Multiple', 'number', '2')}
         {inp('pl', 'P/L % (+ or -)', 'number', '2')}
         {sel('outcome', 'Outcome', ['Win','Loss','Break Even'])}
-        {sel('mistake', 'Mistake', ['Wrong bias','Level not aligned with bias','Entered outside killzone','No breaker block formed','Entered before breaker closed','Premature entry — no confirmation','Moved stop too early','Took partial too early','Revenge trade','Overtraded','No mistake'])}
         <div className="form-group">
           <label className="form-label">HTF Chart (Context)</label>
           <input className="form-input" type="url" value={form.screenshot} onChange={set('screenshot')} placeholder="Paste TradingView snapshot URL..." />

@@ -2,6 +2,18 @@ import { useMemo } from 'react'
 import { computeStats, f2, f1, fP, fR } from '../lib/stats'
 
 const HOURS = ['2:00','3:00','4:00','5:00','6:00','7:00','8:00','9:00','10:00']
+// 30-minute slots across the session (02:00–15:00 EST)
+const SLOTS = []
+for (let h = 2; h <= 15; h++) { SLOTS.push(`${String(h).padStart(2,'0')}:00`); if (h < 15) SLOTS.push(`${String(h).padStart(2,'0')}:30`) }
+// Round any HH:MM to its 30-min slot, e.g. "08:37" -> "08:30"
+function toSlot(time) {
+  if (!time) return null
+  const m = String(time).match(/^(\d{1,2}):(\d{2})/)
+  if (!m) return null
+  const h = parseInt(m[1],10), min = parseInt(m[2],10)
+  if (isNaN(h)||isNaN(min)) return null
+  return `${String(h).padStart(2,'0')}:${min < 30 ? '00' : '30'}`
+}
 const DOW   = ['Monday','Tuesday','Wednesday','Thursday','Friday']
 
 // ── SECTION HEADER ───────────────────────────────────────────────
@@ -172,7 +184,7 @@ export default function Analysis({ trades, dailyNotes }) {
 
   // Time of day
   const maxTimePL = useMemo(() =>
-    Math.max(...HOURS.map(h => Math.abs(trades.filter(t => t.time === h).reduce((s,t) => s+(t.pl||t.r_multiple||0),0))), 0.01),
+    Math.max(...SLOTS.map(slot => Math.abs(trades.filter(t => toSlot(t.time) === slot).reduce((s,t) => s+(t.pl||t.r_multiple||0),0))), 0.01),
     [trades]
   )
 
@@ -252,7 +264,7 @@ export default function Analysis({ trades, dailyNotes }) {
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))', gap:'14px' }}>
               <BreakdownTable title="By Symbol"    k="symbol"    items={[...new Set(trades.map(t=>t.symbol).filter(Boolean))].sort()} trades={trades} accent="#4F46E5" />
               <TagPerformance title="By Key Level" field="level" trades={trades} accent="#7C3AED" />
-              <BreakdownTable title="By Trade Type" k="trade_type" items={['Type 1 — SMR','Type 2 — Distribution','Not in Plan']} trades={trades} accent="#4F46E5" />
+              <BreakdownTable title="By Trade Type" k="trade_type" items={['SMR Continuation','Not in Plan']} trades={trades} accent="#4F46E5" />
   <BreakdownTable title="By Direction" k="direction" items={['Long','Short']} trades={trades} accent="#059669" />
               <BreakdownTable title="By Session"   k="session"   items={['London (02:00–05:00)','New York AM (06:00–10:00)']} trades={trades} accent="#0D9488" />
               <BreakdownTable title="By Killzone"  k="killzone"  items={['London (02–05)','Overlap (05–08)','NY AM (08–11)','Other']} trades={trades} accent="#0D9488" />
@@ -353,11 +365,11 @@ export default function Analysis({ trades, dailyNotes }) {
 
           {/* ── TIME HEATMAP ── */}
           <div style={{ marginBottom:'20px' }}>
-            <SectionHeader title="Time of Day" sub="R performance by NY session hour · 02:00–10:00" />
+            <SectionHeader title="Time of Day" sub="R performance by 30-min EST slot · 02:00–15:00" />
             <div style={{ background:'#FFFFFF', borderRadius:'20px', padding:'22px 24px', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)' }}>
               <div style={{ display:'flex', gap:'10px', flexWrap:'wrap' }}>
-                {HOURS.map(h => {
-                  const ht  = trades.filter(t => t.time === h)
+                {SLOTS.filter(slot => trades.some(t => toSlot(t.time) === slot)).map(slot => {
+                  const ht  = trades.filter(t => toSlot(t.time) === slot)
                   const pl  = ht.reduce((s,t) => s+(t.pl||t.r_multiple||0), 0)
                   const has = ht.length > 0
                   const intensity = has ? Math.min(1, Math.abs(pl) / maxTimePL) : 0
@@ -365,10 +377,10 @@ export default function Analysis({ trades, dailyNotes }) {
                   const tc  = !has ? '#CBD5E1' : pl > 0 ? (intensity>.5?'#FFFFFF':'#065F46') : (intensity>.5?'#FFFFFF':'#7F1D1D')
                   const border = !has ? '#F1F5F9' : pl > 0 ? '#BBF7D0' : '#FECACA'
                   return (
-                    <div key={h} style={{ background:bg, borderRadius:'14px', padding:'12px 14px', minWidth:'72px', textAlign:'center', border:`1.5px solid ${border}`, transition:'transform .15s', cursor:'default', flex:'1' }}
+                    <div key={slot} style={{ background:bg, borderRadius:'14px', padding:'12px 14px', minWidth:'72px', textAlign:'center', border:`1.5px solid ${border}`, transition:'transform .15s', cursor:'default', flex:'1' }}
                       onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'}
                       onMouseLeave={e => e.currentTarget.style.transform=''}>
-                      <div style={{ fontSize:'10px', fontWeight:'600', color:'#717A88', marginBottom:'5px', letterSpacing:'.05em' }}>{h}</div>
+                      <div style={{ fontSize:'10px', fontWeight:'600', color:'#717A88', marginBottom:'5px', letterSpacing:'.05em' }}>{slot}</div>
                       <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:tc, lineHeight:1, marginBottom:'4px' }}>{has ? f1(pl) : '—'}</div>
                       <div style={{ fontSize:'10px', color:'#717A88' }}>{ht.length}t</div>
                     </div>

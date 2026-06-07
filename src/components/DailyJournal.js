@@ -347,23 +347,15 @@ function TradeForm({ onSave, onCancel, initialData }) {
     <form onSubmit={submit} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', padding:'18px', boxShadow:'var(--shadow)' }}>
       <div style={{ fontSize:'13px', fontWeight:'600', color:'var(--text)', marginBottom:'16px' }}>{isEdit ? 'Edit Trade' : 'Log Trade'}</div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:'11px', marginBottom:'12px' }}>
-        {sel('time', 'Time (NY)', TIMES)}
+        <div className="form-group">
+          <label className="form-label">Time (EST)</label>
+          <input className="form-input" type="time" value={form.time} onChange={set('time')} step="60" />
+        </div>
         {sel('symbol', 'Symbol', SYMBOLS)}
         {sel('direction', 'Direction', ['Long','Short'])}
-        {sel('trade_type', 'Trade Type', ['Type 1 — SMR', 'Type 2 — Distribution', 'Not in Plan'])}
+        {sel('trade_type', 'Trade Type', ['SMR Continuation', 'Not in Plan'])}
         {sel('bias', 'Bias', ['Bullish','Bearish'])}
         {sel('session', 'Session', ['London (02:00–05:00)','New York AM (06:00–10:00)'])}
-        <div className="form-group">
-          <label className="form-label">Premium / Discount</label>
-          <div style={{ display:'flex', gap:'6px', paddingTop:'4px' }}>
-            {['Premium','Discount'].map(v => (
-              <label key={v} style={{ display:'flex', alignItems:'center', gap:'4px', cursor:'pointer', fontSize:'11px', fontWeight: form.pd_array===v ? '600':'400', color: form.pd_array===v ? (v==='Premium'?'var(--red)':'var(--green)'):'var(--muted)', background: form.pd_array===v ? (v==='Premium'?'var(--red-bg)':'var(--green-bg)'):'var(--surface2)', border:`1px solid ${form.pd_array===v ? (v==='Premium'?'var(--red-dim)':'var(--green-dim)'):'var(--border)'}`, padding:'5px 10px', borderRadius:'var(--r-xs)', transition:'all .12s' }}>
-                <input type="radio" name="pd_array" value={v} checked={form.pd_array===v} onChange={() => setV('pd_array', v)} style={{ display:'none' }} />
-                {v==='Premium'?'▲':'▼'} {v}
-              </label>
-            ))}
-          </div>
-        </div>
         {sel('entry_tf', 'Entry TF', ['5m','15m','30m'])}
         <div className="form-group">
           <label className="form-label">R Multiple</label>
@@ -371,7 +363,6 @@ function TradeForm({ onSave, onCancel, initialData }) {
           <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'3px' }}>Positive = win (+2R), Negative = loss (-1R)</div>
         </div>
         {sel('outcome', 'Outcome', ['Win','Loss','Break Even'])}
-        {sel('mistake', 'Mistake', MISTAKES)}
       </div>
       {/* Key Levels — autocomplete combobox */}
       <div className="form-group" style={{ marginBottom:'11px' }}>
@@ -455,14 +446,14 @@ function TradeCard({ t, onDelete, onEdit, onOpenDay }) {
         {onOpenDay ? (
           <button onClick={() => onOpenDay(t.date)} title="Open this day's journal"
             style={{ background:'none', border:'none', cursor:'pointer', padding:0, display:'inline-flex', alignItems:'center', gap:'5px', fontFamily:'inherit' }}>
-            <span style={{ fontSize:'15px', fontWeight:'700', color:'#4F46E5', letterSpacing:'-.01em', textDecoration:'underline', textDecorationColor:'#C7CBF8', textUnderlineOffset:'3px' }}>{t.symbol || '—'}</span>
+            <span style={{ fontSize:'15px', fontWeight:'700', color:'#0F172A', letterSpacing:'-.01em', textDecoration:'underline', textDecorationColor:'#CBD5E1', textUnderlineOffset:'3px' }}>{t.symbol || '—'}</span>
             <span style={{ fontSize:'10px', color:'#94A3B8' }}>↗</span>
           </button>
         ) : (
           <span style={{ fontSize:'15px', fontWeight:'700', color:'#0F172A', letterSpacing:'-.01em' }}>{t.symbol || '—'}</span>
         )}
         {onOpenDay && t.date && <span style={{ fontSize:'10px', color:'#94A3B8', fontFamily:"'JetBrains Mono',monospace" }}>{new Date(t.date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}</span>}
-        {t.time && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#94A3B8', background:'#F1F5F9', padding:'2px 7px', borderRadius:'6px' }}>{t.time} NY</span>}
+        {t.time && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#94A3B8', background:'#F1F5F9', padding:'2px 7px', borderRadius:'6px' }}>{t.time} EST</span>}
         {t.direction && (
           <span style={{ fontSize:'11px', fontWeight:'700', padding:'3px 9px', borderRadius:'7px', background: t.direction==='Long'?'#DCFCE7':'#FEE2E2', color: t.direction==='Long'?'#14532D':'#7F1D1D', border: `1px solid ${t.direction==='Long'?'#BBF7D0':'#FECACA'}` }}>{t.direction}</span>
         )}
@@ -486,7 +477,7 @@ function TradeCard({ t, onDelete, onEdit, onOpenDay }) {
 
       {/* Details grid */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))', borderBottom:`1px solid #F1F5F9` }}>
-        {[['Bias',t.bias],['Session',t.session?.replace(' (02:00–05:00)','')?.replace(' (06:00–10:00)','')],['Key Level',parseLevels(t.level).join(', ')||t.setup],['P/D',t.pd_array],['Entry TF',t.entry_tf||t.smt],['Risk',t.risk?`${t.risk}%`:null],['R Target',t.r_multiple?`${t.r_multiple}R`:null]].filter(([,v])=>v).map(([l,v],i)=>(
+        {[['Bias',t.bias],['Session',t.session?.replace(' (02:00–05:00)','')?.replace(' (06:00–10:00)','')],['Key Level',parseLevels(t.level).join(', ')||t.setup],['Entry TF',t.entry_tf||t.smt],['Risk',t.risk?`${t.risk}%`:null],['R Target',t.r_multiple?`${t.r_multiple}R`:null]].filter(([,v])=>v).map(([l,v],i)=>(
           <div key={i} style={{ padding:'10px 14px', borderRight:'1px solid #F1F5F9', borderBottom:'1px solid #F1F5F9' }}>
             <div style={{ fontSize:'9px', fontWeight:'600', color:'#94A3B8', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'3px' }}>{l}</div>
             <div style={{ fontSize:'12px', fontWeight:'500', color:'#334155' }}>{v}</div>
@@ -1143,63 +1134,6 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
               <label style={{ display:'block', fontSize:'11px', fontWeight:'600', color:'#64748B', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'12px' }}>Chart Images</label>
               <ChartList charts={charts} setCharts={setCharts} markDirty={markDirty} isForecast={false} />
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── PRE-TRADE CHECKLIST CARD — daily only ── */}
-      {!isWeekly && !isForecast && (
-        <div style={{ order:2, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
-          <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
-            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#F0FDF4', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>✓</div>
-            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>Pre-Trade Checklist</span>
-          </div>
-          <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:'14px' }}>
-            {/* Trade type selector */}
-            <div style={{ display:'flex', gap:'8px' }}>
-              {[['type1','Type 1','SMR','#6366F1','#EEF2FF'],['type2','Type 2','Distribution','#0EA5E9','#F0F9FF']].map(([val,label,sub,col,bg]) => (
-                <div key={val} onClick={() => { setTradeType(tradeType===val?'':val); setChecklist([]); markDirty() }}
-                  style={{ flex:1, padding:'10px 14px', borderRadius:'12px', border:`1.5px solid ${tradeType===val?col:'#E2E8F0'}`, background:tradeType===val?bg:'#F8FAFC', cursor:'pointer', transition:'all .15s', userSelect:'none' }}>
-                  <div style={{ fontSize:'13px', fontWeight:'700', color:tradeType===val?col:'#475569' }}>{label}</div>
-                  <div style={{ fontSize:'11px', color:tradeType===val?col:'#94A3B8', marginTop:'1px' }}>{sub}</div>
-                </div>
-              ))}
-            </div>
-            {tradeType && (() => {
-              const questions = tradeType === 'type1' ? [
-                'Is there a clear and obvious DOL on the weekly and daily?',
-                'Is price at or near the key level where the SMR should occur?',
-                'Between 3am–10am NY has price formed a clean 15m breaker block at that level signalling the SMR is in?',
-              ] : [
-                'Is there a clear and obvious DOL on the weekly and daily?',
-                'Is the SMR confirmed — is the high or low of the week in?',
-                'Is the 4H showing clean expansion and retracement toward the DOL — not consolidation or chop?',
-                'Is there one obvious level overlapping with premium or discount within the 4H range?',
-                'Between 3am–10am NY has price formed a clean 15m breaker block rejection at that level?',
-              ]
-              const allDone = checklist.length === questions.length && checklist.every(v=>v)
-              return (
-                <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
-                  {questions.map((q, i) => {
-                    const checked = !!checklist[i]
-                    return (
-                      <div key={i} onClick={() => { const n=[...checklist]; n[i]=!n[i]; setChecklist(n); markDirty() }}
-                        style={{ display:'flex', alignItems:'flex-start', gap:'10px', padding:'10px 14px', background:checked?'#F0FDF4':'#F8FAFC', border:`1.5px solid ${checked?'#86EFAC':'#E2E8F0'}`, borderRadius:'10px', cursor:'pointer', transition:'all .15s', userSelect:'none' }}>
-                        <div style={{ width:'18px', height:'18px', borderRadius:'5px', border:`2px solid ${checked?'#10B981':'#CBD5E1'}`, background:checked?'#10B981':'#FFFFFF', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:'1px', transition:'all .15s' }}>
-                          {checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                        </div>
-                        <span style={{ fontSize:'12px', fontWeight:'500', color:checked?'#166534':'#475569', lineHeight:'1.5' }}>{q}</span>
-                      </div>
-                    )
-                  })}
-                  {allDone && (
-                    <div style={{ padding:'10px 14px', background:'#DCFCE7', border:'1.5px solid #86EFAC', borderRadius:'10px', textAlign:'center', fontSize:'12px', fontWeight:'700', color:'#166534' }}>
-                      ✓ All conditions met — valid {tradeType==='type1'?'Type 1 SMR':'Type 2 Distribution'} setup
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
           </div>
         </div>
       )}
