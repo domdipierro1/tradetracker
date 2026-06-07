@@ -15,6 +15,71 @@ function SectionHeader({ title, sub }) {
 }
 
 // ── BREAKDOWN TABLE ───────────────────────────────────────────────
+// ── TAG PERFORMANCE — array-valued tags (emotions/mistakes) ──────
+function TagPerformance({ title, field, trades, accent = '#7C3AED' }) {
+  const parse = raw => {
+    if (!raw) return []
+    if (Array.isArray(raw)) return raw
+    try { const p = JSON.parse(raw); return Array.isArray(p) ? p : (raw ? [String(raw)] : []) }
+    catch { return raw ? [String(raw)] : [] }
+  }
+  const tagMap = {}
+  trades.forEach(t => {
+    parse(t[field]).forEach(tag => {
+      if (!tagMap[tag]) tagMap[tag] = []
+      tagMap[tag].push(t)
+    })
+  })
+  const rows = Object.keys(tagMap).map(tag => {
+    const group = tagMap[tag]
+    const s = computeStats(group)
+    return { label: tag, ...s }
+  }).filter(r => r.n > 0).sort((a, b) => (a.totalR || 0) - (b.totalR || 0)) // worst first
+
+  if (rows.length === 0) return null
+  const maxR = Math.max(...rows.map(r => Math.abs(r.totalR || 0)), 0.01)
+  const G = '1fr 36px 50px 36px 76px 50px'
+
+  return (
+    <div style={{ background:'#FFFFFF', borderRadius:'20px', overflow:'hidden', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)' }}>
+      <div style={{ padding:'14px 18px', borderBottom:'1px solid #E9ECF1', display:'flex', alignItems:'center', gap:'10px' }}>
+        <div style={{ width:'3px', height:'16px', borderRadius:'2px', background: accent, flexShrink:0 }} />
+        <span style={{ fontSize:'13px', fontWeight:'700', color:'#14181F' }}>{title}</span>
+        <span style={{ marginLeft:'auto', fontSize:'11px', color:'#717A88' }}>{rows.length} tag{rows.length===1?'':'s'}</span>
+      </div>
+      <div style={{ padding:'0 18px' }}>
+        <div style={{ display:'grid', gridTemplateColumns:G, padding:'8px 0 6px', borderBottom:'1px solid #E9ECF1' }}>
+          {['','Tr','Win%','W','Total R','Exp'].map((h,i) => (
+            <div key={i} style={{ fontSize:'9px', fontWeight:'700', color:'#717A88', letterSpacing:'.06em', textTransform:'uppercase', textAlign:i===0?'left':'right' }}>{h}</div>
+          ))}
+        </div>
+        {rows.map((r, i) => {
+          const barPct = Math.min(100, Math.abs(r.totalR||0) / maxR * 100)
+          const rCol = (r.totalR||0) >= 0 ? '#059669' : '#E11D48'
+          return (
+            <div key={r.label} style={{ display:'grid', gridTemplateColumns:G, borderBottom: i<rows.length-1?'1px solid #F4F6F8':'none', margin:'0 -18px', padding:'9px 18px', transition:'background .1s' }}
+              onMouseEnter={e=>e.currentTarget.style.background='#F8FAFC'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <div style={{ fontWeight:'600', color:'#334155', fontSize:'12px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', paddingRight:'6px' }} title={r.label}>{r.label}</div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", color:'#64748B', fontSize:'11px' }}>{r.n}</div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color: r.winRate>=.5?'#059669':'#E11D48' }}>{fP(r.winRate)}</div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#059669', fontWeight:'500' }}>{r.wins||0}</div>
+              <div style={{ display:'flex', alignItems:'center', gap:'4px', justifyContent:'flex-end' }}>
+                <div style={{ width:'28px', height:'3px', background:'#F1F5F9', borderRadius:'2px', overflow:'hidden', flexShrink:0 }}>
+                  <div style={{ width:barPct+'%', height:'100%', background:rCol, borderRadius:'2px' }} />
+                </div>
+                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'700', color:rCol, minWidth:'30px', textAlign:'right' }}>{f1(r.totalR||0)}</span>
+              </div>
+              <div style={{ textAlign:'right', fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'600', color:(r.expectancy||0)>0?'#059669':'#E11D48' }}>{r.expectancy?f2(r.expectancy):'—'}</div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── BREAKDOWN TABLE ──────────────────────────────────────────────
 function BreakdownTable({ title, k, items, trades, accent = '#4F46E5' }) {
   const kzOf = (time) => {
     if (!time) return null
@@ -184,7 +249,7 @@ export default function Analysis({ trades }) {
             <SectionHeader title="Breakdown by Category" sub="Only categories with at least one trade are shown" />
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))', gap:'14px' }}>
               <BreakdownTable title="By Symbol"    k="symbol"    items={[...new Set(trades.map(t=>t.symbol).filter(Boolean))].sort()} trades={trades} accent="#4F46E5" />
-              <BreakdownTable title="By Key Level" k="level"     items={['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']} trades={trades} accent="#7C3AED" />
+              <TagPerformance title="By Key Level" field="level" trades={trades} accent="#7C3AED" />
               <BreakdownTable title="By Trade Type" k="trade_type" items={['Type 1 — SMR','Type 2 — Distribution','Not in Plan']} trades={trades} accent="#4F46E5" />
   <BreakdownTable title="By Direction" k="direction" items={['Long','Short']} trades={trades} accent="#059669" />
               <BreakdownTable title="By Session"   k="session"   items={['London (02:00–05:00)','New York AM (06:00–10:00)']} trades={trades} accent="#0D9488" />
@@ -193,6 +258,8 @@ export default function Analysis({ trades }) {
               <BreakdownTable title="By Bias"      k="bias"      items={['Bullish','Bearish']} trades={trades} accent="#E11D48" />
               <BreakdownTable title="By P/D Array" k="pd_array"  items={['Premium','Discount']} trades={trades} accent="#4F46E5" />
               <BreakdownTable title="By Entry TF"  k="entry_tf"  items={['5m','15m','30m']} trades={trades} accent="#059669" />
+              <TagPerformance title="By Emotion"   field="emotions"     trades={trades} accent="#7C3AED" />
+              <TagPerformance title="By Mistake"   field="mistake_tags" trades={trades} accent="#E11D48" />
             </div>
           </div>
 

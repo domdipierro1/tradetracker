@@ -6,9 +6,14 @@ import { useEconomicCalendar, currencyFlag, formatFFTime } from '../lib/useEcono
 const TIMES   = ['02:00','02:30','03:00','03:30','04:00','04:30','05:00','05:30','06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00']
 const SYMBOLS = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','DAX','Gold','Silver']
 const LEVELS  = ['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']
-const CUSTOM_LEVELS_KEY = 'tt26_custom_levels'
+const EMOTIONS = ['Calm','Patient','Focused','Confident','FOMO','Anxious','Bored','Frustrated','Overconfident','Hesitant','Revenge urge','Greedy','Fearful']
+const TAG_MISTAKES = ['Entered early','Chased entry','Moved stop','Oversized','Undersized','Took partial too early','Exited early','Held too long','No confirmation','Traded outside killzone','Wrong bias','Revenge trade','Overtraded','FOMO entry']
 
-// Parse a trade's stored level field into an array (handles old single-string format)
+// Built-in preset map by category key
+const PRESETS = { level: LEVELS, emotion: EMOTIONS, mistake_tag: TAG_MISTAKES }
+const CUSTOM_KEY = cat => `tt26_custom_${cat}`
+
+// Parse a stored multi-value field into an array (handles old single-string format)
 function parseLevels(raw) {
   if (!raw) return []
   if (Array.isArray(raw)) return raw
@@ -20,16 +25,22 @@ function parseLevels(raw) {
     return raw ? [String(raw)] : []   // old single-value string
   }
 }
-function getCustomLevels() {
-  try { return JSON.parse(localStorage.getItem(CUSTOM_LEVELS_KEY) || '[]') } catch { return [] }
+function getCustom(cat) {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_KEY(cat)) || '[]') } catch { return [] }
 }
-function addCustomLevel(name) {
+function addCustom(cat, name) {
   const v = (name || '').trim()
-  if (!v) return getCustomLevels()
-  const cur = getCustomLevels()
-  if (cur.includes(v) || LEVELS.includes(v)) return cur
+  if (!v) return getCustom(cat)
+  const cur = getCustom(cat)
+  const builtin = PRESETS[cat] || []
+  if (cur.includes(v) || builtin.includes(v)) return cur
   const next = [...cur, v]
-  try { localStorage.setItem(CUSTOM_LEVELS_KEY, JSON.stringify(next)) } catch {}
+  try { localStorage.setItem(CUSTOM_KEY(cat), JSON.stringify(next)) } catch {}
+  return next
+}
+function removeCustomPreset(cat, name) {
+  const next = getCustom(cat).filter(c => c !== name)
+  try { localStorage.setItem(CUSTOM_KEY(cat), JSON.stringify(next)) } catch {}
   return next
 }
 const MISTAKES= ['No mistake','Wrong bias','Level not aligned with bias','Entered outside killzone','No breaker block formed','Entered before breaker closed','Premature entry — no confirmation','Moved stop too early','Took partial too early','Revenge trade','Overtraded']
@@ -44,7 +55,7 @@ const GRADE_ITEMS = [
   'I stopped cleanly when my rules said stop',
 ]
 
-const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', trade_type:'', r:'', mae:'', mfe:'', outcome:'', mistake:'No mistake', screenshot:'', screenshot2:'', journal:'' }
+const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', trade_type:'', r:'', mae:'', mfe:'', outcome:'', mistake:'No mistake', emotions:'', mistake_tags:'', screenshot:'', screenshot2:'', journal:'' }
 const TRADE_DRAFT = 'tt26_trade_draft'
 const FORM_OPEN   = 'tt26_form_open'
 
@@ -202,68 +213,92 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
 }
 
 
-// ── KEY LEVEL PICKER — presets + custom + multi-select ───────────
-function KeyLevelPicker({ selected, onChange }) {
-  const [custom, setCustom] = useState(getCustomLevels())
+// ── TAG COMBOBOX — autocomplete + dropdown + multi-select + custom ──
+function TagCombobox({ cat, selected, onChange, placeholder, accent = 'var(--blue)' }) {
+  const [custom, setCustom] = useState(getCustom(cat))
   const [text, setText] = useState('')
+  const [open, setOpen] = useState(false)
+  const boxRef = useRef(null)
   const sel = Array.isArray(selected) ? selected : []
-  const allPresets = [...LEVELS, ...custom.filter(c => !LEVELS.includes(c))]
+  const allPresets = [...(PRESETS[cat] || []), ...custom.filter(c => !(PRESETS[cat] || []).includes(c))]
 
-  function toggle(name) {
-    if (sel.includes(name)) onChange(sel.filter(s => s !== name))
-    else onChange([...sel, name])
-  }
-  function addNew() {
-    const v = text.trim()
+  useEffect(() => {
+    function onDoc(e) { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+
+  const q = text.trim().toLowerCase()
+  const matches = allPresets.filter(p => p.toLowerCase().includes(q) && !sel.includes(p))
+  const exactExists = allPresets.some(p => p.toLowerCase() === q) || sel.some(s => s.toLowerCase() === q)
+
+  function add(name) {
+    const v = (name || '').trim()
     if (!v) return
-    setCustom(addCustomLevel(v))
+    if (!(PRESETS[cat] || []).includes(v) && !getCustom(cat).includes(v)) setCustom(addCustom(cat, v))
     if (!sel.includes(v)) onChange([...sel, v])
-    setText('')
+    setText(''); setOpen(true)
   }
-  function removeCustom(name, e) {
+  function remove(name) { onChange(sel.filter(s => s !== name)) }
+  function deletePreset(name, e) {
     e.stopPropagation()
-    const next = custom.filter(c => c !== name)
-    setCustom(next)
-    try { localStorage.setItem(CUSTOM_LEVELS_KEY, JSON.stringify(next)) } catch {}
+    setCustom(removeCustomPreset(cat, name))
     if (sel.includes(name)) onChange(sel.filter(s => s !== name))
   }
 
   return (
-    <div>
+    <div ref={boxRef} style={{ position:'relative' }}>
       {/* Selected chips */}
       {sel.length > 0 && (
         <div style={{ display:'flex', flexWrap:'wrap', gap:'6px', marginBottom:'8px' }}>
           {sel.map(s => (
-            <span key={s} style={{ display:'inline-flex', alignItems:'center', gap:'5px', background:'var(--blue)', color:'#fff', fontSize:'11.5px', fontWeight:'600', padding:'4px 10px', borderRadius:'20px' }}>
+            <span key={s} style={{ display:'inline-flex', alignItems:'center', gap:'5px', background:accent, color:'#fff', fontSize:'11.5px', fontWeight:'600', padding:'4px 10px', borderRadius:'20px' }}>
               {s}
-              <span onClick={() => toggle(s)} style={{ cursor:'pointer', fontSize:'13px', lineHeight:1, opacity:.8 }}>×</span>
+              <span onClick={() => remove(s)} style={{ cursor:'pointer', fontSize:'13px', lineHeight:1, opacity:.8 }}>×</span>
             </span>
           ))}
         </div>
       )}
-      {/* Preset options */}
-      <div style={{ display:'flex', flexWrap:'wrap', gap:'5px', marginBottom:'8px' }}>
-        {allPresets.map(p => {
-          const on = sel.includes(p)
-          const isCustom = !LEVELS.includes(p)
-          return (
-            <span key={p} onClick={() => toggle(p)}
-              style={{ display:'inline-flex', alignItems:'center', gap:'4px', fontSize:'11px', fontWeight:'500', padding:'4px 9px', borderRadius:'7px', cursor:'pointer', userSelect:'none', transition:'all .12s',
-                background: on ? 'var(--blue-bg)' : 'var(--surface2)', color: on ? 'var(--blue)' : 'var(--muted)', border:`1px solid ${on ? 'var(--blue-dim)' : 'var(--border)'}` }}>
-              {p}
-              {isCustom && <span onClick={e => removeCustom(p, e)} title="Remove preset" style={{ color:'var(--muted2)', fontSize:'12px', lineHeight:1, marginLeft:'2px' }}>×</span>}
-            </span>
-          )
-        })}
+      {/* Input + caret */}
+      <div style={{ display:'flex', alignItems:'center', position:'relative' }}>
+        <input className="form-input" value={text}
+          onChange={e => { setText(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); if (text.trim()) add(matches[0] && matches[0].toLowerCase() === q ? matches[0] : text.trim()) }
+            if (e.key === 'Escape') setOpen(false)
+          }}
+          placeholder={placeholder || 'Type to search or add…'}
+          style={{ flex:1, fontSize:'12.5px', padding:'9px 30px 9px 12px' }} />
+        <span onClick={() => setOpen(o => !o)} style={{ position:'absolute', right:'10px', cursor:'pointer', color:'var(--muted2)', fontSize:'10px', userSelect:'none' }}>▼</span>
       </div>
-      {/* Add custom */}
-      <div style={{ display:'flex', gap:'6px' }}>
-        <input className="form-input" value={text} onChange={e => setText(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNew() } }}
-          placeholder="Type a custom level and press Enter (saves for next time)"
-          style={{ flex:1, fontSize:'12px', padding:'8px 11px' }} />
-        <button type="button" onClick={addNew} className="btn btn-outline btn-sm" style={{ flexShrink:0 }}>Add</button>
-      </div>
+      {/* Dropdown */}
+      {open && (
+        <div style={{ position:'absolute', top:'100%', left:0, right:0, marginTop:'4px', background:'var(--surface)', border:'1px solid var(--border2)', borderRadius:'var(--r-sm)', boxShadow:'var(--shadow-md)', zIndex:50, maxHeight:'240px', overflowY:'auto' }}>
+          {/* Add-new row */}
+          {text.trim() && !exactExists && (
+            <div onClick={() => add(text.trim())}
+              style={{ padding:'9px 13px', cursor:'pointer', fontSize:'12.5px', fontWeight:'600', color:accent, borderBottom: matches.length ? '1px solid var(--border)' : 'none', display:'flex', alignItems:'center', gap:'6px' }}>
+              <span style={{ fontSize:'14px', lineHeight:1 }}>+</span> Add “{text.trim()}”
+            </div>
+          )}
+          {(text.trim() ? matches : allPresets.filter(p => !sel.includes(p))).map(p => {
+            const isCustom = !(PRESETS[cat] || []).includes(p)
+            return (
+              <div key={p} onClick={() => add(p)}
+                style={{ padding:'8px 13px', cursor:'pointer', fontSize:'12.5px', color:'var(--text2)', display:'flex', alignItems:'center', gap:'8px', transition:'background .1s' }}
+                onMouseEnter={e => e.currentTarget.style.background='var(--surface2)'}
+                onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                <span style={{ flex:1 }}>{p}</span>
+                {isCustom && <span onClick={e => deletePreset(p, e)} title="Delete preset" style={{ color:'var(--muted2)', fontSize:'13px', lineHeight:1 }}>×</span>}
+              </div>
+            )
+          })}
+          {!text.trim() && allPresets.filter(p => !sel.includes(p)).length === 0 && (
+            <div style={{ padding:'10px 13px', fontSize:'12px', color:'var(--muted2)' }}>All added — type to create a new one</div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -341,12 +376,27 @@ function TradeForm({ onSave, onCancel, initialData }) {
         {sel('outcome', 'Outcome', ['Win','Loss','Break Even'])}
         {sel('mistake', 'Mistake', MISTAKES)}
       </div>
-      {/* Key Levels — multi-select with custom presets */}
+      {/* Key Levels — autocomplete combobox */}
       <div className="form-group" style={{ marginBottom:'11px' }}>
-        <label className="form-label">Key Levels <span style={{ textTransform:'none', fontWeight:'400', color:'var(--muted2)' }}>· tap to add, type your own</span></label>
-        <KeyLevelPicker
-          selected={parseLevels(form.level)}
-          onChange={arr => setV('level', JSON.stringify(arr))} />
+        <label className="form-label">Key Levels <span style={{ textTransform:'none', fontWeight:'400', color:'var(--muted2)' }}>· type to search or add, click ▼ for full list</span></label>
+        <TagCombobox cat="level" selected={parseLevels(form.level)}
+          onChange={arr => setV('level', JSON.stringify(arr))}
+          placeholder="Type a level (e.g. 4H Order Block) or add your own…" accent="var(--blue)" />
+      </div>
+      {/* Emotions + Mistakes tags */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'11px', marginBottom:'11px' }}>
+        <div className="form-group">
+          <label className="form-label">Emotions</label>
+          <TagCombobox cat="emotion" selected={parseLevels(form.emotions)}
+            onChange={arr => setV('emotions', JSON.stringify(arr))}
+            placeholder="How did you feel? (e.g. FOMO, Calm)…" accent="#7C3AED" />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Mistakes</label>
+          <TagCombobox cat="mistake_tag" selected={parseLevels(form.mistake_tags)}
+            onChange={arr => setV('mistake_tags', JSON.stringify(arr))}
+            placeholder="Any mistakes? (e.g. Moved stop)…" accent="#E11D48" />
+        </div>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'11px', marginBottom:'11px' }}>
         <div className="form-group">
@@ -446,6 +496,18 @@ function TradeCard({ t, onDelete, onEdit, onOpenDay }) {
           </div>
         ))}
       </div>
+
+      {/* Emotion + Mistake tags */}
+      {(parseLevels(t.emotions).length > 0 || parseLevels(t.mistake_tags).length > 0) && (
+        <div style={{ padding:'10px 20px', borderBottom:'1px solid #F1F5F9', display:'flex', flexWrap:'wrap', gap:'6px', alignItems:'center' }}>
+          {parseLevels(t.emotions).map(e => (
+            <span key={'e'+e} style={{ fontSize:'11px', fontWeight:'600', color:'#7C3AED', background:'#F2ECFE', border:'1px solid #D2BEF9', padding:'3px 9px', borderRadius:'20px' }}>{e}</span>
+          ))}
+          {parseLevels(t.mistake_tags).map(m => (
+            <span key={'m'+m} style={{ fontSize:'11px', fontWeight:'600', color:'#E11D48', background:'#FDECEF', border:'1px solid #F6B9C6', padding:'3px 9px', borderRadius:'20px' }}>{m}</span>
+          ))}
+        </div>
+      )}
 
       {/* Mistake */}
       {t.mistake && t.mistake !== 'No mistake' && (
