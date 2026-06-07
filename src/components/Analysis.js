@@ -264,7 +264,7 @@ export default function Analysis({ trades, dailyNotes }) {
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))', gap:'14px' }}>
               <BreakdownTable title="By Symbol"    k="symbol"    items={[...new Set(trades.map(t=>t.symbol).filter(Boolean))].sort()} trades={trades} accent="#4F46E5" />
               <TagPerformance title="By Key Level" field="level" trades={trades} accent="#7C3AED" />
-              <BreakdownTable title="By Trade Type" k="trade_type" items={['SMR Continuation','Not in Plan']} trades={trades} accent="#4F46E5" />
+              <BreakdownTable title="By Trade Type" k="trade_type" items={['SMR','Continuation','Not in Plan']} trades={trades} accent="#4F46E5" />
   <BreakdownTable title="By Direction" k="direction" items={['Long','Short']} trades={trades} accent="#059669" />
               <BreakdownTable title="By Session"   k="session"   items={['London (02:00–05:00)','New York AM (06:00–10:00)']} trades={trades} accent="#0D9488" />
               <BreakdownTable title="By Killzone"  k="killzone"  items={['London (02–05)','Overlap (05–08)','NY AM (08–11)','Other']} trades={trades} accent="#0D9488" />

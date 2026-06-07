@@ -353,7 +353,7 @@ function TradeForm({ onSave, onCancel, initialData }) {
         </div>
         {sel('symbol', 'Symbol', SYMBOLS)}
         {sel('direction', 'Direction', ['Long','Short'])}
-        {sel('trade_type', 'Trade Type', ['SMR Continuation', 'Not in Plan'])}
+        {sel('trade_type', 'Trade Type', ['SMR', 'Continuation', 'Not in Plan'])}
         {sel('bias', 'Bias', ['Bullish','Bearish'])}
         {sel('session', 'Session', ['London (02:00–05:00)','New York AM (06:00–10:00)'])}
         {sel('entry_tf', 'Entry TF', ['5m','15m','30m'])}

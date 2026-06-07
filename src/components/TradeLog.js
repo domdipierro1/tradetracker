@@ -76,7 +76,7 @@ function TradeForm({ initial, onSave, onCancel, title }) {
         </div>
         {sel('symbol', 'Symbol', ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','DAX','Gold','Silver'])}
         {sel('direction', 'Direction', ['Long','Short'])}
-        {sel('trade_type', 'Trade Type', ['SMR Continuation','Not in Plan'])}
+        {sel('trade_type', 'Trade Type', ['SMR','Continuation','Not in Plan'])}
         {sel('bias', 'Bias', ['Bullish','Bearish'])}
         {sel('session', 'Session', ['London (02:00–05:00)','New York AM (06:00–10:00)'])}
         {sel('entry_tf', 'Entry TF', ['5m','15m','30m'])}
