@@ -623,61 +623,122 @@ function AutoTextarea({ value, onChange, placeholder, style, minHeight = 80 }) {
 // ── DYNAMIC CHART LIST ───────────────────────────────────────────
 // Unlimited charts; Add button sits at the bottom so no scrolling up.
 function ChartList({ charts, setCharts, markDirty, isForecast }) {
+  // charts is now an array of GROUPS: { label, note, noteOpen, images:[{url,tf}] }
   const TFS = ['W','D','4H','1H','30M','15M','5M']
+  const [lightbox, setLightbox] = React.useState(null) // {url, label}
 
-  function update(i, patch) {
-    setCharts(prev => prev.map((c, idx) => idx === i ? { ...c, ...patch } : c))
+  function updateGroup(gi, patch) {
+    setCharts(prev => prev.map((g, idx) => idx === gi ? { ...g, ...patch } : g))
     markDirty()
   }
-  function remove(i) {
-    setCharts(prev => prev.filter((_, idx) => idx !== i))
+  function removeGroup(gi) {
+    setCharts(prev => prev.filter((_, idx) => idx !== gi))
     markDirty()
   }
-  function add() {
-    setCharts(prev => [...prev, { url:'', tf:'', note:'', noteOpen:false }])
+  function addGroup() {
+    setCharts(prev => [...prev, { label:'', note:'', noteOpen:false, images:[{ url:'', tf:'' }] }])
+    markDirty()
+  }
+  function updateImage(gi, ii, patch) {
+    setCharts(prev => prev.map((g, idx) => {
+      if (idx !== gi) return g
+      const images = (g.images||[]).map((im, j) => j === ii ? { ...im, ...patch } : im)
+      return { ...g, images }
+    }))
+    markDirty()
+  }
+  function addImage(gi) {
+    setCharts(prev => prev.map((g, idx) => idx === gi ? { ...g, images:[...(g.images||[]), { url:'', tf:'' }] } : g))
+    markDirty()
+  }
+  function removeImage(gi, ii) {
+    setCharts(prev => prev.map((g, idx) => idx === gi ? { ...g, images:(g.images||[]).filter((_, j) => j !== ii) } : g))
     markDirty()
   }
 
   return (
     <div>
-      {charts.map((c, i) => (
-        <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'12px', padding:'12px 14px', border:'1px solid #E2E8F0' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
-            <select value={c.tf} onChange={e => update(i, { tf: e.target.value })}
-              style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'5px 10px', fontSize:'12px', fontWeight:'600', color: c.tf ? '#0F172A' : '#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer', flex:1, maxWidth:'120px' }}>
-              <option value="">Timeframe</option>
-              {TFS.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <span style={{ fontSize:'10px', color:'#94A3B8', flex:1 }}>Chart {i+1}</span>
-            <button type="button" onClick={() => remove(i)}
-              style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'14px', padding:'0' }}>✕</button>
+      {charts.map((g, gi) => {
+        const images = g.images || []
+        return (
+        <div key={gi} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'14px', padding:'14px 16px', border:'1px solid #E2E8F0' }}>
+          {/* Group label */}
+          <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'12px' }}>
+            <input value={g.label||''} onChange={e => updateGroup(gi, { label: e.target.value })}
+              placeholder="Label (e.g. EU, GBP, DXY)…"
+              style={{ flex:1, background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', color:'#0F172A', fontFamily:'inherit', outline:'none', transition:'border-color .15s' }}
+              onFocus={e => e.target.style.borderColor='#4F46E5'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+            <span style={{ fontSize:'11px', color:'#94A3B8', whiteSpace:'nowrap' }}>{images.length} chart{images.length===1?'':'s'}</span>
+            <button type="button" onClick={() => removeGroup(gi)} title="Remove group"
+              style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'15px', padding:'0 2px' }}>✕</button>
           </div>
-          <input type="url" value={c.url} onChange={e => update(i, { url: e.target.value })}
-            placeholder="Paste TradingView snapshot URL..."
-            style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'9px 12px', fontSize:'12px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', marginBottom:'8px', transition:'border-color .15s' }}
-            onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
-          {!c.noteOpen && !(c.note && c.note.trim()) && (
-            <button type="button" onClick={() => update(i, { noteOpen: true })}
-              style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', marginBottom: (c.url && c.url.trim()) ? '10px' : '0', display:'inline-flex', alignItems:'center', gap:'5px' }}>
+
+          {/* Thumbnail grid */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(150px, 1fr))', gap:'10px', marginBottom:'12px' }}>
+            {images.map((im, ii) => (
+              <div key={ii} style={{ background:'#FFFFFF', border:'1px solid #E2E8F0', borderRadius:'10px', padding:'8px', position:'relative' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'6px' }}>
+                  <select value={im.tf||''} onChange={e => updateImage(gi, ii, { tf: e.target.value })}
+                    style={{ flex:1, background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:'6px', padding:'3px 6px', fontSize:'11px', fontWeight:'600', color: im.tf ? '#0F172A' : '#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer' }}>
+                    <option value="">TF</option>
+                    {TFS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <button type="button" onClick={() => removeImage(gi, ii)}
+                    style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'13px', padding:'0 2px', lineHeight:1 }}>✕</button>
+                </div>
+                <input type="url" value={im.url||''} onChange={e => updateImage(gi, ii, { url: e.target.value })}
+                  placeholder="Paste chart URL…"
+                  style={{ width:'100%', background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:'6px', padding:'6px 8px', fontSize:'10.5px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', marginBottom: im.url && im.url.trim() ? '8px' : '0' }} />
+                {im.url && im.url.trim() && (
+                  <div onClick={() => setLightbox({ url: im.url.trim(), label: (g.label?g.label+' · ':'') + (im.tf||`Chart ${ii+1}`) })}
+                    style={{ cursor:'zoom-in', borderRadius:'8px', overflow:'hidden', aspectRatio:'16/10', background:'#F1F5F9', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <img src={im.url.trim()} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+                      onError={e => { e.target.style.display='none'; e.target.parentElement.innerHTML='<span style=\"font-size:10px;color:#94A3B8;text-align:center;padding:8px\">Preview unavailable — tap to open</span>'; e.target.parentElement.onclick = () => window.open(im.url.trim(),'_blank') }} />
+                  </div>
+                )}
+              </div>
+            ))}
+            {/* Add image tile */}
+            <button type="button" onClick={() => addImage(gi)}
+              style={{ background:'#FFFFFF', border:'1.5px dashed #CBD5E1', borderRadius:'10px', minHeight:'92px', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'4px', color:'#94A3B8', fontFamily:'inherit', transition:'all .15s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor='#4F46E5'; e.currentTarget.style.color='#4F46E5' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor='#CBD5E1'; e.currentTarget.style.color='#94A3B8' }}>
+              <span style={{ fontSize:'18px', lineHeight:1 }}>+</span>
+              <span style={{ fontSize:'10.5px', fontWeight:'600' }}>Add chart</span>
+            </button>
+          </div>
+
+          {/* Shared note for the group */}
+          {!g.noteOpen && !(g.note && g.note.trim()) ? (
+            <button type="button" onClick={() => updateGroup(gi, { noteOpen: true })}
+              style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', display:'inline-flex', alignItems:'center', gap:'5px' }}>
               <span>+</span> Add note
             </button>
+          ) : (
+            <AutoTextarea value={g.note||''} onChange={e => updateGroup(gi, { note: e.target.value })}
+              placeholder={isForecast ? "What are you watching across these charts — levels, bias, the setup you want…" : "Analysis across these charts…"}
+              minHeight={64} style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px' }} />
           )}
-          {(c.noteOpen || (c.note && c.note.trim())) && (
-            <div style={{ marginBottom: (c.url && c.url.trim()) ? '10px' : '0' }}>
-              <AutoTextarea value={c.note} onChange={e => update(i, { note: e.target.value })}
-                placeholder={isForecast ? "What are you watching on this chart — key levels, bias, setup..." : "Chart analysis notes..."}
-                minHeight={60} style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px' }} />
-            </div>
-          )}
-          {c.url && c.url.trim() && <ChartImage url={c.url.trim()} label={c.tf || `Chart ${i+1}`} large />}
         </div>
-      ))}
-      <button type="button" onClick={add}
+        )
+      })}
+      <button type="button" onClick={addGroup}
         style={{ width:'100%', background:'#F8FAFC', border:'1.5px dashed #CBD5E1', borderRadius:'10px', padding:'11px', fontSize:'12.5px', fontWeight:'600', color:'#475569', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px', transition:'all .15s' }}
         onMouseEnter={e => { e.currentTarget.style.background='#EEF0FE'; e.currentTarget.style.borderColor='#4F46E5'; e.currentTarget.style.color='#4F46E5' }}
         onMouseLeave={e => { e.currentTarget.style.background='#F8FAFC'; e.currentTarget.style.borderColor='#CBD5E1'; e.currentTarget.style.color='#475569' }}>
-        <span style={{ fontSize:'15px', lineHeight:1 }}>+</span> Add Chart
+        <span style={{ fontSize:'15px', lineHeight:1 }}>+</span> Add Chart Group
       </button>
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div onClick={() => setLightbox(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(15,23,42,.82)', zIndex:9999, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'24px', cursor:'zoom-out' }}>
+          <div style={{ color:'#fff', fontSize:'13px', fontWeight:'600', marginBottom:'12px' }}>{lightbox.label}</div>
+          <img src={lightbox.url} alt="" style={{ maxWidth:'94vw', maxHeight:'82vh', objectFit:'contain', borderRadius:'10px', boxShadow:'0 20px 60px rgba(0,0,0,.5)' }}
+            onClick={e => e.stopPropagation()} />
+          <button onClick={() => setLightbox(null)} style={{ marginTop:'16px', background:'rgba(255,255,255,.14)', color:'#fff', border:'1px solid rgba(255,255,255,.3)', borderRadius:'8px', padding:'8px 18px', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit' }}>Close</button>
+        </div>
+      )}
     </div>
   )
 }
@@ -871,23 +932,32 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setChart3(existingNote.week_summary || '')
       try { const notes = JSON.parse(existingNote.top_mistake||'[]'); setChartNote1(notes[0]||''); setChartNote2(notes[1]||''); setChartNote3(notes[2]||''); setChartNote4(notes[3]||''); setNoteOpen1(!!notes[0]); setNoteOpen2(!!notes[1]); setNoteOpen3(!!notes[2]); setNoteOpen4(!!notes[3]) } catch(e) { setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('') }
       try { const tfs = JSON.parse(existingNote.htf_bias||'[]'); setChartTf1(tfs[0]||''); setChartTf2(tfs[1]||''); setChartTf3(tfs[2]||''); setChartTf4(tfs[3]||'') } catch(e) { setChartTf1(''); setChartTf2(''); setChartTf3(''); setChartTf4('') }
-      // Dynamic charts: prefer chart_groups JSON, else migrate from old 4-slot columns
+      // Dynamic charts: prefer chart_groups JSON (grouped shape), migrate old shapes
       try {
         const cg = JSON.parse(existingNote.chart_groups || '[]')
         if (Array.isArray(cg) && cg.length > 0) {
-          setCharts(cg.map(c => ({ url: c.url||'', tf: c.tf||'', note: c.note||'', noteOpen: !!(c.note && c.note.trim()) })))
+          if (cg[0] && Array.isArray(cg[0].images)) {
+            // Already grouped shape
+            setCharts(cg.map(g => ({ label: g.label||'', note: g.note||'', noteOpen: !!(g.note && g.note.trim()), images: (g.images||[]).map(im => ({ url: im.url||'', tf: im.tf||'' })) })))
+          } else {
+            // Old flat list [{url,tf,note}] → wrap into one group
+            const images = cg.map(c => ({ url: c.url||'', tf: c.tf||'' })).filter(im => im.url.trim())
+            const note = cg.map(c => c.note).filter(n => n && n.trim()).join('\n')
+            setCharts(images.length || note ? [{ label:'', note, noteOpen: !!note, images: images.length ? images : [{ url:'', tf:'' }] }] : [])
+          }
         } else {
+          // Migrate from very old 4-slot columns
           const urls  = [existingNote.observations||'', existingNote.execution_review||'', existingNote.week_summary||'']
           let notes = [], tfs = []
           try { notes = JSON.parse(existingNote.top_mistake||'[]') } catch(e) {}
           try { tfs   = JSON.parse(existingNote.htf_bias||'[]') } catch(e) {}
-          const migrated = []
+          const images = []
+          let note = ''
           for (let i=0;i<4;i++){
-            const u = (urls[i]||'').trim()
-            const n = (notes[i]||'').trim()
-            if (u || n) migrated.push({ url: urls[i]||'', tf: tfs[i]||'', note: notes[i]||'', noteOpen: !!n })
+            if ((urls[i]||'').trim()) images.push({ url: urls[i], tf: tfs[i]||'' })
+            if ((notes[i]||'').trim()) note += (note?'\n':'') + notes[i]
           }
-          setCharts(migrated)
+          setCharts(images.length || note ? [{ label:'', note, noteOpen: !!note, images: images.length ? images : [{ url:'', tf:'' }] }] : [])
         }
       } catch(e) { setCharts([]) }
       try { setEconSnapshot(JSON.parse(existingNote.econ_snapshot||'[]')) } catch(e) { setEconSnapshot([]) }
@@ -919,7 +989,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
     const hasContent = [mood, plan, eodReview, wentWell, improve, followedPlan,
       chart1, chart2, chart3, chart4, chartNote1, chartNote2, chartNote3, chartNote4
     ].some(v => v && v.trim().length > 0) || checklist.some(v => v) || !!tradeType
-      || charts.some(c => (c.url && c.url.trim()) || (c.note && c.note.trim()))
+      || charts.some(g => (g.images||[]).some(im => im.url && im.url.trim()) || (g.note && g.note.trim()) || (g.label && g.label.trim()))
       || (Array.isArray(econSnapshot) && econSnapshot.length > 0)
       || grades.some(g => g > 0)
     if (!hasContent && !existingNote) { setNoteDirty(false); return }
@@ -945,7 +1015,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         htf_bias:         JSON.stringify([chartTf1,chartTf2,chartTf3,chartTf4]),
         top_mistake:      JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
         econ_snapshot:    JSON.stringify(econSnapshot),
-        chart_groups:     JSON.stringify(charts.filter(c => (c.url && c.url.trim()) || (c.note && c.note.trim())).map(c => ({ url: c.url||'', tf: c.tf||'', note: c.note||'' }))),
+        chart_groups:     JSON.stringify(charts.map(g => ({ label: g.label||'', note: g.note||'', images: (g.images||[]).filter(im => im.url && im.url.trim()).map(im => ({ url: im.url, tf: im.tf||'' })) })).filter(g => g.images.length > 0 || (g.note && g.note.trim()) || (g.label && g.label.trim()))),
         checklist_data:   JSON.stringify({ type: tradeType, checks: checklist, grades }),
       })
       setNoteDirty(false)
@@ -1181,7 +1251,9 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
               <TradeForm key={editingTrade.id} onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
             )}
             </div>
-            {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={startEditTrade} onOpenDay={onOpenJournal ? (d => onOpenJournal(d, false)) : null} />)}
+            <div style={{ display:'grid', gridTemplateColumns: weekTrades.length > 1 ? 'repeat(auto-fit, minmax(300px, 1fr))' : '1fr', gap:'12px' }}>
+              {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={startEditTrade} onOpenDay={onOpenJournal ? (d => onOpenJournal(d, false)) : null} />)}
+            </div>
           </div>
         )}
         {!isWeekly && !isForecast && (
@@ -1191,7 +1263,9 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
               <TradeForm key={editingTrade ? editingTrade.id : 'new'} onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
             )}
             </div>
-            {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={startEditTrade} />)}
+            <div style={{ display:'grid', gridTemplateColumns: dayTrades.length > 1 ? 'repeat(auto-fit, minmax(300px, 1fr))' : '1fr', gap:'12px' }}>
+              {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={startEditTrade} />)}
+            </div>
           </>
         )}
       </div>
