@@ -6,14 +6,9 @@ import { useEconomicCalendar, currencyFlag, formatFFTime } from '../lib/useEcono
 const TIMES   = ['02:00','02:30','03:00','03:30','04:00','04:30','05:00','05:30','06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00']
 const SYMBOLS = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','DAX','Gold','Silver']
 const LEVELS  = ['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']
-const EMOTIONS = ['Calm','Patient','Focused','Confident','FOMO','Anxious','Bored','Frustrated','Overconfident','Hesitant','Revenge urge','Greedy','Fearful']
-const TAG_MISTAKES = ['Entered early','Chased entry','Moved stop','Oversized','Undersized','Took partial too early','Exited early','Held too long','No confirmation','Traded outside killzone','Wrong bias','Revenge trade','Overtraded','FOMO entry']
+const CUSTOM_LEVELS_KEY = 'tt26_custom_levels'
 
-// Built-in preset map by category key
-const PRESETS = { level: LEVELS, emotion: EMOTIONS, mistake_tag: TAG_MISTAKES }
-const CUSTOM_KEY = cat => `tt26_custom_${cat}`
-
-// Parse a stored multi-value field into an array (handles old single-string format)
+// Parse a trade's stored level field into an array (handles old single-string format)
 function parseLevels(raw) {
   if (!raw) return []
   if (Array.isArray(raw)) return raw
@@ -25,34 +20,31 @@ function parseLevels(raw) {
     return raw ? [String(raw)] : []   // old single-value string
   }
 }
-function getCustom(cat) {
-  try { return JSON.parse(localStorage.getItem(CUSTOM_KEY(cat)) || '[]') } catch { return [] }
+function getCustomLevels() {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_LEVELS_KEY) || '[]') } catch { return [] }
 }
-function addCustom(cat, name) {
+function addCustomLevel(name) {
   const v = (name || '').trim()
-  if (!v) return getCustom(cat)
-  const cur = getCustom(cat)
-  const builtin = PRESETS[cat] || []
-  if (cur.includes(v) || builtin.includes(v)) return cur
+  if (!v) return getCustomLevels()
+  const cur = getCustomLevels()
+  if (cur.includes(v) || LEVELS.includes(v)) return cur
   const next = [...cur, v]
-  try { localStorage.setItem(CUSTOM_KEY(cat), JSON.stringify(next)) } catch {}
-  return next
-}
-function removeCustomPreset(cat, name) {
-  const next = getCustom(cat).filter(c => c !== name)
-  try { localStorage.setItem(CUSTOM_KEY(cat), JSON.stringify(next)) } catch {}
+  try { localStorage.setItem(CUSTOM_LEVELS_KEY, JSON.stringify(next)) } catch {}
   return next
 }
 const MISTAKES= ['No mistake','Wrong bias','Level not aligned with bias','Entered outside killzone','No breaker block formed','Entered before breaker closed','Premature entry — no confirmation','Moved stop too early','Took partial too early','Revenge trade','Overtraded']
 const GRADE_ITEMS = [
-  'Preparation',
-  'Patience',
-  'Entry Quality',
-  'Risk',
-  'Exit Discipline',
+  'I checked my mental/emotional state before opening the platform',
+  'My bias and markup were built before the session, not during',
+  'Every trade had a written plan before I entered',
+  'I sat with inactivity without forcing a trade',
+  'I did not interfere with a trade once it was live',
+  'Wins and losses landed without triggering a reaction',
+  'I named any loop that appeared during the session',
+  'I stopped cleanly when my rules said stop',
 ]
 
-const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', trade_type:'', r:'', mae:'', mfe:'', outcome:'', mistake:'No mistake', emotions:'', mistake_tags:'', screenshot:'', screenshot2:'', journal:'' }
+const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', trade_type:'', r:'', mae:'', mfe:'', outcome:'', mistake:'No mistake', screenshot:'', screenshot2:'', journal:'' }
 const TRADE_DRAFT = 'tt26_trade_draft'
 const FORM_OPEN   = 'tt26_form_open'
 
@@ -210,92 +202,68 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
 }
 
 
-// ── TAG COMBOBOX — autocomplete + dropdown + multi-select + custom ──
-function TagCombobox({ cat, selected, onChange, placeholder, accent = 'var(--blue)' }) {
-  const [custom, setCustom] = useState(getCustom(cat))
+// ── KEY LEVEL PICKER — presets + custom + multi-select ───────────
+function KeyLevelPicker({ selected, onChange }) {
+  const [custom, setCustom] = useState(getCustomLevels())
   const [text, setText] = useState('')
-  const [open, setOpen] = useState(false)
-  const boxRef = useRef(null)
   const sel = Array.isArray(selected) ? selected : []
-  const allPresets = [...(PRESETS[cat] || []), ...custom.filter(c => !(PRESETS[cat] || []).includes(c))]
+  const allPresets = [...LEVELS, ...custom.filter(c => !LEVELS.includes(c))]
 
-  useEffect(() => {
-    function onDoc(e) { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', onDoc)
-    return () => document.removeEventListener('mousedown', onDoc)
-  }, [])
-
-  const q = text.trim().toLowerCase()
-  const matches = allPresets.filter(p => p.toLowerCase().includes(q) && !sel.includes(p))
-  const exactExists = allPresets.some(p => p.toLowerCase() === q) || sel.some(s => s.toLowerCase() === q)
-
-  function add(name) {
-    const v = (name || '').trim()
-    if (!v) return
-    if (!(PRESETS[cat] || []).includes(v) && !getCustom(cat).includes(v)) setCustom(addCustom(cat, v))
-    if (!sel.includes(v)) onChange([...sel, v])
-    setText(''); setOpen(true)
+  function toggle(name) {
+    if (sel.includes(name)) onChange(sel.filter(s => s !== name))
+    else onChange([...sel, name])
   }
-  function remove(name) { onChange(sel.filter(s => s !== name)) }
-  function deletePreset(name, e) {
+  function addNew() {
+    const v = text.trim()
+    if (!v) return
+    setCustom(addCustomLevel(v))
+    if (!sel.includes(v)) onChange([...sel, v])
+    setText('')
+  }
+  function removeCustom(name, e) {
     e.stopPropagation()
-    setCustom(removeCustomPreset(cat, name))
+    const next = custom.filter(c => c !== name)
+    setCustom(next)
+    try { localStorage.setItem(CUSTOM_LEVELS_KEY, JSON.stringify(next)) } catch {}
     if (sel.includes(name)) onChange(sel.filter(s => s !== name))
   }
 
   return (
-    <div ref={boxRef} style={{ position:'relative' }}>
+    <div>
       {/* Selected chips */}
       {sel.length > 0 && (
         <div style={{ display:'flex', flexWrap:'wrap', gap:'6px', marginBottom:'8px' }}>
           {sel.map(s => (
-            <span key={s} style={{ display:'inline-flex', alignItems:'center', gap:'5px', background:accent, color:'#fff', fontSize:'11.5px', fontWeight:'600', padding:'4px 10px', borderRadius:'20px' }}>
+            <span key={s} style={{ display:'inline-flex', alignItems:'center', gap:'5px', background:'var(--blue)', color:'#fff', fontSize:'11.5px', fontWeight:'600', padding:'4px 10px', borderRadius:'20px' }}>
               {s}
-              <span onClick={() => remove(s)} style={{ cursor:'pointer', fontSize:'13px', lineHeight:1, opacity:.8 }}>×</span>
+              <span onClick={() => toggle(s)} style={{ cursor:'pointer', fontSize:'13px', lineHeight:1, opacity:.8 }}>×</span>
             </span>
           ))}
         </div>
       )}
-      {/* Input + caret */}
-      <div style={{ display:'flex', alignItems:'center', position:'relative' }}>
-        <input className="form-input" value={text}
-          onChange={e => { setText(e.target.value); setOpen(true) }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={e => {
-            if (e.key === 'Enter') { e.preventDefault(); if (text.trim()) add(matches[0] && matches[0].toLowerCase() === q ? matches[0] : text.trim()) }
-            if (e.key === 'Escape') setOpen(false)
-          }}
-          placeholder={placeholder || 'Type to search or add…'}
-          style={{ flex:1, fontSize:'12.5px', padding:'9px 30px 9px 12px' }} />
-        <span onClick={() => setOpen(o => !o)} style={{ position:'absolute', right:'10px', cursor:'pointer', color:'var(--muted2)', fontSize:'10px', userSelect:'none' }}>▼</span>
+      {/* Preset options */}
+      <div style={{ display:'flex', flexWrap:'wrap', gap:'5px', marginBottom:'8px' }}>
+        {allPresets.map(p => {
+          const on = sel.includes(p)
+          const isCustom = !LEVELS.includes(p)
+          return (
+            <span key={p} onClick={() => toggle(p)}
+              style={{ display:'inline-flex', alignItems:'center', gap:'4px', fontSize:'11px', fontWeight:'500', padding:'4px 9px', borderRadius:'7px', cursor:'pointer', userSelect:'none', transition:'all .12s',
+                background: on ? 'var(--blue-bg)' : 'var(--surface2)', color: on ? 'var(--blue)' : 'var(--muted)', border:`1px solid ${on ? 'var(--blue-dim)' : 'var(--border)'}` }}>
+              {p}
+              {isCustom && <span onClick={e => removeCustom(p, e)} title="Remove preset" style={{ color:'var(--muted2)', fontSize:'12px', lineHeight:1, marginLeft:'2px' }}>×</span>}
+            </span>
+          )
+        })}
       </div>
-      {/* Dropdown */}
-      {open && (
-        <div style={{ position:'absolute', top:'100%', left:0, right:0, marginTop:'4px', background:'var(--surface)', border:'1px solid var(--border2)', borderRadius:'var(--r-sm)', boxShadow:'var(--shadow-md)', zIndex:50, maxHeight:'240px', overflowY:'auto' }}>
-          {/* Add-new row */}
-          {text.trim() && !exactExists && (
-            <div onClick={() => add(text.trim())}
-              style={{ padding:'9px 13px', cursor:'pointer', fontSize:'12.5px', fontWeight:'600', color:accent, borderBottom: matches.length ? '1px solid var(--border)' : 'none', display:'flex', alignItems:'center', gap:'6px' }}>
-              <span style={{ fontSize:'14px', lineHeight:1 }}>+</span> Add “{text.trim()}”
-            </div>
-          )}
-          {(text.trim() ? matches : allPresets.filter(p => !sel.includes(p))).map(p => {
-            const isCustom = !(PRESETS[cat] || []).includes(p)
-            return (
-              <div key={p} onClick={() => add(p)}
-                style={{ padding:'8px 13px', cursor:'pointer', fontSize:'12.5px', color:'var(--text2)', display:'flex', alignItems:'center', gap:'8px', transition:'background .1s' }}
-                onMouseEnter={e => e.currentTarget.style.background='var(--surface2)'}
-                onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                <span style={{ flex:1 }}>{p}</span>
-                {isCustom && <span onClick={e => deletePreset(p, e)} title="Delete preset" style={{ color:'var(--muted2)', fontSize:'13px', lineHeight:1 }}>×</span>}
-              </div>
-            )
-          })}
-          {!text.trim() && allPresets.filter(p => !sel.includes(p)).length === 0 && (
-            <div style={{ padding:'10px 13px', fontSize:'12px', color:'var(--muted2)' }}>All added — type to create a new one</div>
-          )}
-        </div>
-      )}
+      {/* Add custom */}
+      <div style={{ display:'flex', gap:'6px' }}>
+        <input className="form-input" value={text} onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNew() } }}
+          placeholder="Type a custom level and press Enter (saves for next time)"
+          style={{ flex:1, fontSize:'12px', padding:'8px 11px' }} />
+        <button type="button" onClick={addNew} className="btn btn-outline btn-sm" style={{ flexShrink:0 }}>Add</button>
+      </div>
     </div>
   )
 }
@@ -373,27 +341,12 @@ function TradeForm({ onSave, onCancel, initialData }) {
         {sel('outcome', 'Outcome', ['Win','Loss','Break Even'])}
         {sel('mistake', 'Mistake', MISTAKES)}
       </div>
-      {/* Key Levels — autocomplete combobox */}
+      {/* Key Levels — multi-select with custom presets */}
       <div className="form-group" style={{ marginBottom:'11px' }}>
-        <label className="form-label">Key Levels <span style={{ textTransform:'none', fontWeight:'400', color:'var(--muted2)' }}>· type to search or add, click ▼ for full list</span></label>
-        <TagCombobox cat="level" selected={parseLevels(form.level)}
-          onChange={arr => setV('level', JSON.stringify(arr))}
-          placeholder="Type a level (e.g. 4H Order Block) or add your own…" accent="var(--blue)" />
-      </div>
-      {/* Emotions + Mistakes tags */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'11px', marginBottom:'11px' }}>
-        <div className="form-group">
-          <label className="form-label">Emotions</label>
-          <TagCombobox cat="emotion" selected={parseLevels(form.emotions)}
-            onChange={arr => setV('emotions', JSON.stringify(arr))}
-            placeholder="How did you feel? (e.g. FOMO, Calm)…" accent="#7C3AED" />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Mistakes</label>
-          <TagCombobox cat="mistake_tag" selected={parseLevels(form.mistake_tags)}
-            onChange={arr => setV('mistake_tags', JSON.stringify(arr))}
-            placeholder="Any mistakes? (e.g. Moved stop)…" accent="#E11D48" />
-        </div>
+        <label className="form-label">Key Levels <span style={{ textTransform:'none', fontWeight:'400', color:'var(--muted2)' }}>· tap to add, type your own</span></label>
+        <KeyLevelPicker
+          selected={parseLevels(form.level)}
+          onChange={arr => setV('level', JSON.stringify(arr))} />
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'11px', marginBottom:'11px' }}>
         <div className="form-group">
@@ -493,18 +446,6 @@ function TradeCard({ t, onDelete, onEdit, onOpenDay }) {
           </div>
         ))}
       </div>
-
-      {/* Emotion + Mistake tags */}
-      {(parseLevels(t.emotions).length > 0 || parseLevels(t.mistake_tags).length > 0) && (
-        <div style={{ padding:'10px 20px', borderBottom:'1px solid #F1F5F9', display:'flex', flexWrap:'wrap', gap:'6px', alignItems:'center' }}>
-          {parseLevels(t.emotions).map(e => (
-            <span key={'e'+e} style={{ fontSize:'11px', fontWeight:'600', color:'#7C3AED', background:'#F2ECFE', border:'1px solid #D2BEF9', padding:'3px 9px', borderRadius:'20px' }}>{e}</span>
-          ))}
-          {parseLevels(t.mistake_tags).map(m => (
-            <span key={'m'+m} style={{ fontSize:'11px', fontWeight:'600', color:'#E11D48', background:'#FDECEF', border:'1px solid #F6B9C6', padding:'3px 9px', borderRadius:'20px' }}>{m}</span>
-          ))}
-        </div>
-      )}
 
       {/* Mistake */}
       {t.mistake && t.mistake !== 'No mistake' && (
@@ -620,122 +561,61 @@ function AutoTextarea({ value, onChange, placeholder, style, minHeight = 80 }) {
 // ── DYNAMIC CHART LIST ───────────────────────────────────────────
 // Unlimited charts; Add button sits at the bottom so no scrolling up.
 function ChartList({ charts, setCharts, markDirty, isForecast }) {
-  // charts is now an array of GROUPS: { label, note, noteOpen, images:[{url,tf}] }
   const TFS = ['W','D','4H','1H','30M','15M','5M']
-  const [lightbox, setLightbox] = React.useState(null) // {url, label}
 
-  function updateGroup(gi, patch) {
-    setCharts(prev => prev.map((g, idx) => idx === gi ? { ...g, ...patch } : g))
+  function update(i, patch) {
+    setCharts(prev => prev.map((c, idx) => idx === i ? { ...c, ...patch } : c))
     markDirty()
   }
-  function removeGroup(gi) {
-    setCharts(prev => prev.filter((_, idx) => idx !== gi))
+  function remove(i) {
+    setCharts(prev => prev.filter((_, idx) => idx !== i))
     markDirty()
   }
-  function addGroup() {
-    setCharts(prev => [...prev, { label:'', note:'', noteOpen:false, images:[{ url:'', tf:'' }] }])
-    markDirty()
-  }
-  function updateImage(gi, ii, patch) {
-    setCharts(prev => prev.map((g, idx) => {
-      if (idx !== gi) return g
-      const images = (g.images||[]).map((im, j) => j === ii ? { ...im, ...patch } : im)
-      return { ...g, images }
-    }))
-    markDirty()
-  }
-  function addImage(gi) {
-    setCharts(prev => prev.map((g, idx) => idx === gi ? { ...g, images:[...(g.images||[]), { url:'', tf:'' }] } : g))
-    markDirty()
-  }
-  function removeImage(gi, ii) {
-    setCharts(prev => prev.map((g, idx) => idx === gi ? { ...g, images:(g.images||[]).filter((_, j) => j !== ii) } : g))
+  function add() {
+    setCharts(prev => [...prev, { url:'', tf:'', note:'', noteOpen:false }])
     markDirty()
   }
 
   return (
     <div>
-      {charts.map((g, gi) => {
-        const images = g.images || []
-        return (
-        <div key={gi} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'14px', padding:'14px 16px', border:'1px solid #E2E8F0' }}>
-          {/* Group label */}
-          <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'12px' }}>
-            <input value={g.label||''} onChange={e => updateGroup(gi, { label: e.target.value })}
-              placeholder="Label (e.g. EU, GBP, DXY)…"
-              style={{ flex:1, background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'8px 12px', fontSize:'13px', fontWeight:'600', color:'#0F172A', fontFamily:'inherit', outline:'none', transition:'border-color .15s' }}
-              onFocus={e => e.target.style.borderColor='#4F46E5'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
-            <span style={{ fontSize:'11px', color:'#94A3B8', whiteSpace:'nowrap' }}>{images.length} chart{images.length===1?'':'s'}</span>
-            <button type="button" onClick={() => removeGroup(gi)} title="Remove group"
-              style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'15px', padding:'0 2px' }}>✕</button>
+      {charts.map((c, i) => (
+        <div key={i} style={{ marginBottom:'16px', background:'#F8FAFC', borderRadius:'12px', padding:'12px 14px', border:'1px solid #E2E8F0' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
+            <select value={c.tf} onChange={e => update(i, { tf: e.target.value })}
+              style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'5px 10px', fontSize:'12px', fontWeight:'600', color: c.tf ? '#0F172A' : '#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer', flex:1, maxWidth:'120px' }}>
+              <option value="">Timeframe</option>
+              {TFS.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <span style={{ fontSize:'10px', color:'#94A3B8', flex:1 }}>Chart {i+1}</span>
+            <button type="button" onClick={() => remove(i)}
+              style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'14px', padding:'0' }}>✕</button>
           </div>
-
-          {/* Thumbnail grid */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(150px, 1fr))', gap:'10px', marginBottom:'12px' }}>
-            {images.map((im, ii) => (
-              <div key={ii} style={{ background:'#FFFFFF', border:'1px solid #E2E8F0', borderRadius:'10px', padding:'8px', position:'relative' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'6px' }}>
-                  <select value={im.tf||''} onChange={e => updateImage(gi, ii, { tf: e.target.value })}
-                    style={{ flex:1, background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:'6px', padding:'3px 6px', fontSize:'11px', fontWeight:'600', color: im.tf ? '#0F172A' : '#94A3B8', fontFamily:'inherit', outline:'none', cursor:'pointer' }}>
-                    <option value="">TF</option>
-                    {TFS.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <button type="button" onClick={() => removeImage(gi, ii)}
-                    style={{ background:'none', border:'none', color:'#CBD5E1', cursor:'pointer', fontSize:'13px', padding:'0 2px', lineHeight:1 }}>✕</button>
-                </div>
-                <input type="url" value={im.url||''} onChange={e => updateImage(gi, ii, { url: e.target.value })}
-                  placeholder="Paste chart URL…"
-                  style={{ width:'100%', background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:'6px', padding:'6px 8px', fontSize:'10.5px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', marginBottom: im.url && im.url.trim() ? '8px' : '0' }} />
-                {im.url && im.url.trim() && (
-                  <div onClick={() => setLightbox({ url: im.url.trim(), label: (g.label?g.label+' · ':'') + (im.tf||`Chart ${ii+1}`) })}
-                    style={{ cursor:'zoom-in', borderRadius:'8px', overflow:'hidden', aspectRatio:'16/10', background:'#F1F5F9', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                    <img src={im.url.trim()} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
-                      onError={e => { e.target.style.display='none'; e.target.parentElement.innerHTML='<span style=\"font-size:10px;color:#94A3B8;text-align:center;padding:8px\">Preview unavailable — tap to open</span>'; e.target.parentElement.onclick = () => window.open(im.url.trim(),'_blank') }} />
-                  </div>
-                )}
-              </div>
-            ))}
-            {/* Add image tile */}
-            <button type="button" onClick={() => addImage(gi)}
-              style={{ background:'#FFFFFF', border:'1.5px dashed #CBD5E1', borderRadius:'10px', minHeight:'92px', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'4px', color:'#94A3B8', fontFamily:'inherit', transition:'all .15s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor='#4F46E5'; e.currentTarget.style.color='#4F46E5' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor='#CBD5E1'; e.currentTarget.style.color='#94A3B8' }}>
-              <span style={{ fontSize:'18px', lineHeight:1 }}>+</span>
-              <span style={{ fontSize:'10.5px', fontWeight:'600' }}>Add chart</span>
-            </button>
-          </div>
-
-          {/* Shared note for the group */}
-          {!g.noteOpen && !(g.note && g.note.trim()) ? (
-            <button type="button" onClick={() => updateGroup(gi, { noteOpen: true })}
-              style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', display:'inline-flex', alignItems:'center', gap:'5px' }}>
+          <input type="url" value={c.url} onChange={e => update(i, { url: e.target.value })}
+            placeholder="Paste TradingView snapshot URL..."
+            style={{ width:'100%', background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px', padding:'9px 12px', fontSize:'12px', color:'#0F172A', fontFamily:"'JetBrains Mono',monospace", outline:'none', boxSizing:'border-box', marginBottom:'8px', transition:'border-color .15s' }}
+            onFocus={e => e.target.style.borderColor='#6366F1'} onBlur={e => e.target.style.borderColor='#E2E8F0'} />
+          {!c.noteOpen && !(c.note && c.note.trim()) && (
+            <button type="button" onClick={() => update(i, { noteOpen: true })}
+              style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'8px', padding:'6px 12px', fontSize:'11px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', marginBottom: (c.url && c.url.trim()) ? '10px' : '0', display:'inline-flex', alignItems:'center', gap:'5px' }}>
               <span>+</span> Add note
             </button>
-          ) : (
-            <AutoTextarea value={g.note||''} onChange={e => updateGroup(gi, { note: e.target.value })}
-              placeholder={isForecast ? "What are you watching across these charts — levels, bias, the setup you want…" : "Analysis across these charts…"}
-              minHeight={64} style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px' }} />
           )}
+          {(c.noteOpen || (c.note && c.note.trim())) && (
+            <div style={{ marginBottom: (c.url && c.url.trim()) ? '10px' : '0' }}>
+              <AutoTextarea value={c.note} onChange={e => update(i, { note: e.target.value })}
+                placeholder={isForecast ? "What are you watching on this chart — key levels, bias, setup..." : "Chart analysis notes..."}
+                minHeight={60} style={{ background:'#FFFFFF', border:'1.5px solid #E2E8F0', borderRadius:'8px' }} />
+            </div>
+          )}
+          {c.url && c.url.trim() && <ChartImage url={c.url.trim()} label={c.tf || `Chart ${i+1}`} large />}
         </div>
-        )
-      })}
-      <button type="button" onClick={addGroup}
+      ))}
+      <button type="button" onClick={add}
         style={{ width:'100%', background:'#F8FAFC', border:'1.5px dashed #CBD5E1', borderRadius:'10px', padding:'11px', fontSize:'12.5px', fontWeight:'600', color:'#475569', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px', transition:'all .15s' }}
         onMouseEnter={e => { e.currentTarget.style.background='#EEF0FE'; e.currentTarget.style.borderColor='#4F46E5'; e.currentTarget.style.color='#4F46E5' }}
         onMouseLeave={e => { e.currentTarget.style.background='#F8FAFC'; e.currentTarget.style.borderColor='#CBD5E1'; e.currentTarget.style.color='#475569' }}>
-        <span style={{ fontSize:'15px', lineHeight:1 }}>+</span> Add Chart Group
+        <span style={{ fontSize:'15px', lineHeight:1 }}>+</span> Add Chart
       </button>
-
-      {/* Lightbox */}
-      {lightbox && (
-        <div onClick={() => setLightbox(null)}
-          style={{ position:'fixed', inset:0, background:'rgba(15,23,42,.82)', zIndex:9999, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'24px', cursor:'zoom-out' }}>
-          <div style={{ color:'#fff', fontSize:'13px', fontWeight:'600', marginBottom:'12px' }}>{lightbox.label}</div>
-          <img src={lightbox.url} alt="" style={{ maxWidth:'94vw', maxHeight:'82vh', objectFit:'contain', borderRadius:'10px', boxShadow:'0 20px 60px rgba(0,0,0,.5)' }}
-            onClick={e => e.stopPropagation()} />
-          <button onClick={() => setLightbox(null)} style={{ marginTop:'16px', background:'rgba(255,255,255,.14)', color:'#fff', border:'1px solid rgba(255,255,255,.3)', borderRadius:'8px', padding:'8px 18px', fontSize:'13px', fontWeight:'600', cursor:'pointer', fontFamily:'inherit' }}>Close</button>
-        </div>
-      )}
     </div>
   )
 }
@@ -892,7 +772,6 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [charts,     setCharts]     = useState([])  // dynamic chart list: {url, tf, note, noteOpen}
   const [checklist,  setChecklist]  = useState([])
   const [grades,     setGrades]     = useState([])  // 1-5 rating per GRADE_ITEM
-  const [gradeReasons, setGradeReasons] = useState([])  // "why not a 5" per GRADE_ITEM
   const [tradeType,   setTradeType]   = useState('')
   const [noteOpen2,  setNoteOpen2]  = useState(false)
   const [noteOpen3,  setNoteOpen3]  = useState(false)
@@ -917,7 +796,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   }, [noteDirty, mood, bias, plan, chart1, chart2, chart3, chart4,
       chartNote1, chartNote2, chartNote3, chartNote4,
       chartTf1, chartTf2, chartTf3, chartTf4,
-      eodReview, followedPlan, wentWell, improve, checklist, tradeType, charts, grades, gradeReasons])
+      eodReview, followedPlan, wentWell, improve, checklist, tradeType, charts, grades])
 
   // Load note data when date changes
   useEffect(() => {
@@ -930,36 +809,27 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setChart3(existingNote.week_summary || '')
       try { const notes = JSON.parse(existingNote.top_mistake||'[]'); setChartNote1(notes[0]||''); setChartNote2(notes[1]||''); setChartNote3(notes[2]||''); setChartNote4(notes[3]||''); setNoteOpen1(!!notes[0]); setNoteOpen2(!!notes[1]); setNoteOpen3(!!notes[2]); setNoteOpen4(!!notes[3]) } catch(e) { setChartNote1(''); setChartNote2(''); setChartNote3(''); setChartNote4('') }
       try { const tfs = JSON.parse(existingNote.htf_bias||'[]'); setChartTf1(tfs[0]||''); setChartTf2(tfs[1]||''); setChartTf3(tfs[2]||''); setChartTf4(tfs[3]||'') } catch(e) { setChartTf1(''); setChartTf2(''); setChartTf3(''); setChartTf4('') }
-      // Dynamic charts: prefer chart_groups JSON (grouped shape), migrate old shapes
+      // Dynamic charts: prefer chart_groups JSON, else migrate from old 4-slot columns
       try {
         const cg = JSON.parse(existingNote.chart_groups || '[]')
         if (Array.isArray(cg) && cg.length > 0) {
-          if (cg[0] && Array.isArray(cg[0].images)) {
-            // Already grouped shape
-            setCharts(cg.map(g => ({ label: g.label||'', note: g.note||'', noteOpen: !!(g.note && g.note.trim()), images: (g.images||[]).map(im => ({ url: im.url||'', tf: im.tf||'' })) })))
-          } else {
-            // Old flat list [{url,tf,note}] → wrap into one group
-            const images = cg.map(c => ({ url: c.url||'', tf: c.tf||'' })).filter(im => im.url.trim())
-            const note = cg.map(c => c.note).filter(n => n && n.trim()).join('\n')
-            setCharts(images.length || note ? [{ label:'', note, noteOpen: !!note, images: images.length ? images : [{ url:'', tf:'' }] }] : [])
-          }
+          setCharts(cg.map(c => ({ url: c.url||'', tf: c.tf||'', note: c.note||'', noteOpen: !!(c.note && c.note.trim()) })))
         } else {
-          // Migrate from very old 4-slot columns
           const urls  = [existingNote.observations||'', existingNote.execution_review||'', existingNote.week_summary||'']
           let notes = [], tfs = []
           try { notes = JSON.parse(existingNote.top_mistake||'[]') } catch(e) {}
           try { tfs   = JSON.parse(existingNote.htf_bias||'[]') } catch(e) {}
-          const images = []
-          let note = ''
+          const migrated = []
           for (let i=0;i<4;i++){
-            if ((urls[i]||'').trim()) images.push({ url: urls[i], tf: tfs[i]||'' })
-            if ((notes[i]||'').trim()) note += (note?'\n':'') + notes[i]
+            const u = (urls[i]||'').trim()
+            const n = (notes[i]||'').trim()
+            if (u || n) migrated.push({ url: urls[i]||'', tf: tfs[i]||'', note: notes[i]||'', noteOpen: !!n })
           }
-          setCharts(images.length || note ? [{ label:'', note, noteOpen: !!note, images: images.length ? images : [{ url:'', tf:'' }] }] : [])
+          setCharts(migrated)
         }
       } catch(e) { setCharts([]) }
       try { setEconSnapshot(JSON.parse(existingNote.econ_snapshot||'[]')) } catch(e) { setEconSnapshot([]) }
-      try { const cd = JSON.parse(existingNote.checklist_data||'{}'); setChecklist(cd.checks||[]); setTradeType(cd.type||''); setGrades(cd.grades||[]); setGradeReasons(cd.gradeReasons||[]) } catch(e) { setChecklist([]); setTradeType(''); setGrades([]); setGradeReasons([]) }
+      try { const cd = JSON.parse(existingNote.checklist_data||'{}'); setChecklist(cd.checks||[]); setTradeType(cd.type||''); setGrades(cd.grades||[]) } catch(e) { setChecklist([]); setTradeType(''); setGrades([]) }
       setEodReview(existingNote.trading_errors && !existingNote.trading_errors.startsWith('[') ? existingNote.trading_errors : '')
       setFollowedPlan(existingNote.consistency || '')
       setWentWell(existingNote.what_worked || '')
@@ -976,7 +846,6 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setChecklist([])
       setTradeType('')
       setGrades([])
-      setGradeReasons([])
     }
     setNoteDirty(false)
   }, [dateStr, existingNote?.id])
@@ -988,7 +857,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
     const hasContent = [mood, plan, eodReview, wentWell, improve, followedPlan,
       chart1, chart2, chart3, chart4, chartNote1, chartNote2, chartNote3, chartNote4
     ].some(v => v && v.trim().length > 0) || checklist.some(v => v) || !!tradeType
-      || charts.some(g => (g.images||[]).some(im => im.url && im.url.trim()) || (g.note && g.note.trim()) || (g.label && g.label.trim()))
+      || charts.some(c => (c.url && c.url.trim()) || (c.note && c.note.trim()))
       || (Array.isArray(econSnapshot) && econSnapshot.length > 0)
       || grades.some(g => g > 0)
     if (!hasContent && !existingNote) { setNoteDirty(false); return }
@@ -1014,8 +883,8 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         htf_bias:         JSON.stringify([chartTf1,chartTf2,chartTf3,chartTf4]),
         top_mistake:      JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
         econ_snapshot:    JSON.stringify(econSnapshot),
-        chart_groups:     JSON.stringify(charts.map(g => ({ label: g.label||'', note: g.note||'', images: (g.images||[]).filter(im => im.url && im.url.trim()).map(im => ({ url: im.url, tf: im.tf||'' })) })).filter(g => g.images.length > 0 || (g.note && g.note.trim()) || (g.label && g.label.trim()))),
-        checklist_data:   JSON.stringify({ type: tradeType, checks: checklist, grades, gradeReasons }),
+        chart_groups:     JSON.stringify(charts.filter(c => (c.url && c.url.trim()) || (c.note && c.note.trim())).map(c => ({ url: c.url||'', tf: c.tf||'', note: c.note||'' }))),
+        checklist_data:   JSON.stringify({ type: tradeType, checks: checklist, grades }),
       })
       setNoteDirty(false)
       toast('Day saved ✓')
@@ -1250,9 +1119,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
               <TradeForm key={editingTrade.id} onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
             )}
             </div>
-            <div style={{ display:'grid', gridTemplateColumns: weekTrades.length > 1 ? 'repeat(auto-fit, minmax(300px, 1fr))' : '1fr', gap:'12px' }}>
-              {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={startEditTrade} onOpenDay={onOpenJournal ? (d => onOpenJournal(d, false)) : null} />)}
-            </div>
+            {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={startEditTrade} onOpenDay={onOpenJournal ? (d => onOpenJournal(d, false)) : null} />)}
           </div>
         )}
         {!isWeekly && !isForecast && (
@@ -1262,9 +1129,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
               <TradeForm key={editingTrade ? editingTrade.id : 'new'} onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
             )}
             </div>
-            <div style={{ display:'grid', gridTemplateColumns: dayTrades.length > 1 ? 'repeat(auto-fit, minmax(300px, 1fr))' : '1fr', gap:'12px' }}>
-              {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={startEditTrade} />)}
-            </div>
+            {dayTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={startEditTrade} />)}
           </>
         )}
       </div>
@@ -1386,27 +1251,17 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
           <div style={{ padding:'14px 24px 20px' }}>
             {GRADE_ITEMS.map((item, i) => {
               const val = grades[i] || 0
-              const showWhy = val >= 1 && val <= 4
               return (
-                <div key={i} style={{ padding:'12px 0', borderBottom: i < GRADE_ITEMS.length-1 ? '1px solid #F8FAFC' : 'none' }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
-                    <span style={{ fontSize:'13.5px', fontWeight:'600', color:'#334155', flex:1 }}>{item}</span>
-                    <div style={{ display:'flex', gap:'4px' }}>
-                      {[1,2,3,4,5].map(n => (
-                        <button key={n} type="button" onClick={() => { const g=[...grades]; while(g.length<GRADE_ITEMS.length) g.push(0); g[i] = (g[i]===n ? 0 : n); setGrades(g); markDirty() }}
-                          style={{ width:'28px', height:'28px', borderRadius:'8px', border:`1.5px solid ${val>=n?'#4F46E5':'#E2E8F0'}`, background: val>=n?'#4F46E5':'transparent', color: val>=n?'#fff':'#CBD5E1', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:"'JetBrains Mono',monospace", transition:'all .12s', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                          {n}
-                        </button>
-                      ))}
-                    </div>
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:'12px', padding:'10px 0', borderBottom: i < GRADE_ITEMS.length-1 ? '1px solid #F8FAFC' : 'none' }}>
+                  <span style={{ fontSize:'13px', fontWeight:'500', color:'#334155', flex:1 }}>{item}</span>
+                  <div style={{ display:'flex', gap:'4px' }}>
+                    {[1,2,3,4,5].map(n => (
+                      <button key={n} type="button" onClick={() => { const g=[...grades]; while(g.length<GRADE_ITEMS.length) g.push(0); g[i] = (g[i]===n ? 0 : n); setGrades(g); markDirty() }}
+                        style={{ width:'28px', height:'28px', borderRadius:'8px', border:`1.5px solid ${val>=n?'#4F46E5':'#E2E8F0'}`, background: val>=n?'#4F46E5':'transparent', color: val>=n?'#fff':'#CBD5E1', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:"'JetBrains Mono',monospace", transition:'all .12s', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                        {n}
+                      </button>
+                    ))}
                   </div>
-                  {showWhy && (
-                    <div style={{ marginTop:'10px' }}>
-                      <AutoTextarea value={gradeReasons[i] || ''} onChange={e => { const r=[...gradeReasons]; while(r.length<GRADE_ITEMS.length) r.push(''); r[i]=e.target.value; setGradeReasons(r); markDirty() }}
-                        placeholder="Why not a 5?" minHeight={44}
-                        style={{ background:'#FEF9F4', border:'1.5px solid #FBE2C8', borderRadius:'10px', fontSize:'12.5px' }} />
-                    </div>
-                  )}
                 </div>
               )
             })}
