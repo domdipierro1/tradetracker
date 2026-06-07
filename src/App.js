@@ -295,7 +295,7 @@ export default function App() {
 
   if (!user) return <AuthPage onAuth={u => { setUser(u); loadAll(u.id) }} />
 
-  const pageProps = { trades: accountTrades, dailyNotes: accountNotes, toast: showToast, startingBalance, currency: activeAccount?.currency || 'USD' }
+  const pageProps = { trades: accountTrades, dailyNotes: accountNotes, toast: showToast, startingBalance, currency: activeAccount?.currency || 'USD', onOpenJournal: (date, weekly) => { setJournalDate(date); setJournalIsWeekly(weekly); setPage('journal'); window.scrollTo({top:0}) } }
 
   return (
     <>
@@ -312,7 +312,7 @@ export default function App() {
         onDeleteAccount={handleDeleteAccount}
       >
         {page === 'dashboard' && <Dashboard {...pageProps} />}
-        {page === 'journal'   && <DailyJournal trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onEditTrade={handleEdit} onDeleteTrade={handleDelete} toast={showToast} dateStr={journalDate} isWeekly={journalIsWeekly} />}
+        {page === 'journal'   && <DailyJournal trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onEditTrade={handleEdit} onDeleteTrade={handleDelete} toast={showToast} dateStr={journalDate} isWeekly={journalIsWeekly} onOpenJournal={(date, weekly) => { setJournalDate(date); setJournalIsWeekly(weekly); setPage('journal'); window.scrollTo({top:0}) }} />}
         {page === 'calendar'  && <Calendar  trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onEditTrade={handleEdit} onDeleteTrade={handleDelete} toast={showToast} onOpenJournal={(date, weekly) => { setJournalDate(date); setJournalIsWeekly(weekly); setPage('journal'); window.scrollTo({top:0}) }} />}
         {page === 'news'      && <NewsTab />}
         {page === 'analysis'  && <Analysis  {...pageProps} />}

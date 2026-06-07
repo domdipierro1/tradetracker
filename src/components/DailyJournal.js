@@ -6,16 +6,42 @@ import { useEconomicCalendar, currencyFlag, formatFFTime } from '../lib/useEcono
 const TIMES   = ['02:00','02:30','03:00','03:30','04:00','04:30','05:00','05:30','06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00']
 const SYMBOLS = ['AUD/USD','EUR/USD','GBP/USD','NZD/USD','USD/CAD','USD/CHF','USD/JPY','NQ','ES','DAX','Gold','Silver']
 const LEVELS  = ['Prev Month High','Prev Month Low','Prev Week High','Prev Week Low','Prev Day High','Prev Day Low','4H Fair Value Gap','4H Order Block','4H Breaker Block','4H Mitigation Block','Daily Fair Value Gap','Daily Order Block','Daily Breaker Block','Daily Mitigation Block']
+const CUSTOM_LEVELS_KEY = 'tt26_custom_levels'
+
+// Parse a trade's stored level field into an array (handles old single-string format)
+function parseLevels(raw) {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw
+  try {
+    const p = JSON.parse(raw)
+    if (Array.isArray(p)) return p
+    return raw ? [String(raw)] : []
+  } catch {
+    return raw ? [String(raw)] : []   // old single-value string
+  }
+}
+function getCustomLevels() {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_LEVELS_KEY) || '[]') } catch { return [] }
+}
+function addCustomLevel(name) {
+  const v = (name || '').trim()
+  if (!v) return getCustomLevels()
+  const cur = getCustomLevels()
+  if (cur.includes(v) || LEVELS.includes(v)) return cur
+  const next = [...cur, v]
+  try { localStorage.setItem(CUSTOM_LEVELS_KEY, JSON.stringify(next)) } catch {}
+  return next
+}
 const MISTAKES= ['No mistake','Wrong bias','Level not aligned with bias','Entered outside killzone','No breaker block formed','Entered before breaker closed','Premature entry — no confirmation','Moved stop too early','Took partial too early','Revenge trade','Overtraded']
 const GRADE_ITEMS = [
-  'Followed checklist',
-  'Waited for A+ setup',
-  'Correct risk size (1%)',
-  'No lower-timeframe drift',
-  'Held to target',
-  'Stayed within loss limit',
-  'Was The Observer (calm/detached)',
-  'No revenge / overtrading',
+  'I checked my mental/emotional state before opening the platform',
+  'My bias and markup were built before the session, not during',
+  'Every trade had a written plan before I entered',
+  'I sat with inactivity without forcing a trade',
+  'I did not interfere with a trade once it was live',
+  'Wins and losses landed without triggering a reaction',
+  'I named any loop that appeared during the session',
+  'I stopped cleanly when my rules said stop',
 ]
 
 const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', trade_type:'', r:'', mae:'', mfe:'', outcome:'', mistake:'No mistake', screenshot:'', screenshot2:'', journal:'' }
@@ -176,6 +202,72 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
 }
 
 
+// ── KEY LEVEL PICKER — presets + custom + multi-select ───────────
+function KeyLevelPicker({ selected, onChange }) {
+  const [custom, setCustom] = useState(getCustomLevels())
+  const [text, setText] = useState('')
+  const sel = Array.isArray(selected) ? selected : []
+  const allPresets = [...LEVELS, ...custom.filter(c => !LEVELS.includes(c))]
+
+  function toggle(name) {
+    if (sel.includes(name)) onChange(sel.filter(s => s !== name))
+    else onChange([...sel, name])
+  }
+  function addNew() {
+    const v = text.trim()
+    if (!v) return
+    setCustom(addCustomLevel(v))
+    if (!sel.includes(v)) onChange([...sel, v])
+    setText('')
+  }
+  function removeCustom(name, e) {
+    e.stopPropagation()
+    const next = custom.filter(c => c !== name)
+    setCustom(next)
+    try { localStorage.setItem(CUSTOM_LEVELS_KEY, JSON.stringify(next)) } catch {}
+    if (sel.includes(name)) onChange(sel.filter(s => s !== name))
+  }
+
+  return (
+    <div>
+      {/* Selected chips */}
+      {sel.length > 0 && (
+        <div style={{ display:'flex', flexWrap:'wrap', gap:'6px', marginBottom:'8px' }}>
+          {sel.map(s => (
+            <span key={s} style={{ display:'inline-flex', alignItems:'center', gap:'5px', background:'var(--blue)', color:'#fff', fontSize:'11.5px', fontWeight:'600', padding:'4px 10px', borderRadius:'20px' }}>
+              {s}
+              <span onClick={() => toggle(s)} style={{ cursor:'pointer', fontSize:'13px', lineHeight:1, opacity:.8 }}>×</span>
+            </span>
+          ))}
+        </div>
+      )}
+      {/* Preset options */}
+      <div style={{ display:'flex', flexWrap:'wrap', gap:'5px', marginBottom:'8px' }}>
+        {allPresets.map(p => {
+          const on = sel.includes(p)
+          const isCustom = !LEVELS.includes(p)
+          return (
+            <span key={p} onClick={() => toggle(p)}
+              style={{ display:'inline-flex', alignItems:'center', gap:'4px', fontSize:'11px', fontWeight:'500', padding:'4px 9px', borderRadius:'7px', cursor:'pointer', userSelect:'none', transition:'all .12s',
+                background: on ? 'var(--blue-bg)' : 'var(--surface2)', color: on ? 'var(--blue)' : 'var(--muted)', border:`1px solid ${on ? 'var(--blue-dim)' : 'var(--border)'}` }}>
+              {p}
+              {isCustom && <span onClick={e => removeCustom(p, e)} title="Remove preset" style={{ color:'var(--muted2)', fontSize:'12px', lineHeight:1, marginLeft:'2px' }}>×</span>}
+            </span>
+          )
+        })}
+      </div>
+      {/* Add custom */}
+      <div style={{ display:'flex', gap:'6px' }}>
+        <input className="form-input" value={text} onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addNew() } }}
+          placeholder="Type a custom level and press Enter (saves for next time)"
+          style={{ flex:1, fontSize:'12px', padding:'8px 11px' }} />
+        <button type="button" onClick={addNew} className="btn btn-outline btn-sm" style={{ flexShrink:0 }}>Add</button>
+      </div>
+    </div>
+  )
+}
+
 function TradeForm({ onSave, onCancel, initialData }) {
   const [form, setForm] = useState(() => {
     if (initialData) return { ...EMPTY_TRADE, ...initialData, r: initialData.r ?? initialData.r_multiple ?? initialData.pl ?? '' }
@@ -229,7 +321,6 @@ function TradeForm({ onSave, onCancel, initialData }) {
         {sel('trade_type', 'Trade Type', ['Type 1 — SMR', 'Type 2 — Distribution', 'Not in Plan'])}
         {sel('bias', 'Bias', ['Bullish','Bearish'])}
         {sel('session', 'Session', ['London (02:00–05:00)','New York AM (06:00–10:00)'])}
-        {sel('level', 'Key Level', LEVELS)}
         <div className="form-group">
           <label className="form-label">Premium / Discount</label>
           <div style={{ display:'flex', gap:'6px', paddingTop:'4px' }}>
@@ -249,6 +340,13 @@ function TradeForm({ onSave, onCancel, initialData }) {
         </div>
         {sel('outcome', 'Outcome', ['Win','Loss','Break Even'])}
         {sel('mistake', 'Mistake', MISTAKES)}
+      </div>
+      {/* Key Levels — multi-select with custom presets */}
+      <div className="form-group" style={{ marginBottom:'11px' }}>
+        <label className="form-label">Key Levels <span style={{ textTransform:'none', fontWeight:'400', color:'var(--muted2)' }}>· tap to add, type your own</span></label>
+        <KeyLevelPicker
+          selected={parseLevels(form.level)}
+          onChange={arr => setV('level', JSON.stringify(arr))} />
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'11px', marginBottom:'11px' }}>
         <div className="form-group">
@@ -294,7 +392,7 @@ function TradeForm({ onSave, onCancel, initialData }) {
 }
 
 // ── TRADE CARD ───────────────────────────────────────────────────
-function TradeCard({ t, onDelete, onEdit }) {
+function TradeCard({ t, onDelete, onEdit, onOpenDay }) {
   const up = (t.pl || t.r_multiple || 0) >= 0
   const rVal = t.pl || t.r_multiple || 0
   const ob = o => o==='Win' ? { bg:'#ECFDF5', col:'#065F46', border:'#BBF7D0' }
@@ -307,7 +405,16 @@ function TradeCard({ t, onDelete, onEdit }) {
 
       {/* Header stripe */}
       <div style={{ padding:'14px 20px', background: up ? '#F0FDF4' : '#FFF5F5', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap' }}>
-        <span style={{ fontSize:'15px', fontWeight:'700', color:'#0F172A', letterSpacing:'-.01em' }}>{t.symbol || '—'}</span>
+        {onOpenDay ? (
+          <button onClick={() => onOpenDay(t.date)} title="Open this day's journal"
+            style={{ background:'none', border:'none', cursor:'pointer', padding:0, display:'inline-flex', alignItems:'center', gap:'5px', fontFamily:'inherit' }}>
+            <span style={{ fontSize:'15px', fontWeight:'700', color:'#4F46E5', letterSpacing:'-.01em', textDecoration:'underline', textDecorationColor:'#C7CBF8', textUnderlineOffset:'3px' }}>{t.symbol || '—'}</span>
+            <span style={{ fontSize:'10px', color:'#94A3B8' }}>↗</span>
+          </button>
+        ) : (
+          <span style={{ fontSize:'15px', fontWeight:'700', color:'#0F172A', letterSpacing:'-.01em' }}>{t.symbol || '—'}</span>
+        )}
+        {onOpenDay && t.date && <span style={{ fontSize:'10px', color:'#94A3B8', fontFamily:"'JetBrains Mono',monospace" }}>{new Date(t.date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}</span>}
         {t.time && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', color:'#94A3B8', background:'#F1F5F9', padding:'2px 7px', borderRadius:'6px' }}>{t.time} NY</span>}
         {t.direction && (
           <span style={{ fontSize:'11px', fontWeight:'700', padding:'3px 9px', borderRadius:'7px', background: t.direction==='Long'?'#DCFCE7':'#FEE2E2', color: t.direction==='Long'?'#14532D':'#7F1D1D', border: `1px solid ${t.direction==='Long'?'#BBF7D0':'#FECACA'}` }}>{t.direction}</span>
@@ -332,7 +439,7 @@ function TradeCard({ t, onDelete, onEdit }) {
 
       {/* Details grid */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))', borderBottom:`1px solid #F1F5F9` }}>
-        {[['Bias',t.bias],['Session',t.session?.replace(' (02:00–05:00)','')?.replace(' (06:00–10:00)','')],['Key Level',t.level||t.setup],['P/D',t.pd_array],['Entry TF',t.entry_tf||t.smt],['Risk',t.risk?`${t.risk}%`:null],['R Target',t.r_multiple?`${t.r_multiple}R`:null]].filter(([,v])=>v).map(([l,v],i)=>(
+        {[['Bias',t.bias],['Session',t.session?.replace(' (02:00–05:00)','')?.replace(' (06:00–10:00)','')],['Key Level',parseLevels(t.level).join(', ')||t.setup],['P/D',t.pd_array],['Entry TF',t.entry_tf||t.smt],['Risk',t.risk?`${t.risk}%`:null],['R Target',t.r_multiple?`${t.r_multiple}R`:null]].filter(([,v])=>v).map(([l,v],i)=>(
           <div key={i} style={{ padding:'10px 14px', borderRight:'1px solid #F1F5F9', borderBottom:'1px solid #F1F5F9' }}>
             <div style={{ fontSize:'9px', fontWeight:'600', color:'#94A3B8', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'3px' }}>{l}</div>
             <div style={{ fontSize:'12px', fontWeight:'500', color:'#334155' }}>{v}</div>
@@ -605,7 +712,7 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents })
 
 
 // ── MAIN COMPONENT ───────────────────────────────────────────────
-export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onEditTrade, onDeleteTrade, toast, dateStr: propDateStr, isWeekly: propIsWeekly }) {
+export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onEditTrade, onDeleteTrade, toast, dateStr: propDateStr, isWeekly: propIsWeekly, onOpenJournal }) {
   const today = toDateStr(new Date())
   const [dateStr, setDateStr] = useState(propDateStr || today)
   const isWeekly   = propIsWeekly === true
@@ -1012,7 +1119,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
               <TradeForm key={editingTrade.id} onSave={handleAddTrade} initialData={editingTrade} onCancel={() => { setShowTradeForm(false); setEditingTrade(null); try { sessionStorage.setItem(FORM_OPEN,'false') } catch(e) {} }} />
             )}
             </div>
-            {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={startEditTrade} />)}
+            {weekTrades.map(t => <TradeCard key={t.id} t={t} onDelete={onDeleteTrade} onEdit={startEditTrade} onOpenDay={onOpenJournal ? (d => onOpenJournal(d, false)) : null} />)}
           </div>
         )}
         {!isWeekly && !isForecast && (
@@ -1133,7 +1240,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         const maxTotal = GRADE_ITEMS.length * 5
         const avg = rated.length ? (total / rated.length) : 0
         const pct = Math.round((total / maxTotal) * 100)
-        const avgColor = avg >= 4 ? '#10B981' : avg >= 3 ? '#D97706' : avg > 0 ? '#EF4444' : '#94A3B8'
+        const avgColor = pct >= 80 ? '#10B981' : pct >= 60 ? '#D97706' : pct > 0 ? '#EF4444' : '#94A3B8'
         return (
         <div style={{ order:5, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
           <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
@@ -1162,13 +1269,13 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             <div style={{ marginTop:'16px', padding:'16px 18px', background:'#F8FAFC', borderRadius:'14px', border:'1px solid #E2E8F0', display:'flex', alignItems:'center', gap:'16px' }}>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:'10px', fontWeight:'700', color:'#64748B', letterSpacing:'.08em', textTransform:'uppercase', marginBottom:'4px' }}>Daily Score</div>
-                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'26px', fontWeight:'700', color:avgColor, letterSpacing:'-.04em', lineHeight:1 }}>
-                  {total}<span style={{ fontSize:'15px', color:'#94A3B8' }}>/{maxTotal}</span>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'30px', fontWeight:'700', color:avgColor, letterSpacing:'-.04em', lineHeight:1 }}>
+                  {rated.length ? pct : 0}<span style={{ fontSize:'18px' }}>%</span>
                 </div>
               </div>
               <div style={{ textAlign:'right' }}>
-                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'20px', fontWeight:'700', color:avgColor, letterSpacing:'-.03em' }}>{avg > 0 ? avg.toFixed(1) : '—'}</div>
-                <div style={{ fontSize:'10px', color:'#94A3B8', fontWeight:'600' }}>avg · {pct}%</div>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'15px', fontWeight:'700', color:'#94A3B8' }}>{total}<span style={{ fontSize:'11px' }}>/{maxTotal}</span></div>
+                <div style={{ fontSize:'10px', color:'#94A3B8', fontWeight:'600', marginTop:'2px' }}>{rated.length}/{GRADE_ITEMS.length} rated</div>
               </div>
             </div>
             <button onClick={saveNote} disabled={saving}

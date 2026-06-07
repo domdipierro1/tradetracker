@@ -3,18 +3,18 @@ import { Chart } from 'chart.js/auto'
 import { computeStats, f2, fR, fP } from '../lib/stats'
 
 const GRADE_ITEMS = [
-  'Followed checklist',
-  'Waited for A+ setup',
-  'Correct risk size (1%)',
-  'No lower-timeframe drift',
-  'Held to target',
-  'Stayed within loss limit',
-  'Was The Observer (calm/detached)',
-  'No revenge / overtrading',
+  'I checked my mental/emotional state before opening the platform',
+  'My bias and markup were built before the session, not during',
+  'Every trade had a written plan before I entered',
+  'I sat with inactivity without forcing a trade',
+  'I did not interfere with a trade once it was live',
+  'Wins and losses landed without triggering a reaction',
+  'I named any loop that appeared during the session',
+  'I stopped cleanly when my rules said stop',
 ]
 
 // ── THIS WEEK'S GRADING ───────────────────────────────────────────
-function WeeklyGrading({ dailyNotes }) {
+function WeeklyGrading({ dailyNotes, onOpenJournal }) {
   // Current week Mon–Fri
   const now = new Date()
   const day = now.getDay() // 0=Sun
@@ -28,7 +28,6 @@ function WeeklyGrading({ dailyNotes }) {
   }
   const labels = ['Mon','Tue','Wed','Thu','Fri']
 
-  // Build per-day score from checklist_data.grades
   const noteByDate = {}
   ;(dailyNotes || []).forEach(n => { noteByDate[n.date] = n })
 
@@ -37,41 +36,44 @@ function WeeklyGrading({ dailyNotes }) {
     if (!n || !n.checklist_data) return null
     try {
       const cd = JSON.parse(n.checklist_data)
-      const grades = (cd.grades || []).filter(g => g > 0)
-      if (!grades.length) return null
-      const total = grades.reduce((s, g) => s + g, 0)
-      return { total, avg: total / grades.length, count: grades.length }
+      const all = cd.grades || []
+      const itemCount = all.length || 8
+      const total = all.reduce((s, g) => s + (g || 0), 0)
+      const rated = all.filter(g => g > 0)
+      if (!rated.length) return null
+      const pct = Math.round((total / (itemCount * 5)) * 100)
+      return { pct }
     } catch { return null }
   })
 
-  const maxTotal = GRADE_ITEMS.length * 5
   const graded = dayScores.filter(Boolean)
-  const weekAvg = graded.length ? (graded.reduce((s, d) => s + d.avg, 0) / graded.length) : 0
-  const col = v => v >= 4 ? '#059669' : v >= 3 ? '#D97706' : v > 0 ? '#E11D48' : '#A4ABB7'
+  const weekPct = graded.length ? Math.round(graded.reduce((s, d) => s + d.pct, 0) / graded.length) : 0
+  const col = p => p >= 80 ? '#059669' : p >= 60 ? '#D97706' : p > 0 ? '#E11D48' : '#A4ABB7'
 
   return (
     <div style={{ background:'#FFFFFF', border:'1px solid #E9ECF1', borderRadius:'16px', padding:'20px 22px', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)', marginBottom:'16px' }}>
       <div style={{ display:'flex', alignItems:'center', marginBottom:'16px' }}>
         <span style={{ fontSize:'11px', fontWeight:'700', color:'#717A88', letterSpacing:'.09em', textTransform:'uppercase' }}>This Week's Grading</span>
-        <span style={{ marginLeft:'auto', fontFamily:"'JetBrains Mono',monospace", fontSize:'14px', fontWeight:'700', color:col(weekAvg) }}>
-          {weekAvg > 0 ? weekAvg.toFixed(1) : '—'}<span style={{ fontSize:'10px', color:'#A4ABB7', fontWeight:'600' }}> avg</span>
+        <span style={{ marginLeft:'auto', fontFamily:"'JetBrains Mono',monospace", fontSize:'15px', fontWeight:'700', color:col(weekPct) }}>
+          {weekPct > 0 ? weekPct + '%' : '—'}<span style={{ fontSize:'10px', color:'#A4ABB7', fontWeight:'600' }}> avg</span>
         </span>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:'10px' }}>
         {dayScores.map((s, i) => {
           const isToday = weekDays[i] === now.toLocaleDateString('en-CA')
+          const clickable = !!onOpenJournal
           return (
-            <div key={i} style={{ textAlign:'center', padding:'14px 6px', borderRadius:'12px', background: s ? '#F4F6F8' : '#FAFBFC', border: isToday ? '1.5px solid #4F46E5' : '1px solid #E9ECF1' }}>
+            <button key={i} disabled={!clickable} onClick={() => clickable && onOpenJournal(weekDays[i], false)}
+              style={{ textAlign:'center', padding:'14px 6px', borderRadius:'12px', background: s ? '#F4F6F8' : '#FAFBFC', border: isToday ? '1.5px solid #4F46E5' : '1px solid #E9ECF1', cursor: clickable ? 'pointer' : 'default', fontFamily:'inherit', transition:'all .15s' }}
+              onMouseEnter={e => { if(clickable){ e.currentTarget.style.borderColor='#4F46E5'; e.currentTarget.style.transform='translateY(-2px)' } }}
+              onMouseLeave={e => { if(clickable){ e.currentTarget.style.borderColor = isToday ? '#4F46E5' : '#E9ECF1'; e.currentTarget.style.transform='translateY(0)' } }}>
               <div style={{ fontSize:'10px', fontWeight:'700', color: isToday ? '#4F46E5' : '#A4ABB7', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'8px' }}>{labels[i]}</div>
               {s ? (
-                <>
-                  <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'22px', fontWeight:'700', color:col(s.avg), lineHeight:1, letterSpacing:'-.04em' }}>{s.total}</div>
-                  <div style={{ fontSize:'9px', color:'#A4ABB7', marginTop:'3px' }}>/{maxTotal}</div>
-                </>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'21px', fontWeight:'700', color:col(s.pct), lineHeight:1, letterSpacing:'-.04em' }}>{s.pct}<span style={{ fontSize:'11px' }}>%</span></div>
               ) : (
-                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'20px', fontWeight:'600', color:'#D8DDE5', lineHeight:1, paddingBottom:'10px' }}>–</div>
+                <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'20px', fontWeight:'600', color:'#D8DDE5', lineHeight:1, paddingBottom:'4px' }}>–</div>
               )}
-            </div>
+            </button>
           )
         })}
       </div>
@@ -156,7 +158,7 @@ function StreakDots({ trades }) {
   )
 }
 
-export default function Dashboard({ trades, dailyNotes, startingBalance, currency }) {
+export default function Dashboard({ trades, dailyNotes, startingBalance, currency, onOpenJournal }) {
   const s = computeStats(trades, startingBalance || 100000)
 
   const equityRef  = useRef(null)
@@ -499,7 +501,7 @@ export default function Dashboard({ trades, dailyNotes, startingBalance, currenc
       </div>
 
       {/* ── THIS WEEK'S GRADING ── */}
-      <WeeklyGrading dailyNotes={dailyNotes} />
+      <WeeklyGrading dailyNotes={dailyNotes} onOpenJournal={onOpenJournal} />
 
       {/* ── EQUITY CURVE ── */}
       <div style={{ background:'#FFFFFF', border:'1px solid #E9ECF1', borderRadius:'16px', padding:'20px 22px', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)', marginBottom:'16px' }}>
