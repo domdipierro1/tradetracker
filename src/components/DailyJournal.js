@@ -1016,7 +1016,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const losses = dayTrades.filter(t => t.outcome === 'Loss').length
 
   return (
-    <div style={{ padding:'24px', maxWidth:'860px', margin:'0 auto', display:'flex', flexDirection:'column' }}>
+    <div className="journal-page" style={{ padding:'24px', maxWidth:'860px', margin:'0 auto', display:'flex', flexDirection:'column' }}>
 
       {/* ── HEADER ── */}
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'24px', flexWrap:'wrap', gap:'12px' }}>

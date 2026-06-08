@@ -156,7 +156,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
       </div>
 
       {/* Grid */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px' }}>
+      <div className="cal-grid" style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px' }}>
         {Array.from({ length: totalCells }, (_, i) => {
           const day = i - firstDow + 1
           if (day < 1 || day > daysInMonth) return <div key={i} style={{ minHeight:'78px' }} />
@@ -176,7 +176,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
           const cnt = d?.trades.length || 0
 
           return (
-            <div key={i} onClick={() => setSelectedDate(ds)}
+            <div key={i} className="cal-cell" onClick={() => setSelectedDate(ds)}
               style={{ background: isSaturdayCell ? 'var(--green-bg)' : isSundayCell ? 'var(--purple-bg)' : cs.bg, border:`1.5px solid ${isSaturdayCell ? 'var(--green-dim)' : isSundayCell ? 'var(--purple-dim)' : cs.border}`, borderRadius:'var(--r-sm)', minHeight:'78px', padding:'7px', display:'flex', flexDirection:'column', gap:'2px', cursor:'pointer', transition:'all .15s', position:'relative', opacity: cls==='weekend'?.55:1 }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow='var(--shadow-md)'; e.currentTarget.style.transform='translateY(-1px)' }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow=''; e.currentTarget.style.transform='' }}>
