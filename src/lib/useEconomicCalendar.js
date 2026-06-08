@@ -89,3 +89,52 @@ export function useEconomicCalendar() {
 
   return { events, loading, error, fetchedAt, eventsForDate }
 }
+
+// ── SHARED NO-TRADE RULE ─────────────────────────────────────────
+// Returns { type, label } or null. Used by both the journal and the calendar
+// so the logic never diverges. `allEvents` is the full events array.
+export function getNoTradeReason(dateStr, allEvents) {
+  if (!dateStr || !Array.isArray(allEvents)) return null
+  const d = new Date(dateStr + 'T12:00:00')
+  const dow = d.getDay()
+  if (dow < 1 || dow > 5) return null // weekends
+
+  const isNFP = e => {
+    const t = (e.title || '').toLowerCase()
+    if (t.includes('adp')) return false
+    return t.includes('non-farm') || t.includes('nonfarm') || t.includes('nfp')
+  }
+  const isCPI = e => {
+    const t = (e.title || '').toLowerCase()
+    return t.includes('cpi') || t.includes('consumer price')
+  }
+  const isFOMC = e => {
+    const t = (e.title || '').toLowerCase()
+    if (t.includes('minute')) return false
+    return t.includes('fomc') || t.includes('federal funds') || t.includes('fed funds') || t.includes('rate decision')
+  }
+
+  const evOn = ds => allEvents.filter(e => e.date === ds && e.country === 'USD')
+  const usdToday = evOn(dateStr)
+
+  // 1. USD Bank Holiday
+  if (usdToday.find(e => e.isHoliday)) return { type: 'holiday', label: 'USD bank holiday' }
+  // 2/3/4a. Day of CPI / FOMC / NFP
+  if (usdToday.find(isCPI))  return { type: 'high', label: 'US CPI day' }
+  if (usdToday.find(isFOMC)) return { type: 'high', label: 'US FOMC day' }
+  if (usdToday.find(isNFP))  return { type: 'high', label: 'US NFP day' }
+  // 4b. Day before CPI / NFP
+  const tmr = new Date(d); tmr.setDate(d.getDate() + 1)
+  const usdTmr = evOn(tmr.toLocaleDateString('en-CA'))
+  if (usdTmr.find(isCPI)) return { type: 'high', label: 'Day before US CPI' }
+  if (usdTmr.find(isNFP)) return { type: 'high', label: 'Day before US NFP' }
+  // 5. No-News Monday unless week has NFP/CPI
+  if (dow === 1 && usdToday.length === 0) {
+    const weekHasKey = [0,1,2,3,4].some(off => {
+      const wd = new Date(d); wd.setDate(d.getDate() + off)
+      return evOn(wd.toLocaleDateString('en-CA')).some(e => isNFP(e) || isCPI(e))
+    })
+    if (!weekHasKey) return { type: 'quiet', label: 'No-news Monday' }
+  }
+  return null
+}

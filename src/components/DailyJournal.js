@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { computeStats, f2 } from '../lib/stats'
-import { useEconomicCalendar, currencyFlag, formatFFTime } from '../lib/useEconomicCalendar'
+import { useEconomicCalendar, currencyFlag, formatFFTime, getNoTradeReason } from '../lib/useEconomicCalendar'
 
 // ── CONSTANTS ────────────────────────────────────────────────────
 const TIMES   = ['02:00','02:30','03:00','03:30','04:00','04:30','05:00','05:30','06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00']
@@ -127,50 +127,11 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
     }
   }, [loading])
 
-  // ── NO-TRADE RULES (auto-detect from calendar data) ──────────────
-  // Exactly four triggers, USD only:
-  //   1. USD Bank Holiday (day of)
-  //   2. USD CPI (day of)
-  //   3. USD FOMC (day of)
-  //   4. USD NFP — day of AND day before (NFP only, never ADP)
+  // ── NO-TRADE RULES — uses shared getNoTradeReason so journal + calendar match ──
   const noTradeWarning = React.useMemo(() => {
     if (loading) return null
-    const d    = new Date(dateStr + 'T12:00:00')
-    const dow  = d.getDay() // 0=Sun,1=Mon...
-    const isWeekday = dow >= 1 && dow <= 5
-    if (!isWeekday) return null
-
-    // NFP = Non-Farm Employment Change / Non-Farm Payrolls, but NOT ADP's version
-    const isNFP = e => {
-      const t = (e.title || '').toLowerCase()
-      if (t.includes('adp')) return false
-      return t.includes('non-farm') || t.includes('nonfarm') || t.includes('nfp')
-    }
-    const isCPI  = e => (e.title || '').toLowerCase().includes('cpi') || (e.title || '').toLowerCase().includes('consumer price')
-    const isFOMC = e => {
-      const t = (e.title || '').toLowerCase()
-      return t.includes('fomc') || t.includes('federal funds') || t.includes('fed funds') || t.includes('rate decision')
-    }
-
-    const usdToday = events.filter(e => e.country === 'USD')
-
-    // 1. USD Bank Holiday today
-    const usdHoliday = usdToday.find(e => e.isHoliday)
-    if (usdHoliday) return { type: 'holiday', msg: `🏦 USD Bank Holiday — ${usdHoliday.title}. No trading today.` }
-
-    // 2/3/4a. Day OF USD CPI, FOMC, or NFP
-    const todayHit = usdToday.find(e => isCPI(e) || isFOMC(e) || isNFP(e))
-    if (todayHit) return { type: 'high', msg: `🚫 No trading today — ${todayHit.title}` }
-
-    // 4b. Day BEFORE USD NFP, CPI, or FOMC
-    const tomorrow = new Date(d); tomorrow.setDate(d.getDate() + 1)
-    const tomorrowStr = tomorrow.toLocaleDateString('en-CA')
-    const usdTomorrow = allEvents.filter(e => e.date === tomorrowStr && e.country === 'USD')
-    const tomorrowHit = usdTomorrow.find(e => isNFP(e) || isCPI(e) || isFOMC(e))
-    if (tomorrowHit) return { type: 'high', msg: `⚠️ Day before USD news — ${tomorrowHit.title} tomorrow. Avoid trading today.` }
-
-    return null
-  }, [loading, events, allEvents, dateStr])
+    return getNoTradeReason(dateStr, allEvents)
+  }, [loading, allEvents, dateStr])
 
   if (loading) return null
 
@@ -182,13 +143,16 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
     <div style={{ marginBottom:'14px' }}>
       {/* Economic events card */}
       <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
-        <div style={{ padding:'10px 16px', borderBottom: events.length > 0 ? '1px solid var(--border)' : 'none', background: noTradeWarning ? 'var(--red-bg)' : 'var(--surface2)', display:'flex', alignItems:'center', gap:'8px' }}>
-          <span style={{ fontSize:'12px' }}>{noTradeWarning ? '🚫' : events.length > 0 ? '📅' : '✅'}</span>
-          <span style={{ fontSize:'11px', fontWeight:'600', color: noTradeWarning ? 'var(--red)' : events.length > 0 ? 'var(--text2)' : 'var(--green)', letterSpacing:'.04em', textTransform:'uppercase' }}>
-            {noTradeWarning ? 'No Trading Day' : events.length > 0 ? "Today's News" : 'No High-Impact Events Today'}
-          </span>
-          {events.length > 0 && <span style={{ fontSize:'11px', color:'var(--muted)', marginLeft:'auto' }}>{events.length} event{events.length > 1 ? 's' : ''}</span>}
-          {liveEvents.length === 0 && (savedEvents||[]).length > 0 && <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--muted2)', background:'var(--surface3)', padding:'2px 7px', borderRadius:'4px', letterSpacing:'.05em', marginLeft: events.length > 0 ? '8px' : 'auto' }}>SAVED</span>}
+        <div style={{ padding:'10px 16px', borderBottom: events.length > 0 ? '1px solid var(--border)' : 'none', background: noTradeWarning ? 'var(--red-bg)' : 'var(--surface2)' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+            <span style={{ fontSize:'12px' }}>📅</span>
+            <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--text2)', letterSpacing:'.04em', textTransform:'uppercase' }}>Today's News</span>
+            {events.length > 0 && <span style={{ fontSize:'11px', color:'var(--muted)', marginLeft:'auto' }}>{events.length} event{events.length > 1 ? 's' : ''}</span>}
+            {liveEvents.length === 0 && (savedEvents||[]).length > 0 && <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--muted2)', background:'var(--surface3)', padding:'2px 7px', borderRadius:'4px', letterSpacing:'.05em', marginLeft: events.length > 0 ? '8px' : 'auto' }}>SAVED</span>}
+          </div>
+          <div style={{ fontSize:'12px', fontWeight:'500', color: noTradeWarning ? 'var(--red)' : 'var(--muted)', marginTop:'4px', marginLeft:'20px' }}>
+            {noTradeWarning ? 'Non Trading Day' : events.length > 0 ? `${events.length} high-impact event${events.length > 1 ? 's' : ''}` : 'No news today'}
+          </div>
         </div>
         {events.length > 0 && (
           <div style={{ display:'flex', flexDirection:'column' }}>
@@ -1108,6 +1072,17 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       )}
       {isForecast && weekRange && (
         <WeeklyEconNews weekRange={weekRange} useNextWeek={true} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} />
+      )}
+
+      {/* ── CORE VALUES ANCHOR — daily only ── */}
+      {!isWeekly && !isForecast && (
+        <div style={{ marginBottom:'20px', padding:'16px 20px', background:'linear-gradient(135deg, #F5F4FF 0%, #FAFAFF 100%)', border:'1px solid #E5E3F7', borderRadius:'16px' }}>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:'8px' }}>
+            {['Health','Consciousness','Depth','Purpose','Love','Family','Growth'].map(v => (
+              <span key={v} style={{ fontSize:'12.5px', fontWeight:'600', color:'#4F46E5', background:'#FFFFFF', border:'1px solid #DAD7F5', padding:'5px 13px', borderRadius:'20px', letterSpacing:'-.01em' }}>{v}</span>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* ── DAY PLAN CARD ── */}

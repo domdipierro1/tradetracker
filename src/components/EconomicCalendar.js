@@ -1,4 +1,4 @@
-import { useEconomicCalendar, currencyFlag, getFFWeekDays } from '../lib/useEconomicCalendar'
+import { useEconomicCalendar, currencyFlag, getFFWeekDays, getNoTradeReason } from '../lib/useEconomicCalendar'
 
 const CCY_COL = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
 const CCY_BG  = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5' }
@@ -67,16 +67,22 @@ export default function EconomicCalendar() {
             {weekDays.map((day, di) => {
               const dayEvs  = eventsForDate(day.dateStr)
               const isToday = day.dateStr === today
+              const noTrade = day.isWeekend ? null : getNoTradeReason(day.dateStr, events)
 
               return (
-                <div key={day.dateStr} style={{ borderBottom: di < 6 ? '1px solid #F8FAFC' : 'none' }}>
+                <div key={day.dateStr} style={{ borderBottom: di < 6 ? '1px solid #F8FAFC' : 'none', background: noTrade ? 'rgba(225,29,72,0.035)' : 'transparent' }}>
                   {/* Day header */}
-                  <div style={{ padding:'8px 20px 4px', display:'flex', alignItems:'center', gap:'8px' }}>
+                  <div style={{ padding:'8px 20px 4px', display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
                     <span style={{ fontSize:'10px', fontWeight:'700', color: isToday ? 'var(--amber)' : '#94A3B8', letterSpacing:'.06em', textTransform:'uppercase' }}>
                       {day.dayName} {day.dayNum} {day.month.toUpperCase()}
                     </span>
                     {isToday && <span style={{ padding:'1px 6px', borderRadius:'20px', background:'var(--amber)', color:'#fff', fontSize:'9px', fontWeight:'800' }}>TODAY</span>}
-                    {!day.isWeekend && dayEvs.length === 0 && (
+                    {noTrade && (
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:'5px', padding:'2px 9px', borderRadius:'20px', background:'#FEF2F2', border:'1px solid #FECACA', color:'#B91C1C', fontSize:'9.5px', fontWeight:'800', letterSpacing:'.03em' }}>
+                        🚫 NO-TRADE DAY · {noTrade.label.toUpperCase()}
+                      </span>
+                    )}
+                    {!day.isWeekend && dayEvs.length === 0 && !noTrade && (
                       <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>No high-impact events</span>
                     )}
                   </div>
