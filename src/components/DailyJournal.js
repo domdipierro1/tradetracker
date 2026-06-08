@@ -1067,9 +1067,14 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
 
       {/* ── CORE VALUES BANNER — daily only, above news ── */}
       {!isWeekly && !isForecast && (
-        <div style={{ marginBottom:'16px', padding:'14px 20px', background:'linear-gradient(135deg, #F7F6FF 0%, #FCFCFF 100%)', border:'1px solid #ECEAFB', borderRadius:'14px', textAlign:'center' }}>
-          <div style={{ fontFamily:"'Bricolage Grotesque', sans-serif", fontSize:'13.5px', fontWeight:'600', color:'#4F46E5', letterSpacing:'.01em' }}>
-            {['Health','Consciousness','Depth','Purpose','Love','Family','Growth'].join('  ·  ')}
+        <div style={{ marginBottom:'18px', padding:'18px 20px', textAlign:'center' }}>
+          <div style={{ fontFamily:"Georgia, 'Times New Roman', serif", fontStyle:'italic', fontSize:'16px', fontWeight:'400', color:'#9AA0AC', letterSpacing:'.02em', lineHeight:'1.6' }}>
+            {['Health','Consciousness','Depth','Purpose','Love','Family','Growth'].map((v, i, arr) => (
+              <span key={v}>
+                {v}
+                {i < arr.length - 1 && <span style={{ color:'#D4D7DE', margin:'0 9px', fontStyle:'normal' }}>·</span>}
+              </span>
+            ))}
           </div>
         </div>
       )}
