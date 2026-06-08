@@ -52,6 +52,13 @@ const GRADE_ITEMS = [
   'Exit Discipline',
 ]
 
+const NO_TRADE_GRADE_ITEMS = [
+  'Respected the no-trade rule',
+  'Stayed patient — didn\u2019t force a setup',
+  'Did my prep / analysis anyway',
+  'Protected my capital & mindset',
+]
+
 const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', trade_type:'', r:'', mae:'', mfe:'', outcome:'', mistake:'No mistake', emotions:'', mistake_tags:'', screenshot:'', screenshot2:'', journal:'' }
 const TRADE_DRAFT = 'tt26_trade_draft'
 const FORM_OPEN   = 'tt26_form_open'
@@ -972,7 +979,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         top_mistake:      JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
         econ_snapshot:    JSON.stringify(econSnapshot),
         chart_groups:     JSON.stringify(charts.map(g => ({ label: g.label||'', note: g.note||'', images: (g.images||[]).filter(im => im.url && im.url.trim()).map(im => ({ url: im.url, tf: im.tf||'' })) })).filter(g => g.images.length > 0 || (g.note && g.note.trim()) || (g.label && g.label.trim()))),
-        checklist_data:   JSON.stringify({ type: tradeType, checks: checklist, grades, gradeReasons }),
+        checklist_data:   JSON.stringify({ type: tradeType, checks: checklist, grades, gradeReasons, gradeMode: dayTrades.length === 0 ? 'notrade' : 'trade' }),
       })
       setNoteDirty(false)
       toast('Day saved ✓')
@@ -1284,30 +1291,36 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
 
       {/* ── DAILY GRADING CARD — daily only ── */}
       {!isWeekly && !isForecast && (() => {
-        const rated = grades.filter(g => g > 0)
+        const isNoTradeMode = dayTrades.length === 0
+        const ITEMS = isNoTradeMode ? NO_TRADE_GRADE_ITEMS : GRADE_ITEMS
+        const rated = grades.slice(0, ITEMS.length).filter(g => g > 0)
         const total = rated.reduce((s, g) => s + g, 0)
-        const maxTotal = GRADE_ITEMS.length * 5
-        const avg = rated.length ? (total / rated.length) : 0
+        const maxTotal = ITEMS.length * 5
         const pct = Math.round((total / maxTotal) * 100)
         const avgColor = pct >= 80 ? '#10B981' : pct >= 60 ? '#D97706' : pct > 0 ? '#EF4444' : '#94A3B8'
         return (
         <div style={{ order:5, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
           <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
-            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#EEF0FE', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>🎯</div>
-            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>Performance Grading</span>
-            <span style={{ fontSize:'11px', color:'#94A3B8', marginLeft:'auto' }}>Rate how you acted today, 1–5</span>
+            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background: isNoTradeMode ? '#F1F5F9' : '#EEF0FE', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>{isNoTradeMode ? '🧘' : '🎯'}</div>
+            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>{isNoTradeMode ? 'No-Trade Day Grading' : 'Performance Grading'}</span>
+            <span style={{ fontSize:'11px', color:'#94A3B8', marginLeft:'auto' }}>{isNoTradeMode ? 'How well did you sit out? 1–5' : 'Rate how you acted today, 1–5'}</span>
           </div>
           <div style={{ padding:'14px 24px 20px' }}>
-            {GRADE_ITEMS.map((item, i) => {
+            {isNoTradeMode && (
+              <div style={{ marginBottom:'10px', fontSize:'12px', color:'#64748B', fontStyle:'italic', lineHeight:'1.5' }}>
+                No trades logged today — sitting out is a performance too. Log a trade and this switches to your execution grade.
+              </div>
+            )}
+            {ITEMS.map((item, i) => {
               const val = grades[i] || 0
               const showWhy = val >= 1 && val <= 4
               return (
-                <div key={i} style={{ padding:'12px 0', borderBottom: i < GRADE_ITEMS.length-1 ? '1px solid #F8FAFC' : 'none' }}>
+                <div key={i} style={{ padding:'12px 0', borderBottom: i < ITEMS.length-1 ? '1px solid #F8FAFC' : 'none' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
                     <span style={{ fontSize:'13.5px', fontWeight:'600', color:'#334155', flex:1 }}>{item}</span>
                     <div style={{ display:'flex', gap:'4px' }}>
                       {[1,2,3,4,5].map(n => (
-                        <button key={n} type="button" onClick={() => { const g=[...grades]; while(g.length<GRADE_ITEMS.length) g.push(0); g[i] = (g[i]===n ? 0 : n); setGrades(g); markDirty() }}
+                        <button key={n} type="button" onClick={() => { const g=[...grades]; while(g.length<ITEMS.length) g.push(0); g[i] = (g[i]===n ? 0 : n); setGrades(g); markDirty() }}
                           style={{ width:'28px', height:'28px', borderRadius:'8px', border:`1.5px solid ${val>=n?'#4F46E5':'#E2E8F0'}`, background: val>=n?'#4F46E5':'transparent', color: val>=n?'#fff':'#CBD5E1', fontSize:'12px', fontWeight:'700', cursor:'pointer', fontFamily:"'JetBrains Mono',monospace", transition:'all .12s', display:'flex', alignItems:'center', justifyContent:'center' }}>
                           {n}
                         </button>
@@ -1316,7 +1329,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
                   </div>
                   {showWhy && (
                     <div style={{ marginTop:'10px' }}>
-                      <AutoTextarea value={gradeReasons[i] || ''} onChange={e => { const r=[...gradeReasons]; while(r.length<GRADE_ITEMS.length) r.push(''); r[i]=e.target.value; setGradeReasons(r); markDirty() }}
+                      <AutoTextarea value={gradeReasons[i] || ''} onChange={e => { const r=[...gradeReasons]; while(r.length<ITEMS.length) r.push(''); r[i]=e.target.value; setGradeReasons(r); markDirty() }}
                         placeholder="Why not a 5?" minHeight={44}
                         style={{ background:'#FEF9F4', border:'1.5px solid #FBE2C8', borderRadius:'10px', fontSize:'12.5px' }} />
                     </div>
@@ -1327,14 +1340,14 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             {/* Total */}
             <div style={{ marginTop:'16px', padding:'16px 18px', background:'#F8FAFC', borderRadius:'14px', border:'1px solid #E2E8F0', display:'flex', alignItems:'center', gap:'16px' }}>
               <div style={{ flex:1 }}>
-                <div style={{ fontSize:'10px', fontWeight:'700', color:'#64748B', letterSpacing:'.08em', textTransform:'uppercase', marginBottom:'4px' }}>Daily Score</div>
+                <div style={{ fontSize:'10px', fontWeight:'700', color:'#64748B', letterSpacing:'.08em', textTransform:'uppercase', marginBottom:'4px' }}>{isNoTradeMode ? 'Discipline Score' : 'Daily Score'}</div>
                 <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'30px', fontWeight:'700', color:avgColor, letterSpacing:'-.04em', lineHeight:1 }}>
                   {rated.length ? pct : 0}<span style={{ fontSize:'18px' }}>%</span>
                 </div>
               </div>
               <div style={{ textAlign:'right' }}>
                 <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'15px', fontWeight:'700', color:'#94A3B8' }}>{total}<span style={{ fontSize:'11px' }}>/{maxTotal}</span></div>
-                <div style={{ fontSize:'10px', color:'#94A3B8', fontWeight:'600', marginTop:'2px' }}>{rated.length}/{GRADE_ITEMS.length} rated</div>
+                <div style={{ fontSize:'10px', color:'#94A3B8', fontWeight:'600', marginTop:'2px' }}>{rated.length}/{ITEMS.length} rated</div>
               </div>
             </div>
             <button onClick={saveNote} disabled={saving}

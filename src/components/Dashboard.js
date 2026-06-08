@@ -47,7 +47,7 @@ function WeeklyGrading({ dailyNotes, onOpenJournal }) {
   const weekPct = graded.length ? Math.round(graded.reduce((s, d) => s + d.pct, 0) / graded.length) : 0
   const col = p => p >= 80 ? '#059669' : p >= 60 ? '#D97706' : p > 0 ? '#E11D48' : '#A4ABB7'
 
-  // Per-item breakdown for the week (avg score out of 5 + count of low days 1-3)
+  // Per-item breakdown for the week — only trading-mode days (the 5 pillars)
   const itemStats = GRADE_ITEMS.map((label, idx) => {
     let sum = 0, count = 0, lowDays = 0
     weekDays.forEach(ds => {
@@ -55,6 +55,7 @@ function WeeklyGrading({ dailyNotes, onOpenJournal }) {
       if (!n || !n.checklist_data) return
       try {
         const cd = JSON.parse(n.checklist_data)
+        if (cd.gradeMode === 'notrade') return  // skip no-trade days
         const g = (cd.grades || [])[idx]
         if (g > 0) { sum += g; count++; if (g <= 3) lowDays++ }
       } catch {}

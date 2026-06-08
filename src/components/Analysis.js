@@ -160,6 +160,7 @@ function BreakdownTable({ title, k, items, trades, accent = '#4F46E5' }) {
 
 
 const GRADE_ITEMS = ['Preparation','Patience','Entry Quality','Risk','Exit Discipline']
+const NO_TRADE_GRADE_ITEMS = ['Respected the no-trade rule','Stayed patient — didn\u2019t force a setup','Did my prep / analysis anyway','Protected my capital & mindset']
 
 export default function Analysis({ trades, dailyNotes }) {
   // Best combos
@@ -401,59 +402,82 @@ export default function Analysis({ trades, dailyNotes }) {
 
 // ── GRADING ANALYSIS — long-term pillar performance + reasons ────
 function GradingAnalysis({ dailyNotes }) {
-  const stats = GRADE_ITEMS.map((label, idx) => {
-    let sum = 0, count = 0, lowDays = 0
-    const reasons = []
-    ;(dailyNotes || []).forEach(n => {
-      if (!n.checklist_data) return
-      try {
-        const cd = JSON.parse(n.checklist_data)
-        const g = (cd.grades || [])[idx]
-        if (g > 0) {
-          sum += g; count++
-          if (g <= 3) lowDays++
-          const r = (cd.gradeReasons || [])[idx]
-          if (g <= 4 && r && r.trim()) reasons.push({ date: n.date, score: g, text: r.trim() })
-        }
-      } catch {}
-    })
-    reasons.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-    return { label, avg: count ? sum / count : 0, count, lowDays, reasons }
-  }).filter(s => s.count > 0).sort((a, b) => a.avg - b.avg)
-
-  if (stats.length === 0) return null
   const colAvg = a => a >= 4 ? '#059669' : a >= 3 ? '#D97706' : '#E11D48'
+
+  function buildStats(items, mode) {
+    return items.map((label, idx) => {
+      let sum = 0, count = 0, lowDays = 0
+      const reasons = []
+      ;(dailyNotes || []).forEach(n => {
+        if (!n.checklist_data) return
+        try {
+          const cd = JSON.parse(n.checklist_data)
+          // default legacy days (no gradeMode) to 'trade'
+          const m = cd.gradeMode || 'trade'
+          if (m !== mode) return
+          const g = (cd.grades || [])[idx]
+          if (g > 0) {
+            sum += g; count++
+            if (g <= 3) lowDays++
+            const r = (cd.gradeReasons || [])[idx]
+            if (g <= 4 && r && r.trim()) reasons.push({ date: n.date, score: g, text: r.trim() })
+          }
+        } catch {}
+      })
+      reasons.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      return { label, avg: count ? sum / count : 0, count, lowDays, reasons }
+    }).filter(s => s.count > 0).sort((a, b) => a.avg - b.avg)
+  }
+
+  const tradeStats   = buildStats(GRADE_ITEMS, 'trade')
+  const noTradeStats = buildStats(NO_TRADE_GRADE_ITEMS, 'notrade')
+
+  if (tradeStats.length === 0 && noTradeStats.length === 0) return null
+
+  const renderBlock = (s) => (
+    <div key={s.label} style={{ background:'#FFFFFF', borderRadius:'16px', border:'1px solid #E9ECF1', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)', overflow:'hidden' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:'12px', padding:'14px 18px', borderBottom: s.reasons.length ? '1px solid #F4F6F8' : 'none' }}>
+        <span style={{ fontSize:'14px', fontWeight:'700', color:'#14181F', flex:1 }}>{s.label}</span>
+        <span style={{ fontSize:'11px', color:'#717A88' }}>{s.count} {s.count === 1 ? 'day' : 'days'}</span>
+        {s.lowDays > 0 && <span style={{ fontSize:'10px', fontWeight:'600', color:'#E11D48', background:'#FDECEF', padding:'2px 8px', borderRadius:'20px' }}>low {s.lowDays}</span>}
+        <div style={{ width:'110px', height:'6px', background:'#F1F5F9', borderRadius:'3px', overflow:'hidden' }}>
+          <div style={{ width:`${(s.avg/5)*100}%`, height:'100%', background:colAvg(s.avg), borderRadius:'3px' }} />
+        </div>
+        <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'17px', fontWeight:'700', color:colAvg(s.avg), minWidth:'40px', textAlign:'right' }}>{s.avg.toFixed(1)}</span>
+      </div>
+      {s.reasons.length > 0 && (
+        <div style={{ padding:'10px 18px 14px' }}>
+          <div style={{ fontSize:'9px', fontWeight:'700', color:'#A4ABB7', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'8px' }}>Why not a 5</div>
+          {s.reasons.slice(0, 6).map((r, i) => (
+            <div key={i} style={{ display:'flex', gap:'10px', padding:'5px 0', alignItems:'flex-start' }}>
+              <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'10px', color:'#A4ABB7', minWidth:'62px', paddingTop:'1px' }}>{new Date(r.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span>
+              <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'700', color:colAvg(r.score), minWidth:'14px' }}>{r.score}</span>
+              <span style={{ fontSize:'12px', color:'#475569', flex:1, lineHeight:'1.5' }}>{r.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <>
-      <SectionHeader title="Process Grading" sub="Average score per area across all graded days · weakest first" />
-      <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:'12px', marginBottom:'28px' }}>
-        {stats.map(s => (
-          <div key={s.label} style={{ background:'#FFFFFF', borderRadius:'16px', border:'1px solid #E9ECF1', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)', overflow:'hidden' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:'12px', padding:'14px 18px', borderBottom: s.reasons.length ? '1px solid #F4F6F8' : 'none' }}>
-              <span style={{ fontSize:'14px', fontWeight:'700', color:'#14181F', flex:1 }}>{s.label}</span>
-              <span style={{ fontSize:'11px', color:'#717A88' }}>{s.count} {s.count === 1 ? 'day' : 'days'}</span>
-              {s.lowDays > 0 && <span style={{ fontSize:'10px', fontWeight:'600', color:'#E11D48', background:'#FDECEF', padding:'2px 8px', borderRadius:'20px' }}>low {s.lowDays}</span>}
-              <div style={{ width:'110px', height:'6px', background:'#F1F5F9', borderRadius:'3px', overflow:'hidden' }}>
-                <div style={{ width:`${(s.avg/5)*100}%`, height:'100%', background:colAvg(s.avg), borderRadius:'3px' }} />
-              </div>
-              <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'17px', fontWeight:'700', color:colAvg(s.avg), minWidth:'40px', textAlign:'right' }}>{s.avg.toFixed(1)}</span>
-            </div>
-            {s.reasons.length > 0 && (
-              <div style={{ padding:'10px 18px 14px' }}>
-                <div style={{ fontSize:'9px', fontWeight:'700', color:'#A4ABB7', letterSpacing:'.07em', textTransform:'uppercase', marginBottom:'8px' }}>Why not a 5</div>
-                {s.reasons.slice(0, 6).map((r, i) => (
-                  <div key={i} style={{ display:'flex', gap:'10px', padding:'5px 0', alignItems:'flex-start' }}>
-                    <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'10px', color:'#A4ABB7', minWidth:'62px', paddingTop:'1px' }}>{new Date(r.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span>
-                    <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'11px', fontWeight:'700', color:colAvg(r.score), minWidth:'14px' }}>{r.score}</span>
-                    <span style={{ fontSize:'12px', color:'#475569', flex:1, lineHeight:'1.5' }}>{r.text}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+      {tradeStats.length > 0 && (
+        <>
+          <SectionHeader title="Process Grading" sub="Trading days · average per pillar · weakest first" />
+          <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:'12px', marginBottom:'28px' }}>
+            {tradeStats.map(renderBlock)}
           </div>
-        ))}
-      </div>
+        </>
+      )}
+      {noTradeStats.length > 0 && (
+        <>
+          <SectionHeader title="No-Trade Day Discipline" sub="How well you sat out · weakest first" />
+          <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:'12px', marginBottom:'28px' }}>
+            {noTradeStats.map(renderBlock)}
+          </div>
+        </>
+      )}
     </>
   )
 }
