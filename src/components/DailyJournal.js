@@ -151,7 +151,9 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
             {liveEvents.length === 0 && (savedEvents||[]).length > 0 && <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--muted2)', background:'var(--surface3)', padding:'2px 7px', borderRadius:'4px', letterSpacing:'.05em', marginLeft: events.length > 0 ? '8px' : 'auto' }}>SAVED</span>}
           </div>
           <div style={{ fontSize:'12px', fontWeight:'500', color: noTradeWarning ? 'var(--red)' : 'var(--muted)', marginTop:'4px', marginLeft:'20px' }}>
-            {noTradeWarning ? 'Non Trading Day' : events.length > 0 ? `${events.length} high-impact event${events.length > 1 ? 's' : ''}` : 'No news today'}
+            {noTradeWarning ? (
+              <>Non Trading Day{noTradeWarning.label && <span style={{ color:'var(--muted)', fontStyle:'italic', fontWeight:'400', marginLeft:'7px' }}>— {noTradeWarning.label}</span>}</>
+            ) : events.length > 0 ? `${events.length} high-impact event${events.length > 1 ? 's' : ''}` : 'No news today'}
           </div>
         </div>
         {events.length > 0 && (
@@ -1063,6 +1065,15 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         </div>
       )}
 
+      {/* ── CORE VALUES BANNER — daily only, above news ── */}
+      {!isWeekly && !isForecast && (
+        <div style={{ marginBottom:'16px', padding:'14px 20px', background:'linear-gradient(135deg, #F7F6FF 0%, #FCFCFF 100%)', border:'1px solid #ECEAFB', borderRadius:'14px', textAlign:'center' }}>
+          <div style={{ fontFamily:"'Bricolage Grotesque', sans-serif", fontSize:'13.5px', fontWeight:'600', color:'#4F46E5', letterSpacing:'.01em' }}>
+            {['Health','Consciousness','Depth','Purpose','Love','Family','Growth'].join('  ·  ')}
+          </div>
+        </div>
+      )}
+
       {/* ── ECONOMIC EVENTS ── */}
       {!isWeekly && !isForecast && (
         <DayNews dateStr={dateStr} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} />
@@ -1072,17 +1083,6 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       )}
       {isForecast && weekRange && (
         <WeeklyEconNews weekRange={weekRange} useNextWeek={true} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} />
-      )}
-
-      {/* ── CORE VALUES ANCHOR — daily only ── */}
-      {!isWeekly && !isForecast && (
-        <div style={{ marginBottom:'20px', padding:'16px 20px', background:'linear-gradient(135deg, #F5F4FF 0%, #FAFAFF 100%)', border:'1px solid #E5E3F7', borderRadius:'16px' }}>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:'8px' }}>
-            {['Health','Consciousness','Depth','Purpose','Love','Family','Growth'].map(v => (
-              <span key={v} style={{ fontSize:'12.5px', fontWeight:'600', color:'#4F46E5', background:'#FFFFFF', border:'1px solid #DAD7F5', padding:'5px 13px', borderRadius:'20px', letterSpacing:'-.01em' }}>{v}</span>
-            ))}
-          </div>
-        </div>
       )}
 
       {/* ── DAY PLAN CARD ── */}
