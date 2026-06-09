@@ -33,11 +33,12 @@ function WeeklyGrading({ dailyNotes, onOpenJournal }) {
     if (!n || !n.checklist_data) return null
     try {
       const cd = JSON.parse(n.checklist_data)
-      const all = cd.grades || []
-      const itemCount = all.length || 8
-      const total = all.reduce((s, g) => s + (g || 0), 0)
+      // Item count must match what the journal used: 4 for no-trade, 5 for trading
+      const itemCount = cd.gradeMode === 'notrade' ? 4 : 5
+      const all = (cd.grades || []).slice(0, itemCount)
       const rated = all.filter(g => g > 0)
       if (!rated.length) return null
+      const total = all.reduce((s, g) => s + (g || 0), 0)
       const pct = Math.round((total / (itemCount * 5)) * 100)
       return { pct }
     } catch { return null }
