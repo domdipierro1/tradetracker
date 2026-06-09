@@ -142,25 +142,27 @@ function DayNews({ dateStr, onEventsLoaded, savedEvents }) {
 
   if (loading) return null
 
-  const warnBg    = noTradeWarning?.type === 'holiday' ? '#FEF3C7' : noTradeWarning?.type === 'quiet' ? '#F0F9FF' : '#FEF2F2'
-  const warnBorder = noTradeWarning?.type === 'holiday' ? '#FDE68A' : noTradeWarning?.type === 'quiet' ? '#BAE6FD' : '#FECACA'
-  const warnColor  = noTradeWarning?.type === 'holiday' ? '#92400E' : noTradeWarning?.type === 'quiet' ? '#0369A1' : '#991B1B'
+  // Only the bank-holiday no-trade day gets the red heading; everything else
+  // uses the normal muted colour and relies on the text note.
+  const cl = noTradeWarning?.type
+  const headerBg = cl === 'holiday' ? 'var(--red-bg)' : 'var(--surface2)'
+  const noteColor = cl === 'holiday' ? 'var(--red)' : 'var(--muted)'
 
   return (
     <div style={{ marginBottom:'14px' }}>
       {/* Economic events card */}
       <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', overflow:'hidden', boxShadow:'var(--shadow)' }}>
-        <div style={{ padding:'10px 16px', borderBottom: events.length > 0 ? '1px solid var(--border)' : 'none', background: noTradeWarning ? 'var(--red-bg)' : 'var(--surface2)' }}>
+        <div style={{ padding:'10px 16px', borderBottom: events.length > 0 ? '1px solid var(--border)' : 'none', background: headerBg }}>
           <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
             <span style={{ fontSize:'12px' }}>📅</span>
             <span style={{ fontSize:'11px', fontWeight:'600', color:'var(--text2)', letterSpacing:'.04em', textTransform:'uppercase' }}>Today's News</span>
             {events.length > 0 && <span style={{ fontSize:'11px', color:'var(--muted)', marginLeft:'auto' }}>{events.length} event{events.length > 1 ? 's' : ''}</span>}
             {liveEvents.length === 0 && (savedEvents||[]).length > 0 && <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--muted2)', background:'var(--surface3)', padding:'2px 7px', borderRadius:'4px', letterSpacing:'.05em', marginLeft: events.length > 0 ? '8px' : 'auto' }}>SAVED</span>}
           </div>
-          <div style={{ fontSize:'12px', fontWeight:'500', color: noTradeWarning ? 'var(--red)' : 'var(--muted)', marginTop:'4px', marginLeft:'20px' }}>
-            {noTradeWarning ? (
-              <>Non Trading Day{noTradeWarning.label && <span style={{ color:'var(--muted)', fontStyle:'italic', fontWeight:'400', marginLeft:'7px' }}>— {noTradeWarning.label}</span>}</>
-            ) : events.length > 0 ? `${events.length} high-impact event${events.length > 1 ? 's' : ''}` : 'No news today'}
+          <div style={{ fontSize:'12px', fontWeight:'600', color: noteColor, marginTop:'4px', marginLeft:'20px' }}>
+            {noTradeWarning ? noTradeWarning.label
+              : events.length > 0 ? `Normal Day · ${events.length} event${events.length > 1 ? 's' : ''}`
+              : 'Normal Day · no news'}
           </div>
         </div>
         {events.length > 0 && (

@@ -67,23 +67,28 @@ export default function EconomicCalendar() {
             {weekDays.map((day, di) => {
               const dayEvs  = eventsForDate(day.dateStr)
               const isToday = day.dateStr === today
-              const noTrade = day.isWeekend ? null : getNoTradeReason(day.dateStr, events)
+              const cls = day.isWeekend ? null : getNoTradeReason(day.dateStr, events)
+              const isHoliday = cls?.type === 'holiday'
+              // Holiday = red badge; all other classifications = neutral grey badge
+              const badgeStyle = isHoliday
+                ? { bg:'#FEF2F2', bd:'#FECACA', fg:'#B91C1C', icon:'🚫 ' }
+                : { bg:'#F1F5F9', bd:'#E2E8F0', fg:'#475569', icon:'' }
 
               return (
-                <div key={day.dateStr} style={{ borderBottom: di < 6 ? '1px solid #F8FAFC' : 'none', background: noTrade ? 'rgba(225,29,72,0.035)' : 'transparent' }}>
+                <div key={day.dateStr} style={{ borderBottom: di < 6 ? '1px solid #F8FAFC' : 'none', background: isHoliday ? 'rgba(225,29,72,0.035)' : 'transparent' }}>
                   {/* Day header */}
                   <div style={{ padding:'8px 20px 4px', display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
                     <span style={{ fontSize:'10px', fontWeight:'700', color: isToday ? 'var(--amber)' : '#94A3B8', letterSpacing:'.06em', textTransform:'uppercase' }}>
                       {day.dayName} {day.dayNum} {day.month.toUpperCase()}
                     </span>
                     {isToday && <span style={{ padding:'1px 6px', borderRadius:'20px', background:'var(--amber)', color:'#fff', fontSize:'9px', fontWeight:'800' }}>TODAY</span>}
-                    {noTrade && (
-                      <span style={{ display:'inline-flex', alignItems:'center', gap:'5px', padding:'2px 9px', borderRadius:'20px', background:'#FEF2F2', border:'1px solid #FECACA', color:'#B91C1C', fontSize:'9.5px', fontWeight:'800', letterSpacing:'.03em' }}>
-                        🚫 NO-TRADE DAY · {noTrade.label.toUpperCase()}
+                    {cls && (
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:'5px', padding:'2px 9px', borderRadius:'20px', background:badgeStyle.bg, border:`1px solid ${badgeStyle.bd}`, color:badgeStyle.fg, fontSize:'9.5px', fontWeight:'700', letterSpacing:'.02em' }}>
+                        {badgeStyle.icon}{cls.label.toUpperCase()}
                       </span>
                     )}
-                    {!day.isWeekend && dayEvs.length === 0 && !noTrade && (
-                      <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>No high-impact events</span>
+                    {!day.isWeekend && dayEvs.length === 0 && !cls && (
+                      <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>Normal Day · no news</span>
                     )}
                   </div>
 

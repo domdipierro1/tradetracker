@@ -90,9 +90,12 @@ export function useEconomicCalendar() {
   return { events, loading, error, fetchedAt, eventsForDate }
 }
 
-// ── SHARED NO-TRADE RULE ─────────────────────────────────────────
-// Returns { type, label } or null. Used by both the journal and the calendar
-// so the logic never diverges. `allEvents` is the full events array.
+// ── SHARED DAY CLASSIFICATION ────────────────────────────────────
+// Returns { type, label, tradeable } or null (= Normal Day, no note).
+// Used by journal + calendar + econ page so the logic never diverges.
+// Types: 'holiday' (hard no-trade), 'high' (big-three news day),
+//        'high-prior' (day before big-three), 'red' (other red-folder day),
+//        'red-prior' (day before red-folder), 'quiet' (no-news Monday).
 export function getNoTradeReason(dateStr, allEvents) {
   if (!dateStr || !Array.isArray(allEvents)) return null
   const d = new Date(dateStr + 'T12:00:00')
@@ -113,28 +116,42 @@ export function getNoTradeReason(dateStr, allEvents) {
     if (t.includes('minute')) return false
     return t.includes('fomc') || t.includes('federal funds') || t.includes('fed funds') || t.includes('rate decision')
   }
+  const isBigThree = e => isNFP(e) || isCPI(e) || isFOMC(e)
 
   const evOn = ds => allEvents.filter(e => e.date === ds && e.country === 'USD')
   const usdToday = evOn(dateStr)
-
-  // 1. USD Bank Holiday
-  if (usdToday.find(e => e.isHoliday)) return { type: 'holiday', label: 'USD bank holiday' }
-  // 2/3/4a. Day of CPI / FOMC / NFP
-  if (usdToday.find(isCPI))  return { type: 'high', label: 'US CPI day' }
-  if (usdToday.find(isFOMC)) return { type: 'high', label: 'US FOMC day' }
-  if (usdToday.find(isNFP))  return { type: 'high', label: 'US NFP day' }
-  // 4b. Day before CPI / NFP
   const tmr = new Date(d); tmr.setDate(d.getDate() + 1)
   const usdTmr = evOn(tmr.toLocaleDateString('en-CA'))
-  if (usdTmr.find(isCPI)) return { type: 'high', label: 'Day before US CPI' }
-  if (usdTmr.find(isNFP)) return { type: 'high', label: 'Day before US NFP' }
-  // 5. No-News Monday unless week has NFP/CPI
+
+  const bigThreeName = e => isCPI(e) ? 'US CPI' : isNFP(e) ? 'US NFP' : isFOMC(e) ? 'US FOMC' : null
+
+  // 1. Bank/market holiday — the only true No Trade Day
+  if (usdToday.find(e => e.isHoliday)) return { type: 'holiday', label: 'No Trade Day · US bank holiday', tradeable: false }
+
+  // 2. High Impact News Day — day OF CPI / NFP / FOMC (tradeable, caution)
+  const bigToday = usdToday.find(isBigThree)
+  if (bigToday) return { type: 'high', label: `High Impact News Day (${bigThreeName(bigToday)}) · trade with caution`, tradeable: true }
+
+  // 3. Prior to High Impact News Day — day BEFORE big-three (tradeable, caution)
+  const bigTmr = usdTmr.find(isBigThree)
+  if (bigTmr) return { type: 'high-prior', label: `Prior to High Impact News Day (${bigThreeName(bigTmr)} tomorrow) · trade with caution`, tradeable: true }
+
+  // 4. Red Folder News Day — day OF any other USD high-impact event (tradeable, caution)
+  const redToday = usdToday.find(e => !e.isHoliday && !isBigThree(e))
+  if (redToday) return { type: 'red', label: 'Red Folder News Day · trade with caution', tradeable: true }
+
+  // 5. Prior to Red Folder News Day — day BEFORE other red-folder (tradeable, caution)
+  const redTmr = usdTmr.find(e => !e.isHoliday && !isBigThree(e))
+  if (redTmr) return { type: 'red-prior', label: 'Prior to Red Folder News Day · trade with caution', tradeable: true }
+
+  // 6. No-News Monday — Monday with no USD news, unless the week has NFP/CPI
   if (dow === 1 && usdToday.length === 0) {
     const weekHasKey = [0,1,2,3,4].some(off => {
       const wd = new Date(d); wd.setDate(d.getDate() + off)
       return evOn(wd.toLocaleDateString('en-CA')).some(e => isNFP(e) || isCPI(e))
     })
-    if (!weekHasKey) return { type: 'quiet', label: 'No-news Monday' }
+    if (!weekHasKey) return { type: 'quiet', label: 'No-News Monday', tradeable: true }
   }
-  return null
+
+  return null // Normal Day
 }
