@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { computeStats, f2, f1 } from '../lib/stats'
-import DailyJournal from './DailyJournal'
 
 
 // Get Mon-Sun week containing a given date string
@@ -22,8 +21,8 @@ function getWeekR(trades, sundayDateStr) {
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
-export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast }) {
-  const today      = new Date().toISOString().split('T')[0]
+export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote, onAddTrade, onDeleteTrade, toast, onOpenJournal }) {
+  const today      = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
   const [month, setMonth] = useState(new Date().getMonth())
   const [year,  setYear]  = useState(Math.max(2026, new Date().getFullYear()))
   const [selectedDate, setSelectedDate] = useState(null)
@@ -43,7 +42,15 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
   })
 
   const noteMap = {}
-  ;(dailyNotes||[]).forEach(n => { noteMap[n.date] = n })
+  ;(dailyNotes||[]).forEach(n => {
+    // Only mark as having a note if there's actual content
+    const hasContent = [
+      n.mood, n.market_conditions, n.note, n.trading_errors,
+      n.what_worked, n.improvements, n.consistency,
+      n.observations, n.execution_review, n.week_summary
+    ].some(v => v && typeof v === 'string' && !v.startsWith('[') && v.trim().length > 0)
+    if (hasContent) noteMap[n.date] = n
+  })
 
   const firstDow   = (new Date(year, month, 1).getDay() + 6) % 7
   const daysInMonth = new Date(year, month+1, 0).getDate()
@@ -61,10 +68,12 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
     const d = dayMap[ds]
     const hasNote = !!noteMap[ds]
     if (!d?.trades.length) {
-      if (hasNote) return 'note-only'   // note but no trades = grey (even if today)
-      if (isToday) return 'today-empty' // today with no note and no trades = blue
+      if (hasNote) return 'note-only'
+      if (isToday) return 'today-empty'
       return 'no-trade'
     }
+    // Today always returns a 'today-*' class so it stays blue
+    if (isToday) return d.pl > 0 ? 'today-win' : d.pl < 0 ? 'today-loss' : 'today-be'
     return d.pl > 0 ? 'win' : d.pl < 0 ? 'loss' : 'be'
   }
 
@@ -74,45 +83,29 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
     be:           { bg:'var(--amber-bg)', border:'var(--amber-dim)' },
     'no-trade':   { bg:'var(--surface)',  border:'var(--border)'    },
     'today-empty':{ bg:'var(--blue-bg)',  border:'var(--blue)'      },
-    'note-only':  { bg:'#D8D8D4',         border:'#BEBEBB'          },
+    'today-win':  { bg:'var(--green-bg)', border:'var(--green-dim)' },
+    'today-loss': { bg:'var(--red-bg)',   border:'var(--red-dim)'   },
+    'today-be':   { bg:'var(--amber-bg)', border:'var(--amber-dim)' },
+    'note-only':  { bg:'var(--surface)',   border:'var(--border)'    },
     weekend:      { bg:'var(--surface2)', border:'var(--border)'    },
   }
   const numCol = {
     win:'var(--green)', loss:'var(--red)', be:'var(--amber)',
-    'no-trade':'var(--muted)', 'today-empty':'var(--blue)', weekend:'var(--muted2)'
+    'no-trade':'var(--muted)', 'today-empty':'var(--blue)', 'today-win':'var(--green)', 'today-loss':'var(--red)', 'today-be':'var(--amber)', 'note-only':'var(--muted2)', weekend:'var(--muted2)'
   }
 
   // Month stats
   const ms = computeStats(moTrades)
   const mPL = moTrades.reduce((s,t) => s + (t.pl||t.r_multiple||0), 0)
 
-  // If a date is selected, show the DailyJournal for that date
+  // If a date is selected, navigate to the journal page
   if (selectedDate) {
-    return (
-      <div>
-        {/* Back button */}
-        <div style={{ padding:'12px 28px 0', display:'flex', alignItems:'center', gap:'10px', background:'var(--surface)', borderBottom:'1px solid var(--border)', marginBottom:'0' }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => setSelectedDate(null)}
-            style={{ display:'flex', alignItems:'center', gap:'5px', color:'var(--muted)' }}>
-            ← Calendar
-          </button>
-          <span style={{ fontSize:'12px', color:'var(--muted)' }}>
-            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' })}
-          </span>
-        </div>
-        <DailyJournal
-          trades={trades}
-          dailyNotes={dailyNotes}
-          onSaveNote={onSaveNote}
-          onDeleteNote={onDeleteNote}
-          onAddTrade={onAddTrade}
-          onDeleteTrade={onDeleteTrade}
-          toast={toast}
-          dateStr={selectedDate}
-          isWeekly={new Date(selectedDate + 'T12:00:00').getDay() === 0}
-        />
-      </div>
-    )
+    const dow = new Date(selectedDate + 'T12:00:00').getDay()
+    const mode = dow === 6 ? true : dow === 0 ? 'forecast' : false
+    if (onOpenJournal) {
+      onOpenJournal(selectedDate, mode)
+      setSelectedDate(null)
+    }
   }
 
   return (
@@ -163,7 +156,7 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
       </div>
 
       {/* Grid */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px' }}>
+      <div className="cal-grid" style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px' }}>
         {Array.from({ length: totalCells }, (_, i) => {
           const day = i - firstDow + 1
           if (day < 1 || day > daysInMonth) return <div key={i} style={{ minHeight:'78px' }} />
@@ -173,49 +166,58 @@ export default function Calendar({ trades, dailyNotes, onSaveNote, onDeleteNote,
           const d   = dayMap[ds]
           const isToday = ds === today
           const dow2 = (firstDow + day - 1) % 7
+          const isSaturdayCell = dow2 === 5
           const isSundayCell = dow2 === 6
-          const hasWeeklyNote = isSundayCell && !!noteMap[ds]
+          const hasReviewNote = isSaturdayCell && !!noteMap[ds]
+          const hasForecastNote = isSundayCell && !!noteMap[ds]
+          const hasWeeklyNote = hasReviewNote || hasForecastNote
           const hasNote = !!noteMap[ds]
           const pl  = d ? (d.trades.reduce((s,t) => s+(t.pl||t.r_multiple||0), 0)) : 0
           const cnt = d?.trades.length || 0
 
           return (
-            <div key={i} onClick={() => setSelectedDate(ds)}
-              style={{ background: isSundayCell ? 'var(--purple-bg)' : cs.bg, border:`1.5px solid ${isSundayCell ? 'var(--purple-dim)' : cs.border}`, borderRadius:'var(--r-sm)', minHeight:'78px', padding:'7px', display:'flex', flexDirection:'column', gap:'2px', cursor:'pointer', transition:'all .15s', position:'relative', opacity: cls==='weekend'?.55:1 }}
+            <div key={i} className="cal-cell" onClick={() => setSelectedDate(ds)}
+              style={{ background: isSaturdayCell ? 'var(--green-bg)' : isSundayCell ? 'var(--purple-bg)' : cs.bg, border:`1.5px solid ${isSaturdayCell ? 'var(--green-dim)' : isSundayCell ? 'var(--purple-dim)' : cs.border}`, borderRadius:'var(--r-sm)', minHeight:'78px', padding:'7px', display:'flex', flexDirection:'column', gap:'2px', cursor:'pointer', transition:'all .15s', position:'relative', opacity: cls==='weekend'?.55:1 }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow='var(--shadow-md)'; e.currentTarget.style.transform='translateY(-1px)' }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow=''; e.currentTarget.style.transform='' }}>
 
               <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
                 <div>
-                  <span style={{ fontSize:'11px', fontWeight:'600', color:numCol[cls] }}>{day}</span>
+                  <span style={{ fontSize:'11px', fontWeight:'600', color: numCol[cls] }}>{day}</span>
                   {isToday && <div style={{ fontSize:'8px', fontWeight:'700', color:'var(--blue)', letterSpacing:'.04em' }}>TODAY</div>}
                 </div>
-                {(hasNote && !isSundayCell) && (
-                  <div style={{ width:'16px', height:'16px', borderRadius:'5px', background:'rgba(99,102,241,.12)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                    <svg width="9" height="9" viewBox="0 0 9 9" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M6.5 1L8 2.5L3 7.5H1.5V6L6.5 1Z" stroke="#6366F1" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M5.5 2L7 3.5" stroke="#6366F1" strokeWidth="1.1" strokeLinecap="round"/>
+                {(hasNote && !isSundayCell && !isSaturdayCell) && (
+                  <div style={{ width:'20px', height:'20px', borderRadius:'6px', background:'#6366F1', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 1px 4px rgba(99,102,241,.35)' }}>
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8.5 1.5L10.5 3.5L4 10H2V8L8.5 1.5Z" fill="white" fillOpacity="0.9"/>
+                      <path d="M7 3L9 5" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.6"/>
                     </svg>
                   </div>
                 )}
                 {hasWeeklyNote && (
-                  <div style={{ width:'16px', height:'16px', borderRadius:'5px', background:'rgba(99,102,241,.12)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                    <svg width="9" height="9" viewBox="0 0 9 9" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M6.5 1L8 2.5L3 7.5H1.5V6L6.5 1Z" stroke="#6366F1" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M5.5 2L7 3.5" stroke="#6366F1" strokeWidth="1.1" strokeLinecap="round"/>
+                  <div style={{ width:'20px', height:'20px', borderRadius:'6px', background: '#6366F1', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 1px 4px rgba(99,102,241,.35)' }}>
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M8.5 1.5L10.5 3.5L4 10H2V8L8.5 1.5Z" fill="white" fillOpacity="0.9"/>
+                      <path d="M7 3L9 5" stroke="white" strokeWidth="0.8" strokeLinecap="round" opacity="0.6"/>
                     </svg>
                   </div>
                 )}
               </div>
 
-              {cnt > 0 && <>
-                <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'13px', fontWeight:'600', color:numCol[cls], marginTop:'auto', lineHeight:1.2 }}>
+              {(cnt > 0 || isSaturdayCell || isSundayCell) && <>
+                {cnt > 0 && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'13px', fontWeight:'600', color:numCol[cls], marginTop:'auto', lineHeight:1.2 }}>
                   {f2(pl)}
-                </span>
-                <span style={{ fontSize:'9px', color:numCol[cls], opacity:.8 }}>{cnt} trade{cnt>1?'s':''}</span>
-                <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background: cls==='win'?'var(--green-dim)':cls==='loss'?'var(--red-dim)':'var(--amber-dim)', color: cls==='win'?'var(--green)':cls==='loss'?'var(--red)':'var(--amber)' }}>
-                  {pl>0?'WIN':pl<0?'LOSS':'BE'}
-                </span>
+                </span>}
+                {isSaturdayCell
+                  ? <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--green)' }}>Weekly Review</span>
+                  : isSundayCell
+                  ? <span style={{ fontSize:'9px', fontWeight:'700', color:'var(--purple)' }}>Weekly Forecast</span>
+                  : <span style={{ fontSize:'9px', color:numCol[cls], opacity:.8 }}>{cnt} trade{cnt>1?'s':''}</span>}
+                {cnt > 0 && !isSaturdayCell && !isSundayCell && (
+                  <span style={{ display:'inline-flex', padding:'1px 5px', borderRadius:'3px', fontSize:'8px', fontWeight:'700', background: (cls==='win'||cls==='today-win')?'var(--green-dim)':(cls==='loss'||cls==='today-loss')?'var(--red-dim)':'var(--amber-dim)', color: (cls==='win'||cls==='today-win')?'var(--green)':(cls==='loss'||cls==='today-loss')?'var(--red)':'var(--amber)' }}>
+                    {pl>0?'WIN':pl<0?'LOSS':'BE'}
+                  </span>
+                )}
               </>}
             </div>
           )

@@ -1,15 +1,121 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1D4ED8"/>
-      <stop offset="100%" style="stop-color:#3B82F6"/>
-    </linearGradient>
-  </defs>
-  <rect width="192" height="192" rx="42" fill="url(#bg)"/>
-  <rect x="30" y="110" width="24" height="42" rx="5" fill="rgba(255,255,255,0.4)"/>
-  <rect x="63" y="84" width="24" height="68" rx="5" fill="rgba(255,255,255,0.6)"/>
-  <rect x="96" y="58" width="24" height="94" rx="5" fill="white"/>
-  <rect x="129" y="94" width="24" height="58" rx="5" fill="rgba(255,255,255,0.6)"/>
-  <polyline points="42,120 75,94 108,70 141,108" fill="none" stroke="#93C5FD" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="141" cy="108" r="9" fill="#BFDBFE"/>
-</svg>
+import { useEconomicCalendar, currencyFlag, getFFWeekDays, getNoTradeReason } from '../lib/useEconomicCalendar'
+
+const CCY_COL = { USD:'#1D4ED8', GBP:'#6D28D9', EUR:'#065F46' }
+const CCY_BG  = { USD:'#DBEAFE', GBP:'#EDE9FE', EUR:'#D1FAE5' }
+
+export default function EconomicCalendar() {
+  const { events, loading, error, fetchedAt, eventsForDate } = useEconomicCalendar()
+  const weekDays = getFFWeekDays()
+  const today    = new Date().toLocaleDateString('en-CA')
+
+  const usd = events.filter(e=>e.country==='USD').length
+  const gbp = events.filter(e=>e.country==='GBP').length
+  const eur = events.filter(e=>e.country==='EUR').length
+  const weekLabel = `${weekDays[0].month} ${weekDays[0].dayNum} – ${weekDays[6].month} ${weekDays[6].dayNum}`
+
+  function refresh() {
+    sessionStorage.removeItem('tt_econ_v27')
+    window.location.reload()
+  }
+
+  return (
+    <div className="page active">
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'16px', flexWrap:'wrap', gap:'10px' }}>
+        <div>
+          <h1 style={{ fontSize:'20px', fontWeight:'800', color:'var(--text)', marginBottom:'4px' }}>Economic Calendar</h1>
+          <div style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>🔴 High impact · USD · GBP · EUR · {weekLabel}</div>
+        </div>
+        <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
+          {[['USD',usd],['GBP',gbp],['EUR',eur]].map(([cur,n]) => (
+            <div key={cur} style={{ display:'flex', alignItems:'center', gap:'4px', padding:'4px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'6px', fontSize:'11px', fontWeight:'700' }}>
+              <span style={{ color:CCY_COL[cur] }}>{cur}</span>
+              <span style={{ color:'var(--muted)' }}>{n}</span>
+            </div>
+          ))}
+          {fetchedAt && <span style={{ fontSize:'10px', color:'var(--muted2)' }}>Updated {fetchedAt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>}
+          <button onClick={refresh} style={{ background:'none', border:'1px solid var(--border)', borderRadius:'6px', padding:'4px 10px', cursor:'pointer', fontSize:'13px', color:'var(--muted)', fontFamily:'inherit' }}>↻</button>
+        </div>
+      </div>
+
+      {loading && (
+        <div style={{ textAlign:'center', padding:'60px', color:'var(--muted)' }}>
+          <div style={{ width:'24px', height:'24px', border:'3px solid var(--border)', borderTop:'3px solid var(--blue)', borderRadius:'50%', animation:'spin 1s linear infinite', margin:'0 auto 12px' }} />
+          <div style={{ fontSize:'13px' }}>Loading calendar...</div>
+        </div>
+      )}
+
+      {!loading && error && (
+        <div style={{ padding:'14px', background:'var(--red-bg)', border:'1px solid var(--red-dim)', borderRadius:'var(--r)', color:'var(--red)', fontSize:'13px', fontWeight:'600', marginBottom:'14px' }}>
+          ⚠️ {error} — <button onClick={refresh} style={{ color:'var(--blue)', background:'none', border:'none', cursor:'pointer', fontWeight:'700', fontSize:'13px', fontFamily:'inherit' }}>Try again</button>
+        </div>
+      )}
+
+      {!loading && (
+        <div style={{ background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', overflow:'hidden' }}>
+          {/* Title bar */}
+          <div style={{ padding:'14px 20px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+            <div style={{ width:'3px', height:'16px', borderRadius:'2px', background:'#EF4444', flexShrink:0 }} />
+            <span style={{ fontSize:'13px', fontWeight:'700', color:'#0F172A' }}>This Week's Events</span>
+            <span style={{ marginLeft:'auto', fontSize:'11px', color:'#94A3B8' }}>
+              {events.length > 0 ? `${events.length} high-impact` : 'No high-impact events'} · USD · GBP · EUR
+            </span>
+          </div>
+
+          {/* Days */}
+          <div>
+            {weekDays.map((day, di) => {
+              const dayEvs  = eventsForDate(day.dateStr)
+              const isToday = day.dateStr === today
+              const cls = day.isWeekend ? null : getNoTradeReason(day.dateStr, events)
+              const isHoliday = cls?.type === 'holiday'
+              // Holiday = red badge; all other classifications = neutral grey badge
+              const badgeStyle = isHoliday
+                ? { bg:'#FEF2F2', bd:'#FECACA', fg:'#B91C1C', icon:'🚫 ' }
+                : { bg:'#F1F5F9', bd:'#E2E8F0', fg:'#475569', icon:'' }
+
+              return (
+                <div key={day.dateStr} style={{ borderBottom: di < 6 ? '1px solid #F8FAFC' : 'none', background: isHoliday ? 'rgba(225,29,72,0.035)' : 'transparent' }}>
+                  {/* Day header */}
+                  <div style={{ padding:'8px 20px 4px', display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
+                    <span style={{ fontSize:'10px', fontWeight:'700', color: isToday ? 'var(--amber)' : '#94A3B8', letterSpacing:'.06em', textTransform:'uppercase' }}>
+                      {day.dayName} {day.dayNum} {day.month.toUpperCase()}
+                    </span>
+                    {isToday && <span style={{ padding:'1px 6px', borderRadius:'20px', background:'var(--amber)', color:'#fff', fontSize:'9px', fontWeight:'800' }}>TODAY</span>}
+                    {cls && (
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:'5px', padding:'2px 9px', borderRadius:'20px', background:badgeStyle.bg, border:`1px solid ${badgeStyle.bd}`, color:badgeStyle.fg, fontSize:'9.5px', fontWeight:'700', letterSpacing:'.02em' }}>
+                        {badgeStyle.icon}{cls.label.toUpperCase()}
+                      </span>
+                    )}
+                    {!day.isWeekend && dayEvs.length === 0 && !cls && (
+                      <span style={{ fontSize:'11px', color:'#94A3B8', fontStyle:'italic' }}>Normal Day · no news</span>
+                    )}
+                  </div>
+
+                  {/* Events */}
+                  {dayEvs.map((e, ei) => (
+                    <div key={ei} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 20px', borderTop: ei > 0 ? '1px solid #F8FAFC' : 'none' }}>
+                      <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#64748B', minWidth:'44px' }}>{e.isHoliday ? 'All Day' : (e.time||'—')}</span>
+                      <span style={{ display:'inline-flex', alignItems:'center', gap:'3px', padding:'2px 8px', borderRadius:'4px', background:'#F1F5F9', fontSize:'10px', fontWeight:'700', color:'#1E293B', flexShrink:0 }}>
+                        {e.country}
+                      </span>
+                      <div style={{ width:'11px', height:'11px', borderRadius:'3px', background: e.isHoliday ? '#94A3B8' : '#EF4444', flexShrink:0 }} />
+                      <span style={{ fontSize:'13px', fontWeight:'600', color:'#334155', flex:1 }}>{e.title}</span>
+                      {!e.isHoliday && e.actual   && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', fontWeight:'700', color:'#10B981' }}>{e.actual}</span>}
+                      {!e.isHoliday && e.forecast && !e.actual && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#64748B' }}>{e.forecast}</span>}
+                      {!e.isHoliday && e.previous && <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'12px', color:'#94A3B8' }}>{e.previous}</span>}
+                    </div>
+                  ))}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      <div style={{ textAlign:'center', marginTop:'10px', fontSize:'10px', color:'var(--muted2)' }}>
+        Data from <a href="https://www.forexfactory.com" target="_blank" rel="noopener noreferrer" style={{ color:'var(--blue)', textDecoration:'none', fontWeight:'600' }}>ForexFactory.com</a>
+      </div>
+    </div>
+  )
+}

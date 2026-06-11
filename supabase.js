@@ -1,325 +1,136 @@
-import { useState, useEffect, useMemo } from 'react'
-import './index.css'
-import {
-  supabase, fetchTrades, insertTrade, updateTrade, deleteTrade, signOut,
-  fetchDailyNotes, upsertDailyNote, deleteDailyNote,
-  fetchAccounts, createAccount, updateAccount, deleteAccount
-} from './lib/supabase'
-import AuthPage from './components/AuthPage'
-import Layout from './components/Layout'
-import Dashboard from './components/Dashboard'
-import TradeLog from './components/TradeLog'
-import Calendar from './components/Calendar'
-import NewsTab from './components/NewsTab'
-import DailyJournal from './components/DailyJournal'
-import Analysis from './components/Analysis'
-import Macro from './components/Macro'
-import Playbook from './components/Playbook'
+import { createClient } from '@supabase/supabase-js'
 
-export default function App() {
-  const [user, setUser]               = useState(null)
-  const [loading, setLoading]         = useState(true)
-  const [trades, setTrades]           = useState([])
-  const [dailyNotes, setDailyNotes]   = useState([])
-  const [accounts, setAccounts]       = useState([])
-  const [activeAccountId, setActiveAccountId] = useState(null)
-  const [page, setPage]               = useState('dashboard')
-  const [journalDate,     setJournalDate]     = useState(null)
-  const [journalIsWeekly, setJournalIsWeekly] = useState(false)
-  const [darkMode, setDark]           = useState(() => localStorage.getItem('tt26_dark') === 'true')
-  const [toast, setToastMsg]          = useState('')
-  const [toastVisible, setToastVisible] = useState(false)
-  const [splash, setSplash]           = useState(() => !sessionStorage.getItem('tt26_splash_shown'))
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY
 
-  useEffect(() => {
-    if (!splash) return
-    const t = setTimeout(() => {
-      setSplash(false)
-      try { sessionStorage.setItem('tt26_splash_shown', 'true') } catch(e) {}
-    }, 2000)
-    return () => clearTimeout(t)
-  }, [splash])
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-  useEffect(() => {
-    document.body.classList.toggle('dark', darkMode)
-    localStorage.setItem('tt26_dark', darkMode)
-  }, [darkMode])
+// ── Auth helpers ──────────────────────────────────────────────
+export async function signUp(email, password) {
+  return supabase.auth.signUp({ email, password })
+}
+export async function signIn(email, password) {
+  return supabase.auth.signInWithPassword({ email, password })
+}
+export async function signOut() {
+  return supabase.auth.signOut()
+}
+export async function getUser() {
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
+}
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) loadAll(session.user.id)
-      else setLoading(false)
-    })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) loadAll(session.user.id)
-      else { setTrades([]); setDailyNotes([]); setAccounts([]); setLoading(false) }
-    })
-    return () => subscription.unsubscribe()
-  }, [])
+// ── Trade helpers ─────────────────────────────────────────────
+export async function fetchTrades(userId) {
+  const { data, error } = await supabase
+    .from('trades')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: true })
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data
+}
 
-  async function loadAll(userId) {
-    try {
-      setLoading(true)
-      const [t, n, accts] = await Promise.all([
-        fetchTrades(userId),
-        fetchDailyNotes(userId),
-        fetchAccounts(userId),
-      ])
+export async function insertTrade(trade) {
+  // Only pass known DB columns - strip any extra fields from form
+  const { r, ...rest } = trade  // remove raw 'r' field (already mapped to r_multiple and pl)
+  const { data, error } = await supabase
+    .from('trades')
+    .insert([rest])
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
 
-      // If no accounts exist yet, create a default one
-      let accountList = accts || []
-      if (accountList.length === 0) {
-        const defaultAccount = await createAccount({
-          user_id: userId,
-          name: 'Main Account',
-          starting_balance: 100000,
-          currency: 'USD',
-          account_type: 'Live',
-          color: '#2563EB',
-          is_default: true,
-        })
-        accountList = [defaultAccount]
-      }
+export async function updateTrade(id, updates) {
+  const { r, ...rest } = updates  // r is mapped to r_multiple/pl, not a DB column
+  const { data, error } = await supabase
+    .from('trades')
+    .update(rest)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
 
-      setAccounts(accountList)
-      setTrades(t || [])
-      setDailyNotes(n || [])
+export async function deleteTrade(id) {
+  const { error } = await supabase
+    .from('trades')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}
 
-      // Restore last active account or use first
-      const savedId = localStorage.getItem('tt26_active_account')
-      const validId = accountList.find(a => a.id === savedId)?.id || accountList[0]?.id
-      setActiveAccountId(validId)
 
-    } catch (err) {
-      console.error('Load error:', err)
-      showToast('Error loading data')
-    } finally {
-      setLoading(false)
-    }
-  }
+// ── Account helpers ───────────────────────────────────────────
+export async function fetchAccounts(userId) {
+  const { data, error } = await supabase
+    .from('accounts')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data
+}
 
-  // Trades filtered to active account
-  const accountTrades = useMemo(() =>
-    trades.filter(t => t.account_id === activeAccountId || (!t.account_id && accounts.length <= 1)),
-    [trades, activeAccountId, accounts]
-  )
+export async function createAccount(account) {
+  const { data, error } = await supabase
+    .from('accounts')
+    .insert([account])
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
 
-  // Notes filtered to active account
-  const accountNotes = useMemo(() =>
-    dailyNotes.filter(n => n.account_id === activeAccountId || (!n.account_id && accounts.length <= 1)),
-    [dailyNotes, activeAccountId, accounts]
-  )
+export async function updateAccount(id, updates) {
+  const { data, error } = await supabase
+    .from('accounts')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
 
-  // Active account object
-  const activeAccount = useMemo(() =>
-    accounts.find(a => a.id === activeAccountId),
-    [accounts, activeAccountId]
-  )
+export async function deleteAccount(id) {
+  const { error } = await supabase
+    .from('accounts')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}
 
-  const startingBalance = activeAccount?.starting_balance || 100000
+// ── Daily notes helpers ───────────────────────────────────────
+export async function fetchDailyNotes(userId) {
+  const { data, error } = await supabase
+    .from('daily_notes')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+  if (error) throw error
+  return data
+}
 
-  function showToast(msg) {
-    setToastMsg(msg); setToastVisible(true)
-    setTimeout(() => setToastVisible(false), 2500)
-  }
+export async function upsertDailyNote(note) {
+  // Insert or update based on user_id + date unique constraint
+  const { data, error } = await supabase
+    .from('daily_notes')
+    .upsert({ ...note, updated_at: new Date().toISOString() }, { onConflict: 'user_id,date' })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
 
-  // ── Account handlers ──────────────────────────────────────────
-  function handleSwitchAccount(id) {
-    setActiveAccountId(id)
-    localStorage.setItem('tt26_active_account', id)
-    showToast(`Switched to ${accounts.find(a => a.id === id)?.name}`)
-  }
-
-  async function handleCreateAccount(data) {
-    if (!user) return
-    try {
-      const acc = await createAccount({ ...data, user_id: user.id })
-      setAccounts(prev => [...prev, acc])
-      setActiveAccountId(acc.id)
-      localStorage.setItem('tt26_active_account', acc.id)
-      showToast(`Account "${acc.name}" created ✓`)
-    } catch (err) { showToast('Error creating account: ' + err.message) }
-  }
-
-  async function handleEditAccount(id, updates) {
-    try {
-      const acc = await updateAccount(id, updates)
-      setAccounts(prev => prev.map(a => a.id === id ? acc : a))
-      showToast('Account updated ✓')
-    } catch (err) { showToast('Error updating account: ' + err.message) }
-  }
-
-  async function handleDeleteAccount(id) {
-    try {
-      await deleteAccount(id)
-      setAccounts(prev => prev.filter(a => a.id !== id))
-      setTrades(prev => prev.filter(t => t.account_id !== id))
-      setDailyNotes(prev => prev.filter(n => n.account_id !== id))
-      const remaining = accounts.filter(a => a.id !== id)
-      if (remaining.length > 0) {
-        setActiveAccountId(remaining[0].id)
-        localStorage.setItem('tt26_active_account', remaining[0].id)
-      }
-      showToast('Account deleted')
-    } catch (err) { showToast('Error deleting account: ' + err.message) }
-  }
-
-  // ── Trade handlers ────────────────────────────────────────────
-  async function handleAdd(tradeData) {
-    if (!user) return
-    try {
-      const t = await insertTrade({ ...tradeData, user_id: user.id, account_id: activeAccountId })
-      setTrades(prev => [...prev, t].sort((a,b) => a.date.localeCompare(b.date)))
-    } catch (err) { showToast('Error saving: ' + err.message) }
-  }
-
-  async function handleEdit(id, updates) {
-    try {
-      const t = await updateTrade(id, updates)
-      setTrades(prev => prev.map(x => x.id === id ? t : x).sort((a,b) => a.date.localeCompare(b.date)))
-    } catch (err) { showToast('Error updating: ' + err.message) }
-  }
-
-  async function handleDelete(id) {
-    try {
-      await deleteTrade(id)
-      setTrades(prev => prev.filter(t => t.id !== id))
-    } catch (err) { showToast('Error deleting: ' + err.message) }
-  }
-
-  // ── Note handlers ─────────────────────────────────────────────
-  async function handleSaveNote(noteData) {
-    if (!user) return
-    try {
-      const n = await upsertDailyNote({ ...noteData, user_id: user.id, account_id: activeAccountId })
-      setDailyNotes(prev => {
-        const filtered = prev.filter(x => !(x.date === n.date && x.account_id === n.account_id))
-        return [...filtered, n].sort((a,b) => b.date.localeCompare(a.date))
-      })
-      return n
-    } catch (err) { showToast('Error saving note: ' + err.message); throw err }
-  }
-
-  async function handleDeleteNote(id) {
-    try {
-      await deleteDailyNote(id)
-      setDailyNotes(prev => prev.filter(n => n.id !== id))
-    } catch (err) { showToast('Error deleting note: ' + err.message) }
-  }
-
-  // ── Export / Import ───────────────────────────────────────────
-  function handleExport() {
-    const blob = new Blob([JSON.stringify({
-      trades: accountTrades, dailyNotes: accountNotes,
-      account: activeAccount,
-      exportedAt: new Date().toISOString(), v: '4.0'
-    }, null, 2)], { type: 'application/json' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `tradetracker_${activeAccount?.name?.replace(/\s+/g,'_') || 'export'}_${new Date().toISOString().split('T')[0]}.json`
-    a.click()
-    showToast('Exported ✓')
-  }
-
-  function handleImport(e) {
-    const file = e.target.files[0]; if (!file) return
-    const reader = new FileReader()
-    reader.onload = async ev => {
-      try {
-        const data = JSON.parse(ev.target.result)
-        if (data.trades && Array.isArray(data.trades)) {
-          if (window.confirm(`Import ${data.trades.length} trades into "${activeAccount?.name}"?`)) {
-            const existing = new Set(trades.map(t => t.id))
-            let added = 0
-            for (const t of data.trades) {
-              if (!existing.has(t.id)) {
-                const { id, user_id, created_at, account_id, ...clean } = t
-                await handleAdd(clean); added++
-              }
-            }
-            if (data.dailyNotes) {
-              for (const n of data.dailyNotes) {
-                const { id, user_id, created_at, updated_at, account_id, ...clean } = n
-                await handleSaveNote(clean)
-              }
-            }
-            showToast(`${added} trades imported ✓`)
-          }
-        } else showToast('Invalid file format')
-      } catch { showToast('Could not read file') }
-    }
-    reader.readAsText(file); e.target.value = ''
-  }
-
-  async function handleSignOut() {
-    await signOut(); setUser(null); setTrades([]); setDailyNotes([]); setAccounts([])
-  }
-
-  function handleNav(id) {
-    if (id !== 'journal') { setJournalDate(null); setJournalIsWeekly(false) }
-    else if (!journalDate) {
-      // Default journal mode based on today's day
-      const dow = new Date().getDay()
-      if (dow === 6) setJournalIsWeekly(true)           // Saturday = Weekly Review
-      else if (dow === 0) setJournalIsWeekly('forecast') // Sunday = Weekly Forecast
-      else setJournalIsWeekly(false)
-    }
-    setPage(id); window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  // ── Splash: "Be The Observer" (2s on first load) ──────────────
-  if (splash) return (
-    <div style={{ position:'fixed', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg)', zIndex:99999, animation:'fadeIn .4s ease' }}>
-      <div style={{ textAlign:'center', animation:'observerRise 1s cubic-bezier(.16,1,.3,1)' }}>
-        <div style={{ fontFamily:"'Bricolage Grotesque', sans-serif", fontSize:'clamp(28px, 6vw, 52px)', fontWeight:'700', color:'var(--text)', letterSpacing:'-.03em', lineHeight:1.1 }}>
-          Be The Observer
-        </div>
-        <div style={{ margin:'22px auto 0', width:'46px', height:'2px', background:'var(--blue)', borderRadius:'2px', animation:'observerLine 2s cubic-bezier(.16,1,.3,1) forwards' }} />
-      </div>
-      <style>{`
-        @keyframes observerRise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes observerLine { from { width:0; opacity:0; } 40% { opacity:1; } to { width:120px; opacity:1; } }
-      `}</style>
-    </div>
-  )
-
-  // ── Loading screen ────────────────────────────────────────────
-  if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text)' }}>Trade<span style={{ color: 'var(--blue)' }}>Tracker</span></div>
-      <div style={{ width: '32px', height: '32px', border: '3px solid var(--border)', borderTop: '3px solid var(--blue)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-    </div>
-  )
-
-  if (!user) return <AuthPage onAuth={u => { setUser(u); loadAll(u.id) }} />
-
-  const pageProps = { trades: accountTrades, toast: showToast, startingBalance, currency: activeAccount?.currency || 'USD' }
-
-  return (
-    <>
-      <Layout
-        page={page} onNav={handleNav}
-        trades={accountTrades} user={user}
-        onSignOut={handleSignOut}
-        onExport={handleExport} onImport={handleImport}
-        darkMode={darkMode} onToggleDark={() => setDark(d => !d)}
-        accounts={accounts} activeAccountId={activeAccountId} startingBalance={startingBalance}
-        onSwitchAccount={handleSwitchAccount}
-        onCreateAccount={handleCreateAccount}
-        onEditAccount={handleEditAccount}
-        onDeleteAccount={handleDeleteAccount}
-      >
-        {page === 'dashboard' && <Dashboard {...pageProps} />}
-        {page === 'journal'   && <DailyJournal trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onEditTrade={handleEdit} onDeleteTrade={handleDelete} toast={showToast} dateStr={journalDate} isWeekly={journalIsWeekly} />}
-        {page === 'calendar'  && <Calendar  trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onEditTrade={handleEdit} onDeleteTrade={handleDelete} toast={showToast} onOpenJournal={(date, weekly) => { setJournalDate(date); setJournalIsWeekly(weekly); setPage('journal'); window.scrollTo({top:0}) }} />}
-        {page === 'news'      && <NewsTab />}
-        {page === 'analysis'  && <Analysis  {...pageProps} />}
-        {page === 'playbook'  && <Playbook />}
-        {page === 'macro'     && <Macro />}
-      </Layout>
-      <div className={`toast ${toastVisible ? 'show' : ''}`}>{toast}</div>
-    </>
-  )
+export async function deleteDailyNote(id) {
+  const { error } = await supabase
+    .from('daily_notes')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
 }
