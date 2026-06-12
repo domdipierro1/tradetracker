@@ -13,6 +13,7 @@ import Calendar from './components/Calendar'
 import NewsTab from './components/NewsTab'
 import DailyJournal from './components/DailyJournal'
 import Analysis from './components/Analysis'
+import TradeHistory from './components/TradeHistory'
 import Macro from './components/Macro'
 import Playbook from './components/Playbook'
 
@@ -316,6 +317,7 @@ export default function App() {
         {page === 'calendar'  && <Calendar  trades={accountTrades} dailyNotes={accountNotes} onSaveNote={handleSaveNote} onDeleteNote={handleDeleteNote} onAddTrade={handleAdd} onEditTrade={handleEdit} onDeleteTrade={handleDelete} toast={showToast} onOpenJournal={(date, weekly) => { setJournalDate(date); setJournalIsWeekly(weekly); setPage('journal'); window.scrollTo({top:0}) }} />}
         {page === 'news'      && <NewsTab />}
         {page === 'analysis'  && <Analysis  {...pageProps} />}
+        {page === 'history'   && <TradeHistory trades={accountTrades} startingBalance={startingBalance} onOpenJournal={(date, weekly) => { setJournalDate(date); setJournalIsWeekly(weekly); setPage('journal'); window.scrollTo({top:0}) }} />}
         {page === 'playbook'  && <Playbook />}
         {page === 'macro'     && <Macro />}
       </Layout>

@@ -7,6 +7,7 @@ const NAV = [
   { id: 'dashboard', label: 'Dashboard',         short: 'Dash' },
   { id: 'journal',   label: 'Journal',            short: 'Jour' },
   { id: 'calendar',  label: 'Calendar',           short: 'Cal'  },
+  { id: 'history',   label: 'Trade History',       short: 'Hist' },
   { id: 'news',      label: 'Economic Calendar',  short: 'News' },
   { id: 'macro',     label: 'Macro',              short: 'Mcro' },
   { id: 'analysis',  label: 'Analysis',           short: 'Anal' },
@@ -88,7 +89,7 @@ export default function Layout({ page, onNav, trades, user, onSignOut, onExport,
         <div style={{ display:'flex', height:'52px', overflowX:'auto', scrollbarWidth:'none' }}>
           {NAV.map(item => {
             const active = page === item.id
-            const icons = { dashboard:'⊞', journal:'✎', calendar:'◫', news:'◷', macro:'◈', analysis:'◉', playbook:'☰' }
+            const icons = { dashboard:'⊞', journal:'✎', calendar:'◫', history:'⊟', news:'◷', macro:'◈', analysis:'◉', playbook:'☰' }
             return (
               <button key={item.id} onClick={() => onNav(item.id)}
                 style={{ flex:'1 0 0', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'2px', border:'none', background:'transparent', cursor:'pointer', padding:'4px 2px', position:'relative', WebkitTapHighlightColor:'transparent', minWidth:'46px' }}>
