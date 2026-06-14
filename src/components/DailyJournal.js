@@ -709,7 +709,7 @@ function ChartList({ charts, setCharts, markDirty, isForecast }) {
 
 // ── WEEKLY ECON SNAPSHOT ─────────────────────────────────────────
 // Shows Mon-Fri high-impact events for the week being reviewed
-function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents }) {
+function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents, dailyNotes }) {
   const { eventsForDate, loading } = useEconomicCalendar()
 
   const weekdays = React.useMemo(() => {
@@ -734,7 +734,27 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents })
   }, [weekRange?.mon, useNextWeek])
 
   const liveEvents = weekdays.flatMap(ds => eventsForDate(ds))
-  const events = liveEvents.length > 0 ? liveEvents : (savedEvents || [])
+
+  // Fallback chain: live events → weekly snapshot → assemble from each day's
+  // own saved econ_snapshot (covers past weeks reviewed for the first time).
+  const fromDailySnapshots = React.useMemo(() => {
+    if (!dailyNotes || weekdays.length === 0) return []
+    const out = []
+    weekdays.forEach(ds => {
+      const note = dailyNotes.find(n => n.date === ds)
+      if (note && note.econ_snapshot) {
+        try {
+          const evs = JSON.parse(note.econ_snapshot)
+          if (Array.isArray(evs)) evs.forEach(e => out.push({ ...e, date: e.date || ds }))
+        } catch (err) {}
+      }
+    })
+    return out
+  }, [dailyNotes, weekdays])
+
+  const events = liveEvents.length > 0 ? liveEvents
+    : (savedEvents && savedEvents.length > 0) ? savedEvents
+    : fromDailySnapshots
 
   // Snapshot once loading is done — only when live events exist, so we never
   // wipe a saved weekly snapshot when revisiting a past week.
@@ -1093,10 +1113,10 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         <DayNews dateStr={dateStr} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} />
       )}
       {isWeekly && weekRange && (
-        <WeeklyEconNews weekRange={weekRange} useNextWeek={false} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} />
+        <WeeklyEconNews weekRange={weekRange} useNextWeek={false} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} dailyNotes={dailyNotes} />
       )}
       {isForecast && weekRange && (
-        <WeeklyEconNews weekRange={weekRange} useNextWeek={true} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} />
+        <WeeklyEconNews weekRange={weekRange} useNextWeek={true} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} dailyNotes={dailyNotes} />
       )}
 
       {/* ── DAY PLAN CARD ── */}
