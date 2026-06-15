@@ -59,6 +59,15 @@ const NO_TRADE_GRADE_ITEMS = [
   'Protected my capital & mindset',
 ]
 
+const HABITS = [
+  { key:'gym',        label:'Gym' },
+  { key:'stretch',    label:'Stretching' },
+  { key:'eft',        label:'EFT tapping' },
+  { key:'inner',      label:'Inner practice', hint:'affirmations · visualisation · breathwork' },
+  { key:'jobsearch',  label:'Job search' },
+  { key:'selfimage',  label:'Caught a belief / future self rep' },
+]
+
 const EMPTY_TRADE = { time:'', symbol:'', direction:'', bias:'', session:'', level:'', pd_array:'', entry_tf:'', trade_type:'', r:'', mae:'', mfe:'', outcome:'', mistake:'No mistake', emotions:'', mistake_tags:'', screenshot:'', screenshot2:'', journal:'' }
 const TRADE_DRAFT = 'tt26_trade_draft'
 const FORM_OPEN   = 'tt26_form_open'
@@ -790,11 +799,18 @@ function WeeklyEconNews({ weekRange, useNextWeek, onEventsLoaded, savedEvents, d
           const dayEvs = grouped[ds] || []
           const d = new Date(ds + 'T12:00:00')
           const dayLabel = d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' })
+          const cls = getNoTradeReason(ds, events)
+          const isHoliday = cls?.type === 'holiday'
           return (
-            <div key={ds} style={{ borderBottom:'1px solid #F8FAFC' }}>
-              <div style={{ padding:'8px 20px 4px', display:'flex', alignItems:'center', gap:'8px' }}>
+            <div key={ds} style={{ borderBottom:'1px solid #F8FAFC', background: isHoliday ? 'rgba(225,29,72,0.035)' : 'transparent' }}>
+              <div style={{ padding:'8px 20px 4px', display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
                 <span style={{ fontSize:'10px', fontWeight:'700', color:'#94A3B8', letterSpacing:'.06em', textTransform:'uppercase' }}>{dayLabel}</span>
-                {dayEvs.length === 0 && <span style={{ fontSize:'10px', color:'#94A3B8', fontStyle:'italic' }}>No high-impact events</span>}
+                {cls && (
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'2px 8px', borderRadius:'20px', background: isHoliday ? '#FEF2F2' : '#F1F5F9', border:`1px solid ${isHoliday ? '#FECACA' : '#E2E8F0'}`, color: isHoliday ? '#B91C1C' : '#475569', fontSize:'9px', fontWeight:'700', letterSpacing:'.02em' }}>
+                    {isHoliday ? '🚫 ' : ''}{cls.label.toUpperCase()}
+                  </span>
+                )}
+                {dayEvs.length === 0 && !cls && <span style={{ fontSize:'10px', color:'#94A3B8', fontStyle:'italic' }}>Normal Day · no news</span>}
               </div>
               {dayEvs.map((e, i) => (
                 <div key={i} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'6px 20px', borderTop: i > 0 ? '1px solid #F8FAFC' : 'none' }}>
@@ -879,6 +895,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   const [checklist,  setChecklist]  = useState([])
   const [grades,     setGrades]     = useState([])  // 1-5 rating per GRADE_ITEM
   const [gradeReasons, setGradeReasons] = useState([])  // "why not a 5" per GRADE_ITEM
+  const [habits,     setHabits]     = useState({})  // { habitKey: { done:bool, note:str } }
   const [tradeType,   setTradeType]   = useState('')
   const [noteOpen2,  setNoteOpen2]  = useState(false)
   const [noteOpen3,  setNoteOpen3]  = useState(false)
@@ -903,7 +920,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
   }, [noteDirty, mood, bias, plan, chart1, chart2, chart3, chart4,
       chartNote1, chartNote2, chartNote3, chartNote4,
       chartTf1, chartTf2, chartTf3, chartTf4,
-      eodReview, followedPlan, wentWell, improve, checklist, tradeType, charts, grades, gradeReasons])
+      eodReview, followedPlan, wentWell, improve, checklist, tradeType, charts, grades, gradeReasons, habits])
 
   // Load note data when date changes
   useEffect(() => {
@@ -945,7 +962,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         }
       } catch(e) { setCharts([]) }
       try { setEconSnapshot(JSON.parse(existingNote.econ_snapshot||'[]')) } catch(e) { setEconSnapshot([]) }
-      try { const cd = JSON.parse(existingNote.checklist_data||'{}'); setChecklist(cd.checks||[]); setTradeType(cd.type||''); setGrades(cd.grades||[]); setGradeReasons(cd.gradeReasons||[]) } catch(e) { setChecklist([]); setTradeType(''); setGrades([]); setGradeReasons([]) }
+      try { const cd = JSON.parse(existingNote.checklist_data||'{}'); setChecklist(cd.checks||[]); setTradeType(cd.type||''); setGrades(cd.grades||[]); setGradeReasons(cd.gradeReasons||[]); setHabits(cd.habits||{}) } catch(e) { setChecklist([]); setTradeType(''); setGrades([]); setGradeReasons([]); setHabits({}) }
       setEodReview(existingNote.trading_errors && !existingNote.trading_errors.startsWith('[') ? existingNote.trading_errors : '')
       setFollowedPlan(existingNote.consistency || '')
       setWentWell(existingNote.what_worked || '')
@@ -963,6 +980,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       setTradeType('')
       setGrades([])
       setGradeReasons([])
+      setHabits({})
     }
     setNoteDirty(false)
   }, [dateStr, existingNote?.id])
@@ -977,6 +995,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
       || charts.some(g => (g.images||[]).some(im => im.url && im.url.trim()) || (g.note && g.note.trim()) || (g.label && g.label.trim()))
       || (Array.isArray(econSnapshot) && econSnapshot.length > 0)
       || grades.some(g => g > 0)
+      || Object.values(habits).some(h => h && (h.done || (h.note && h.note.trim())))
     if (!hasContent && !existingNote) { setNoteDirty(false); return }
 
     setSaving(true)
@@ -1001,7 +1020,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         top_mistake:      JSON.stringify([chartNote1,chartNote2,chartNote3,chartNote4]),
         econ_snapshot:    JSON.stringify(econSnapshot),
         chart_groups:     JSON.stringify(charts.map(g => ({ label: g.label||'', note: g.note||'', images: (g.images||[]).filter(im => im.url && im.url.trim()).map(im => ({ url: im.url, tf: im.tf||'' })) })).filter(g => g.images.length > 0 || (g.note && g.note.trim()) || (g.label && g.label.trim()))),
-        checklist_data:   JSON.stringify({ type: tradeType, checks: checklist, grades, gradeReasons, gradeMode: dayTrades.length === 0 ? 'notrade' : 'trade' }),
+        checklist_data:   JSON.stringify({ type: tradeType, checks: checklist, grades, gradeReasons, gradeMode: dayTrades.length === 0 ? 'notrade' : 'trade', habits }),
       })
       setNoteDirty(false)
       toast('Day saved ✓')
@@ -1119,6 +1138,54 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         <WeeklyEconNews weekRange={weekRange} useNextWeek={true} onEventsLoaded={evs => { setEconSnapshot(evs); markDirty() }} savedEvents={econSnapshot} dailyNotes={dailyNotes} />
       )}
 
+      {/* ── DAILY HABIT TRACKER — daily, weekdays only ── */}
+      {!isWeekly && !isForecast && (() => {
+        const dow = new Date(dateStr + 'T12:00:00').getDay()
+        if (dow === 0 || dow === 6) return null // weekends free
+        const setHabit = (key, patch) => { setHabits(h => ({ ...h, [key]: { done:false, note:'', ...h[key], ...patch } })); markDirty() }
+        return (
+          <div style={{ background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+            <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+              <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#ECFDF5', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>🌱</div>
+              <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>Daily Habits</span>
+              <span style={{ fontSize:'11px', color:'#94A3B8', marginLeft:'auto' }}>consistency, not perfection</span>
+            </div>
+            <div style={{ padding:'10px 24px 18px' }}>
+              {HABITS.map((hb, i) => {
+                const h = habits[hb.key] || {}
+                const done = !!h.done
+                const noteOpen = !!(h.note && h.note.trim())
+                return (
+                  <div key={hb.key} style={{ padding:'12px 0', borderBottom: i < HABITS.length-1 ? '1px solid #F8FAFC' : 'none' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+                      <button type="button" onClick={() => setHabit(hb.key, { done: !done })}
+                        style={{ width:'26px', height:'26px', borderRadius:'8px', border:`2px solid ${done ? '#10B981' : '#CBD5E1'}`, background: done ? '#10B981' : '#FFFFFF', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all .12s', padding:0 }}>
+                        {done && <svg width="13" height="10" viewBox="0 0 13 10" fill="none"><path d="M1 5L4.5 8.5L12 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </button>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:'13.5px', fontWeight:'600', color: done ? '#0F172A' : '#475569' }}>{hb.label}</div>
+                        {hb.hint && <div style={{ fontSize:'10.5px', color:'#94A3B8', marginTop:'1px' }}>{hb.hint}</div>}
+                      </div>
+                      {!noteOpen && (
+                        <button type="button" onClick={() => setHabit(hb.key, { note: ' ' })}
+                          style={{ background:'none', border:'1px dashed #CBD5E1', borderRadius:'7px', padding:'4px 9px', fontSize:'10.5px', color:'#94A3B8', cursor:'pointer', fontFamily:'inherit', flexShrink:0 }}>+ note</button>
+                      )}
+                    </div>
+                    {noteOpen && (
+                      <div style={{ marginTop:'8px', marginLeft:'38px' }}>
+                        <AutoTextarea value={h.note} onChange={e => setHabit(hb.key, { note: e.target.value })}
+                          placeholder="Optional note — what happened today…" minHeight={40}
+                          style={{ background:'#F8FAFC', border:'1.5px solid #E2E8F0', borderRadius:'10px', fontSize:'12px' }} />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── DAY PLAN CARD ── */}
       {!isWeekly && !isForecast && (
         <div style={{ order:1, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
@@ -1198,6 +1265,108 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             </div>
           </div>
         )}
+        {isWeekly && weekRange && (() => {
+          // Build Mon–Fri dates of this week
+          const days = []
+          const start = new Date(weekRange.mon + 'T12:00:00')
+          for (let i = 0; i < 5; i++) { const d = new Date(start); d.setDate(start.getDate()+i); days.push(d.toLocaleDateString('en-CA')) }
+          const dayShort = ['Mon','Tue','Wed','Thu','Fri']
+          // Trade grades per day (only days graded in trade mode)
+          const gradeByDay = days.map((ds, i) => {
+            const note = (dailyNotes||[]).find(n => n.date === ds)
+            if (!note || !note.checklist_data) return { day: dayShort[i], pct: null }
+            try {
+              const cd = JSON.parse(note.checklist_data)
+              if (cd.gradeMode === 'notrade') return { day: dayShort[i], pct: null }
+              const g = (cd.grades || []).slice(0, GRADE_ITEMS.length)
+              const rated = g.filter(x => x > 0)
+              if (!rated.length) return { day: dayShort[i], pct: null }
+              const total = g.reduce((s,x) => s+(x||0), 0)
+              return { day: dayShort[i], pct: Math.round((total/(GRADE_ITEMS.length*5))*100) }
+            } catch { return { day: dayShort[i], pct: null } }
+          })
+          const graded = gradeByDay.filter(d => d.pct != null)
+          const weekAvg = graded.length ? Math.round(graded.reduce((s,d)=>s+d.pct,0)/graded.length) : null
+          const col = p => p >= 80 ? '#059669' : p >= 60 ? '#D97706' : '#E11D48'
+          if (graded.length === 0) return null
+          return (
+            <div style={{ background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+              <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+                <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#EEF0FE', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>🎯</div>
+                <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>Trade Grades This Week</span>
+                {weekAvg != null && <span style={{ marginLeft:'auto', fontFamily:"'JetBrains Mono',monospace", fontSize:'15px', fontWeight:'700', color:col(weekAvg) }}>{weekAvg}%<span style={{ fontSize:'10px', color:'#A4ABB7', fontWeight:'600' }}> avg</span></span>}
+              </div>
+              <div style={{ padding:'16px 20px', display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:'10px' }}>
+                {gradeByDay.map((d, i) => (
+                  <div key={i} style={{ textAlign:'center', padding:'12px 6px', borderRadius:'12px', background: d.pct!=null ? '#F4F6F8' : '#FAFBFC', border:'1px solid #E9ECF1' }}>
+                    <div style={{ fontSize:'10px', fontWeight:'700', color:'#A4ABB7', letterSpacing:'.06em', textTransform:'uppercase', marginBottom:'6px' }}>{d.day}</div>
+                    {d.pct != null
+                      ? <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'18px', fontWeight:'700', color:col(d.pct), lineHeight:1 }}>{d.pct}<span style={{ fontSize:'10px' }}>%</span></div>
+                      : <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'16px', fontWeight:'600', color:'#D8DDE5', lineHeight:1 }}>–</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
+        {isWeekly && weekRange && (() => {
+          // Build Mon–Fri dates of this week
+          const days = []
+          const start = new Date(weekRange.mon + 'T12:00:00')
+          for (let i = 0; i < 5; i++) { const d = new Date(start); d.setDate(start.getDate()+i); days.push(d.toLocaleDateString('en-CA')) }
+          const dayShort = ['Mon','Tue','Wed','Thu','Fri']
+          // habits[date][habitKey] = done
+          const habitByDay = {}
+          days.forEach(ds => {
+            const note = (dailyNotes||[]).find(n => n.date === ds)
+            let hb = {}
+            if (note && note.checklist_data) { try { hb = JSON.parse(note.checklist_data).habits || {} } catch(e) {} }
+            habitByDay[ds] = hb
+          })
+          const tally = hbKey => days.reduce((s, ds) => s + ((habitByDay[ds][hbKey] && habitByDay[ds][hbKey].done) ? 1 : 0), 0)
+          return (
+            <div style={{ background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
+              <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
+                <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#ECFDF5', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>🌱</div>
+                <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>Habits This Week</span>
+                <span style={{ fontSize:'11px', color:'#94A3B8', marginLeft:'auto' }}>consistency over time</span>
+              </div>
+              <div style={{ padding:'18px 20px', overflowX:'auto' }}>
+                <table style={{ width:'100%', borderCollapse:'collapse', minWidth:'380px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign:'left', fontSize:'10px', fontWeight:'700', color:'#A4ABB7', letterSpacing:'.06em', textTransform:'uppercase', padding:'0 8px 10px 0' }}>Habit</th>
+                      {dayShort.map(d => <th key={d} style={{ fontSize:'10px', fontWeight:'700', color:'#A4ABB7', letterSpacing:'.05em', textTransform:'uppercase', padding:'0 4px 10px', textAlign:'center', width:'40px' }}>{d}</th>)}
+                      <th style={{ fontSize:'10px', fontWeight:'700', color:'#A4ABB7', letterSpacing:'.05em', textTransform:'uppercase', padding:'0 0 10px 8px', textAlign:'center', width:'46px' }}>Tally</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {HABITS.map((hb, ri) => {
+                      const t = tally(hb.key)
+                      const tcol = t >= 4 ? '#059669' : t >= 2 ? '#D97706' : t > 0 ? '#94A3B8' : '#CBD5E1'
+                      return (
+                        <tr key={hb.key} style={{ borderTop: ri > 0 ? '1px solid #F8FAFC' : 'none' }}>
+                          <td style={{ fontSize:'12.5px', fontWeight:'600', color:'#334155', padding:'9px 8px 9px 0' }}>{hb.label}</td>
+                          {days.map(ds => {
+                            const done = !!(habitByDay[ds][hb.key] && habitByDay[ds][hb.key].done)
+                            return (
+                              <td key={ds} style={{ textAlign:'center', padding:'9px 4px' }}>
+                                {done
+                                  ? <span style={{ display:'inline-flex', width:'20px', height:'20px', borderRadius:'6px', background:'#10B981', color:'#fff', alignItems:'center', justifyContent:'center', fontSize:'11px', fontWeight:'700' }}>✓</span>
+                                  : <span style={{ display:'inline-block', width:'20px', height:'20px', borderRadius:'6px', background:'#F1F5F9' }} />}
+                              </td>
+                            )
+                          })}
+                          <td style={{ textAlign:'center', padding:'9px 0 9px 8px', fontFamily:"'JetBrains Mono',monospace", fontSize:'13px', fontWeight:'700', color:tcol }}>{t}/5</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        })()}
         {!isWeekly && !isForecast && (
           <>
             <div ref={tradeFormRef}>
@@ -1311,10 +1480,9 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         </div>
       )}
 
-      {/* ── DAILY GRADING CARD — daily only ── */}
-      {!isWeekly && !isForecast && (() => {
-        const isNoTradeMode = dayTrades.length === 0
-        const ITEMS = isNoTradeMode ? NO_TRADE_GRADE_ITEMS : GRADE_ITEMS
+      {/* ── TRADE PERFORMANCE GRADING — daily, only when a trade is logged ── */}
+      {!isWeekly && !isForecast && dayTrades.length > 0 && (() => {
+        const ITEMS = GRADE_ITEMS
         const rated = grades.slice(0, ITEMS.length).filter(g => g > 0)
         const total = rated.reduce((s, g) => s + g, 0)
         const maxTotal = ITEMS.length * 5
@@ -1323,16 +1491,11 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
         return (
         <div style={{ order:5, background:'#FFFFFF', borderRadius:'20px', boxShadow:'0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05)', marginBottom:'16px', overflow:'hidden' }}>
           <div style={{ padding:'18px 24px', borderBottom:'1px solid #F1F5F9', display:'flex', alignItems:'center', gap:'10px' }}>
-            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background: isNoTradeMode ? '#F1F5F9' : '#EEF0FE', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>{isNoTradeMode ? '🧘' : '🎯'}</div>
-            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>{isNoTradeMode ? 'No-Trade Day Grading' : 'Performance Grading'}</span>
-            <span style={{ fontSize:'11px', color:'#94A3B8', marginLeft:'auto' }}>{isNoTradeMode ? 'How well did you sit out? 1–5' : 'Rate how you acted today, 1–5'}</span>
+            <div style={{ width:'32px', height:'32px', borderRadius:'10px', background:'#EEF0FE', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>🎯</div>
+            <span style={{ fontSize:'14px', fontWeight:'600', color:'#0F172A' }}>Trade Performance Grading</span>
+            <span style={{ fontSize:'11px', color:'#94A3B8', marginLeft:'auto' }}>Rate how you executed, 1–5</span>
           </div>
           <div style={{ padding:'14px 24px 20px' }}>
-            {isNoTradeMode && (
-              <div style={{ marginBottom:'10px', fontSize:'12px', color:'#64748B', fontStyle:'italic', lineHeight:'1.5' }}>
-                No trades logged today — sitting out is a performance too. Log a trade and this switches to your execution grade.
-              </div>
-            )}
             {ITEMS.map((item, i) => {
               const val = grades[i] || 0
               const showWhy = val >= 1 && val <= 4
@@ -1362,7 +1525,7 @@ export default function DailyJournal({ trades, dailyNotes, onSaveNote, onDeleteN
             {/* Total */}
             <div style={{ marginTop:'16px', padding:'16px 18px', background:'#F8FAFC', borderRadius:'14px', border:'1px solid #E2E8F0', display:'flex', alignItems:'center', gap:'16px' }}>
               <div style={{ flex:1 }}>
-                <div style={{ fontSize:'10px', fontWeight:'700', color:'#64748B', letterSpacing:'.08em', textTransform:'uppercase', marginBottom:'4px' }}>{isNoTradeMode ? 'Discipline Score' : 'Daily Score'}</div>
+                <div style={{ fontSize:'10px', fontWeight:'700', color:'#64748B', letterSpacing:'.08em', textTransform:'uppercase', marginBottom:'4px' }}>Trade Score</div>
                 <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'30px', fontWeight:'700', color:avgColor, letterSpacing:'-.04em', lineHeight:1 }}>
                   {rated.length ? pct : 0}<span style={{ fontSize:'18px' }}>%</span>
                 </div>

@@ -533,9 +533,6 @@ export default function Dashboard({ trades, dailyNotes, startingBalance, currenc
         <StreakDots trades={trades} />
       </div>
 
-      {/* ── THIS WEEK'S GRADING ── */}
-      <WeeklyGrading dailyNotes={dailyNotes} onOpenJournal={onOpenJournal} />
-
       {/* ── EQUITY CURVE ── */}
       <div style={{ background:'#FFFFFF', border:'1px solid #E9ECF1', borderRadius:'16px', padding:'20px 22px', boxShadow:'0 1px 2px rgba(20,24,31,.04), 0 1px 8px rgba(20,24,31,.04)', marginBottom:'16px' }}>
         <div style={{ fontSize:'11px', fontWeight:'700', color:'#717A88', letterSpacing:'.09em', textTransform:'uppercase', marginBottom:'16px' }}>R Equity Curve</div>

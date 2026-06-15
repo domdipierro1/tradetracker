@@ -393,8 +393,6 @@ export default function Analysis({ trades, dailyNotes }) {
         </>
       )}
 
-      <GradingAnalysis dailyNotes={dailyNotes} />
-
       <div style={{ height:'20px' }} />
     </div>
   )
